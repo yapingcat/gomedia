@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"../mpeg"
+	"github.com/yapingcat/gomedia/mpeg"
 )
 
 //	FLV File
