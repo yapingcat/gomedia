@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"../flv"
+	"github.com/yapingcat/gomedia/flv"
 )
 
 func exampleForReader(filename string) {
