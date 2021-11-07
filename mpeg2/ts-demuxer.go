@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"../mpeg"
+	"github.com/yapingcat/gomedia/mpeg"
 )
 
 type pakcet_t struct {

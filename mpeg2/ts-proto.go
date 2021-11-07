@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"../mpeg"
+	"github.com/yapingcat/gomedia/mpeg"
 )
 
 //PID

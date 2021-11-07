@@ -3,7 +3,7 @@ package mpeg2
 import (
 	"errors"
 
-	"../mpeg"
+	"github.com/yapingcat/gomedia/mpeg"
 )
 
 type pes_stream struct {

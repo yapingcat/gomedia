@@ -1,6 +1,6 @@
 package mpeg2
 
-import "../mpeg"
+import "github.com/yapingcat/gomedia/mpeg"
 
 // Table 2-33 – Program Stream pack header
 // pack_header() {
