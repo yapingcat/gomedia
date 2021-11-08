@@ -157,6 +157,12 @@ func (bs *BitStream) UnRead(n int) {
 	}
 }
 
+func (bs *BitStream) NextBits(n int) uint64 {
+	r := bs.GetBits(n)
+	bs.UnRead(n)
+	return r
+}
+
 type BitStreamWriter struct {
 	bits       []byte
 	byteoffset int
