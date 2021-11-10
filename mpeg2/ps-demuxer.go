@@ -52,8 +52,8 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 			}
 			psdemuxer.pkg.Psm.Decode(bs)
 			for _, streaminfo := range psdemuxer.pkg.Psm.Stream_map {
-				if stream, found := psdemuxer.streamMap[streaminfo.Elementary_stream_id]; !found {
-					stream = newpsstream(streaminfo.Elementary_stream_id, PS_STREAM_TYPE(streaminfo.Stream_type))
+				if _, found := psdemuxer.streamMap[streaminfo.Elementary_stream_id]; !found {
+					stream := newpsstream(streaminfo.Elementary_stream_id, PS_STREAM_TYPE(streaminfo.Stream_type))
 					psdemuxer.streamMap[stream.sid] = stream
 				}
 			}
@@ -63,7 +63,7 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 			length := bs.Uint16(16)
 			bs.SkipBits(int(length))
 		case 0x000001B9:
-			break
+			continue
 		default:
 			if prefix_code&0xE0 == 0xC0 || prefix_code&0xE0 == 0xE0 {
 				psdemuxer.pkg.Pes.Decode(bs)
