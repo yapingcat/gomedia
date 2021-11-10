@@ -73,6 +73,8 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 				if stream, found := psdemuxer.streamMap[psdemuxer.pkg.Pes.Stream_id]; found {
 					psdemuxer.demuxPespacket(stream, psdemuxer.pkg.Pes)
 				}
+			} else {
+					panic("unsupport")
 			}
 		}
 
@@ -113,7 +115,7 @@ func (psdemuxer *PSDemuxer) demuxH26x(stream *psstream, pes *PesPacket) error {
 	framebeg := 0
 	start, sc := mpeg.FindStarCode(stream.streamBuf, 0)
 	framebeg = start
-	for start > 0 {
+	for start >= 0 {
 		end, sc2 := mpeg.FindStarCode(stream.streamBuf, start+int(sc))
 		if end < 0 {
 			break

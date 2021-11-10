@@ -215,6 +215,7 @@ func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) {
 		//TODO Parser descriptor
 		bs.SkipBits(int(elem.Elementary_stream_info_length) * 8)
 		i += int(4 + elem.Elementary_stream_info_length)
+		psm.Stream_map = append(psm.Stream_map, elem)
 	}
 	bs.SkipBits(32)
 }
