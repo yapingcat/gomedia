@@ -55,6 +55,7 @@ func (ps_pkg_hdr *PSPackHeader) Decode(bs *mpeg.BitStream) {
 	ps_pkg_hdr.System_clock_reference_base = ps_pkg_hdr.System_clock_reference_base<<15 | bs.GetBits(15)
 	bs.SkipBits(1)
 	ps_pkg_hdr.System_clock_reference_base = ps_pkg_hdr.System_clock_reference_base<<15 | bs.GetBits(15)
+	bs.SkipBits(1)
 	ps_pkg_hdr.System_clock_reference_extension = bs.Uint16(9)
 	bs.SkipBits(1)
 	ps_pkg_hdr.Program_mux_rate = bs.Uint32(22)
@@ -62,7 +63,7 @@ func (ps_pkg_hdr *PSPackHeader) Decode(bs *mpeg.BitStream) {
 	bs.SkipBits(1)
 	bs.SkipBits(5)
 	ps_pkg_hdr.Pack_stuffing_length = bs.Uint8(3)
-	bs.SkipBits(int(ps_pkg_hdr.Pack_stuffing_length))
+	bs.SkipBits(int(ps_pkg_hdr.Pack_stuffing_length) * 8)
 	if bs.Uint32(32) == 0x000001BB {
 		ps_pkg_hdr.Sys_Header = new(System_header)
 		ps_pkg_hdr.Sys_Header.decode(bs)
@@ -135,8 +136,7 @@ func (sh *System_header) decode(bs *mpeg.BitStream) {
 	sh.Video_bound = bs.Uint8(5)
 	sh.Packet_rate_restriction_flag = bs.Uint8(1)
 	bs.SkipBits(7)
-	for bs.GetBit() == 0x01 {
-		bs.UnRead(1)
+	for bs.NextBits(1) == 0x01 {
 		es := new(Elementary_Stream)
 		es.Stream_id = bs.Uint8(8)
 		bs.SkipBits(2)
@@ -205,7 +205,7 @@ func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) {
 	psm.Program_stream_map_version = bs.Uint8(5)
 	bs.SkipBits(8)
 	psm.Program_stream_info_length = bs.Uint16(16)
-	bs.SkipBits(int(psm.Program_stream_info_length))
+	bs.SkipBits(int(psm.Program_stream_info_length) * 8)
 	psm.Elementary_stream_map_length = bs.Uint16(16)
 	for i := 0; i < int(psm.Elementary_stream_map_length); {
 		elem := new(Elementary_stream_elem)
@@ -213,9 +213,10 @@ func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) {
 		elem.Elementary_stream_id = bs.Uint8(8)
 		elem.Elementary_stream_info_length = bs.Uint16(16)
 		//TODO Parser descriptor
-		bs.SkipBits(int(elem.Elementary_stream_info_length))
+		bs.SkipBits(int(elem.Elementary_stream_info_length) * 8)
 		i += int(4 + elem.Elementary_stream_info_length)
 	}
+	bs.SkipBits(32)
 }
 
 type PSPacket struct {

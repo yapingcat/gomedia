@@ -66,6 +66,9 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 			continue
 		default:
 			if prefix_code&0xE0 == 0xC0 || prefix_code&0xE0 == 0xE0 {
+				if psdemuxer.pkg.Pes == nil {
+					psdemuxer.pkg.Pes = NewPesPacket()
+				}
 				psdemuxer.pkg.Pes.Decode(bs)
 				if stream, found := psdemuxer.streamMap[psdemuxer.pkg.Pes.Stream_id]; found {
 					psdemuxer.demuxPespacket(stream, psdemuxer.pkg.Pes)
@@ -112,6 +115,9 @@ func (psdemuxer *PSDemuxer) demuxH26x(stream *psstream, pes *PesPacket) error {
 	framebeg = start
 	for start > 0 {
 		end, sc2 := mpeg.FindStarCode(stream.streamBuf, start+int(sc))
+		if end < 0 {
+			break
+		}
 		if stream.cid == PS_STREAM_H264 {
 			naluType := mpeg.H264NaluType(stream.streamBuf[start:])
 			if naluType == mpeg.H264_NAL_AUD {

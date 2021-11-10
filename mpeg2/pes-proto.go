@@ -201,7 +201,8 @@ func (pkg *PesPacket) Decode(bs *mpeg.BitStream) {
 		bs.RemainBits() <= int(pkg.PES_packet_length-(3+uint16(pkg.PES_header_data_length))*8) {
 		pkg.Pes_payload = bs.RemainData()
 	} else {
-		pkg.Pes_payload = bs.RemainData()[:pkg.PES_packet_length-3+uint16(pkg.PES_header_data_length)]
+		pkg.Pes_payload = bs.RemainData()[:pkg.PES_packet_length-3-uint16(pkg.PES_header_data_length)]
+		bs.SkipBits(int(pkg.PES_packet_length-3-uint16(pkg.PES_header_data_length)) * 8)
 	}
 }
 
