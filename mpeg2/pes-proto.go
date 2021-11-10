@@ -197,7 +197,12 @@ func (pkg *PesPacket) Decode(bs *mpeg.BitStream) {
 	}
 	loc := bs.DistanceFromMarkDot()
 	bs.SkipBits(int(pkg.PES_header_data_length)*8 - loc)
-	pkg.Pes_payload = bs.RemainData()
+	if pkg.PES_packet_length == 0 ||
+		bs.RemainBits() <= int(pkg.PES_packet_length-(3+uint16(pkg.PES_header_data_length))*8) {
+		pkg.Pes_payload = bs.RemainData()
+	} else {
+		pkg.Pes_payload = bs.RemainData()[:pkg.PES_packet_length-3+uint16(pkg.PES_header_data_length)]
+	}
 }
 
 func (pkg *PesPacket) Encode(bsw *mpeg.BitStreamWriter) {

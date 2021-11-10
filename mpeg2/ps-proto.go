@@ -2,6 +2,16 @@ package mpeg2
 
 import "github.com/yapingcat/gomedia/mpeg"
 
+type PS_STREAM_TYPE int
+
+const (
+	PS_STREAM_AAC   PS_STREAM_TYPE = 0x0F
+	PS_STREAM_H264  PS_STREAM_TYPE = 0x1B
+	PS_STREAM_H265  PS_STREAM_TYPE = 0x24
+	PS_STREAM_G711A PS_STREAM_TYPE = 0x90
+	PS_STREAM_G711U PS_STREAM_TYPE = 0x91
+)
+
 // Table 2-33 – Program Stream pack header
 // pack_header() {
 // 	pack_start_code 									32      bslbf
@@ -206,4 +216,10 @@ func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) {
 		bs.SkipBits(int(elem.Elementary_stream_info_length))
 		i += int(4 + elem.Elementary_stream_info_length)
 	}
+}
+
+type PSPacket struct {
+	Header *PSPackHeader
+	Psm    *Program_stream_map
+	Pes    *PesPacket
 }

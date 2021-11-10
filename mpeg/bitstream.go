@@ -163,6 +163,10 @@ func (bs *BitStream) NextBits(n int) uint64 {
 	return r
 }
 
+func (bs *BitStream) EOS() bool {
+	return bs.bytesOffset == len(bs.bits) && bs.bitsOffset == 0
+}
+
 type BitStreamWriter struct {
 	bits       []byte
 	byteoffset int
