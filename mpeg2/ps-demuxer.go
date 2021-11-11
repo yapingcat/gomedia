@@ -59,7 +59,7 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 			if psdemuxer.pkg.Header == nil {
 				panic("psdemuxer.pkg.Header must not be nil")
 			}
-			if psdemuxer.pkg.Header.Sys_Header != nil {
+			if psdemuxer.pkg.Header.Sys_Header == nil {
 				psdemuxer.pkg.Header.Sys_Header = new(System_header)
 			}
 			ret = psdemuxer.pkg.Header.Sys_Header.Decode(bs)
