@@ -124,6 +124,10 @@ func (bs *BitStream) RemainBits() int {
 	return bs.RemainBytes()*8 + 8 - bs.bitsOffset
 }
 
+func (bs *BitStream) Bits() []byte {
+	return bs.bits
+}
+
 func (bs *BitStream) RemainData() []byte {
 	return bs.bits[bs.bytesOffset:]
 }

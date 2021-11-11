@@ -23,6 +23,7 @@ func newpsstream(sid uint8, cid PS_STREAM_TYPE) *psstream {
 type PSDemuxer struct {
 	streamMap map[uint8]*psstream
 	pkg       *PSPacket
+	cache     []byte
 	OnPacket  func(pkg PSPacket)
 	OnFrame   func(frame []byte, cid PS_STREAM_TYPE, pts uint64, dts uint64)
 }
@@ -31,56 +32,86 @@ func NewPSDemuxer() *PSDemuxer {
 	return &PSDemuxer{
 		streamMap: make(map[uint8]*psstream),
 		pkg:       new(PSPacket),
+		cache:     make([]byte, 0, 256),
 		OnPacket:  nil,
 		OnFrame:   nil,
 	}
 }
 
 func (psdemuxer *PSDemuxer) Input(data []byte) error {
-	bs := mpeg.NewBitStream(data)
+	var bs *mpeg.BitStream
+	if len(psdemuxer.cache) > 0 {
+		psdemuxer.cache = append(psdemuxer.cache, data...)
+		bs = mpeg.NewBitStream(psdemuxer.cache)
+	} else {
+		bs = mpeg.NewBitStream(data)
+	}
+	var ret error = nil
 	for !bs.EOS() {
 		prefix_code := bs.NextBits(32)
 		switch prefix_code {
-		case 0x000001BA:
+		case 0x000001BA: //pack header
 			if psdemuxer.pkg.Header == nil {
 				psdemuxer.pkg.Header = new(PSPackHeader)
 			}
-			psdemuxer.pkg.Header.Decode(bs)
-		case 0x000001BC:
+			ret = psdemuxer.pkg.Header.Decode(bs)
+		case 0x000001BB: //system header
+			if psdemuxer.pkg.Header == nil {
+				panic("psdemuxer.pkg.Header must not be nil")
+			}
+			if psdemuxer.pkg.Header.Sys_Header != nil {
+				psdemuxer.pkg.Header.Sys_Header = new(System_header)
+			}
+			ret = psdemuxer.pkg.Header.Sys_Header.Decode(bs)
+		case 0x000001BC: //program stream map
 			if psdemuxer.pkg.Psm == nil {
 				psdemuxer.pkg.Psm = new(Program_stream_map)
 			}
-			psdemuxer.pkg.Psm.Decode(bs)
-			for _, streaminfo := range psdemuxer.pkg.Psm.Stream_map {
-				if _, found := psdemuxer.streamMap[streaminfo.Elementary_stream_id]; !found {
-					stream := newpsstream(streaminfo.Elementary_stream_id, PS_STREAM_TYPE(streaminfo.Stream_type))
-					psdemuxer.streamMap[stream.sid] = stream
+			if ret = psdemuxer.pkg.Psm.Decode(bs); ret == nil {
+				for _, streaminfo := range psdemuxer.pkg.Psm.Stream_map {
+					if _, found := psdemuxer.streamMap[streaminfo.Elementary_stream_id]; !found {
+						stream := newpsstream(streaminfo.Elementary_stream_id, PS_STREAM_TYPE(streaminfo.Stream_type))
+						psdemuxer.streamMap[stream.sid] = stream
+					}
 				}
 			}
-		case 0x000001FF:
-			//TODO Program Stream directory
-			bs.SkipBits(32)
-			length := bs.Uint16(16)
-			bs.SkipBits(int(length))
-		case 0x000001B9:
+		case 0x000001FF: //program stream directory
+			if psdemuxer.pkg.Psd == nil {
+				psdemuxer.pkg.Psd = new(Program_stream_directory)
+			}
+			ret = psdemuxer.pkg.Psd.Decode(bs)
+		case 0x000001B9: //MPEG_program_end_code
 			continue
 		default:
 			if prefix_code&0xE0 == 0xC0 || prefix_code&0xE0 == 0xE0 {
 				if psdemuxer.pkg.Pes == nil {
 					psdemuxer.pkg.Pes = NewPesPacket()
 				}
-				psdemuxer.pkg.Pes.Decode(bs)
-				if stream, found := psdemuxer.streamMap[psdemuxer.pkg.Pes.Stream_id]; found {
-					psdemuxer.demuxPespacket(stream, psdemuxer.pkg.Pes)
+				if ret = psdemuxer.pkg.Pes.Decode(bs); ret == nil {
+					if stream, found := psdemuxer.streamMap[psdemuxer.pkg.Pes.Stream_id]; found {
+						psdemuxer.demuxPespacket(stream, psdemuxer.pkg.Pes)
+					}
 				}
 			} else {
-					panic("unsupport")
+				panic("unsupport")
 			}
 		}
 
+		if mpegerr, ok := ret.(Error); ok {
+			if mpegerr.NeedMore() {
+				tmpcache := make([]byte, bs.RemainBytes())
+				copy(tmpcache, bs.RemainData())
+				psdemuxer.cache = tmpcache
+			}
+			break
+		}
 	}
 
-	return nil
+	if ret == nil && len(psdemuxer.cache) > 0 {
+		psdemuxer.cache = nil
+	}
+
+	return ret
 }
 
 func (psdemuxer *PSDemuxer) demuxPespacket(stream *psstream, pes *PesPacket) error {

@@ -127,10 +127,17 @@ func (pkg *PesPacket) PrettyPrint(file *os.File) {
 	}
 }
 
-func (pkg *PesPacket) Decode(bs *mpeg.BitStream) {
+func (pkg *PesPacket) Decode(bs *mpeg.BitStream) error {
+	if bs.RemainBytes() < 6 {
+		return errNeedMore
+	}
 	bs.SkipBits(24)             //packet_start_code_prefix
 	pkg.Stream_id = bs.Uint8(8) //stream_id
 	pkg.PES_packet_length = bs.Uint16(16)
+	if pkg.PES_packet_length != 0 && bs.RemainBytes() < int(pkg.PES_packet_length) {
+		bs.UnRead(6)
+		return errNeedMore
+	}
 	bs.SkipBits(2) //'10'
 	pkg.PES_scrambling_control = bs.Uint8(2)
 	pkg.PES_priority = bs.Uint8(1)
@@ -204,6 +211,7 @@ func (pkg *PesPacket) Decode(bs *mpeg.BitStream) {
 		pkg.Pes_payload = bs.RemainData()[:pkg.PES_packet_length-3-uint16(pkg.PES_header_data_length)]
 		bs.SkipBits(int(pkg.PES_packet_length-3-uint16(pkg.PES_header_data_length)) * 8)
 	}
+	return nil
 }
 
 func (pkg *PesPacket) Encode(bsw *mpeg.BitStreamWriter) {

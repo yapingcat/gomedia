@@ -2,6 +2,17 @@ package mpeg2
 
 import "github.com/yapingcat/gomedia/mpeg"
 
+type Error interface {
+	NeedMore() bool
+}
+
+var errNeedMore error = &needmoreError{}
+
+type needmoreError struct{}
+
+func (e *needmoreError) Error() string  { return "need more bytes" }
+func (e *needmoreError) NeedMore() bool { return true }
+
 type PS_STREAM_TYPE int
 
 const (
@@ -45,7 +56,10 @@ type PSPackHeader struct {
 	Sys_Header                       *System_header
 }
 
-func (ps_pkg_hdr *PSPackHeader) Decode(bs *mpeg.BitStream) {
+func (ps_pkg_hdr *PSPackHeader) Decode(bs *mpeg.BitStream) error {
+	if bs.RemainBytes() < 10 {
+		return errNeedMore
+	}
 	if bs.Uint32(32) != 0x000001BA {
 		panic("ps header must start with 000001BA")
 	}
@@ -63,13 +77,12 @@ func (ps_pkg_hdr *PSPackHeader) Decode(bs *mpeg.BitStream) {
 	bs.SkipBits(1)
 	bs.SkipBits(5)
 	ps_pkg_hdr.Pack_stuffing_length = bs.Uint8(3)
-	bs.SkipBits(int(ps_pkg_hdr.Pack_stuffing_length) * 8)
-	if bs.Uint32(32) == 0x000001BB {
-		ps_pkg_hdr.Sys_Header = new(System_header)
-		ps_pkg_hdr.Sys_Header.decode(bs)
-	} else {
-		bs.UnRead(32)
+	if bs.RemainBytes() < int(ps_pkg_hdr.Pack_stuffing_length) {
+		bs.UnRead(10)
+		return errNeedMore
 	}
+	bs.SkipBits(int(ps_pkg_hdr.Pack_stuffing_length) * 8)
+	return nil
 }
 
 func (ps_pkg_hdr *PSPackHeader) Encode(bsw *mpeg.BitStreamWriter) {
@@ -118,12 +131,22 @@ type System_header struct {
 	Streams                      []*Elementary_Stream
 }
 
-func (sh *System_header) encode(bsw *mpeg.BitStreamWriter) {
+func (sh *System_header) Encode(bsw *mpeg.BitStreamWriter) {
 
 }
 
-func (sh *System_header) decode(bs *mpeg.BitStream) {
+func (sh *System_header) Decode(bs *mpeg.BitStream) error {
+	if bs.RemainBytes() < 11 {
+		return errNeedMore
+	}
+	if bs.Uint32(32) != 0x000001BB {
+		panic("system header must start with 000001BB")
+	}
 	sh.Header_length = bs.Uint16(16)
+	if bs.RemainBytes() < int(sh.Header_length) {
+		bs.UnRead(6)
+		return errNeedMore
+	}
 	bs.SkipBits(1)
 	sh.Rate_bound = bs.Uint32(22)
 	bs.SkipBits(1)
@@ -144,6 +167,7 @@ func (sh *System_header) decode(bs *mpeg.BitStream) {
 		es.P_STD_buffer_size_bound = bs.Uint16(13)
 		sh.Streams = append(sh.Streams, es)
 	}
+	return nil
 }
 
 type Elementary_stream_elem struct {
@@ -191,7 +215,10 @@ func (psm *Program_stream_map) Encode(bsw *mpeg.BitStreamWriter) {
 
 }
 
-func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) {
+func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) error {
+	if bs.RemainBytes() < 6 {
+		return errNeedMore
+	}
 	if bs.Uint32(24) != 0x000001 {
 		panic("program stream map must startwith 0x000001")
 	}
@@ -199,7 +226,11 @@ func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) {
 	if psm.Map_stream_id != 0xBC {
 		panic("map stream id must be 0xBC")
 	}
-	psm.Elementary_stream_map_length = bs.Uint16(16)
+	psm.Program_stream_map_length = bs.Uint16(16)
+	if bs.RemainBytes() < int(psm.Program_stream_map_length) {
+		bs.UnRead(6)
+		return errNeedMore
+	}
 	psm.Current_next_indicator = bs.Uint8(1)
 	bs.SkipBits(2)
 	psm.Program_stream_map_version = bs.Uint8(5)
@@ -218,10 +249,33 @@ func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) {
 		psm.Stream_map = append(psm.Stream_map, elem)
 	}
 	bs.SkipBits(32)
+	return nil
+}
+
+type Program_stream_directory struct {
+	PES_packet_length uint16
+}
+
+func (psd *Program_stream_directory) Decode(bs *mpeg.BitStream) error {
+	if bs.RemainBytes() < 6 {
+		return errNeedMore
+	}
+	if bs.Uint32(32) != 0x000001FF {
+		panic("program stream directory 000001FF")
+	}
+	psd.PES_packet_length = bs.Uint16(16)
+	if bs.RemainBytes() < int(psd.PES_packet_length) {
+		bs.UnRead(6)
+		return errNeedMore
+	}
+	//TODO Program Stream directory
+	bs.SkipBits(int(psd.PES_packet_length) * 8)
+	return nil
 }
 
 type PSPacket struct {
 	Header *PSPackHeader
 	Psm    *Program_stream_map
+	Psd    *Program_stream_directory
 	Pes    *PesPacket
 }
