@@ -46,8 +46,26 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 	} else {
 		bs = mpeg.NewBitStream(data)
 	}
+
+	saveReseved := func() {
+		tmpcache := make([]byte, bs.RemainBytes())
+		copy(tmpcache, bs.RemainData())
+		psdemuxer.cache = tmpcache
+	}
+
 	var ret error = nil
 	for !bs.EOS() {
+		if mpegerr, ok := ret.(Error); ok {
+			if mpegerr.NeedMore() {
+				saveReseved()
+			}
+			break
+		}
+		if bs.RemainBits() < 32 {
+			ret = errNeedMore
+			saveReseved()
+			break
+		}
 		prefix_code := bs.NextBits(32)
 		switch prefix_code {
 		case 0x000001BA: //pack header
@@ -75,6 +93,13 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 					}
 				}
 			}
+		case 0x000001BD, 0x000001BE, 0x000001BF, 0x000001F0, 0x000001F1,
+			0x000001F2, 0x000001F3, 0x000001F4, 0x000001F5, 0x000001F6,
+			0x000001F7, 0x000001F8, 0x000001F9, 0x000001FA, 0x000001FB:
+			if psdemuxer.pkg.CommPes == nil {
+				psdemuxer.pkg.CommPes = new(CommonPesPacket)
+			}
+			ret = psdemuxer.pkg.CommPes.Decode(bs)
 		case 0x000001FF: //program stream directory
 			if psdemuxer.pkg.Psd == nil {
 				psdemuxer.pkg.Psd = new(Program_stream_directory)
@@ -83,7 +108,7 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 		case 0x000001B9: //MPEG_program_end_code
 			continue
 		default:
-			if prefix_code&0xE0 == 0xC0 || prefix_code&0xE0 == 0xE0 {
+			if prefix_code&0xFFFFFFE0 == 0x000001C0 || prefix_code&0xFFFFFFE0 == 0x000001E0 {
 				if psdemuxer.pkg.Pes == nil {
 					psdemuxer.pkg.Pes = NewPesPacket()
 				}
@@ -93,17 +118,8 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 					}
 				}
 			} else {
-				panic("unsupport")
+				bs.SkipBits(8)
 			}
-		}
-
-		if mpegerr, ok := ret.(Error); ok {
-			if mpegerr.NeedMore() {
-				tmpcache := make([]byte, bs.RemainBytes())
-				copy(tmpcache, bs.RemainData())
-				psdemuxer.cache = tmpcache
-			}
-			break
 		}
 	}
 

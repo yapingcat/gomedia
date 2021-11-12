@@ -1,17 +1,29 @@
 package mpeg2
 
-import "github.com/yapingcat/gomedia/mpeg"
+import (
+	"github.com/yapingcat/gomedia/mpeg"
+)
 
 type Error interface {
 	NeedMore() bool
+	ParserError() bool
 }
 
 var errNeedMore error = &needmoreError{}
 
 type needmoreError struct{}
 
-func (e *needmoreError) Error() string  { return "need more bytes" }
-func (e *needmoreError) NeedMore() bool { return true }
+func (e *needmoreError) Error() string     { return "need more bytes" }
+func (e *needmoreError) NeedMore() bool    { return true }
+func (e *needmoreError) ParserError() bool { return false }
+
+var errParser error = &parserError{}
+
+type parserError struct{}
+
+func (e *parserError) Error() string     { return "parser packet error" }
+func (e *parserError) NeedMore() bool    { return false }
+func (e *parserError) ParserError() bool { return true }
 
 type PS_STREAM_TYPE int
 
@@ -57,7 +69,7 @@ type PSPackHeader struct {
 }
 
 func (ps_pkg_hdr *PSPackHeader) Decode(bs *mpeg.BitStream) error {
-	if bs.RemainBytes() < 10 {
+	if bs.RemainBytes() < 14 {
 		return errNeedMore
 	}
 	if bs.Uint32(32) != 0x000001BA {
@@ -136,7 +148,7 @@ func (sh *System_header) Encode(bsw *mpeg.BitStreamWriter) {
 }
 
 func (sh *System_header) Decode(bs *mpeg.BitStream) error {
-	if bs.RemainBytes() < 11 {
+	if bs.RemainBytes() < 12 {
 		return errNeedMore
 	}
 	if bs.Uint32(32) != 0x000001BB {
@@ -146,6 +158,9 @@ func (sh *System_header) Decode(bs *mpeg.BitStream) error {
 	if bs.RemainBytes() < int(sh.Header_length) {
 		bs.UnRead(6)
 		return errNeedMore
+	}
+	if sh.Header_length < 6 || (sh.Header_length-6)%3 != 0 {
+		return errParser
 	}
 	bs.SkipBits(1)
 	sh.Rate_bound = bs.Uint32(22)
@@ -159,13 +174,18 @@ func (sh *System_header) Decode(bs *mpeg.BitStream) error {
 	sh.Video_bound = bs.Uint8(5)
 	sh.Packet_rate_restriction_flag = bs.Uint8(1)
 	bs.SkipBits(7)
-	for bs.NextBits(1) == 0x01 {
+	least := sh.Header_length - 6
+	for least > 0 && bs.NextBits(1) == 0x01 {
 		es := new(Elementary_Stream)
 		es.Stream_id = bs.Uint8(8)
 		bs.SkipBits(2)
 		es.P_STD_buffer_bound_scale = bs.GetBit()
 		es.P_STD_buffer_size_bound = bs.Uint16(13)
 		sh.Streams = append(sh.Streams, es)
+		least -= 3
+	}
+	if least > 0 {
+		return errParser
 	}
 	return nil
 }
@@ -216,7 +236,7 @@ func (psm *Program_stream_map) Encode(bsw *mpeg.BitStreamWriter) {
 }
 
 func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) error {
-	if bs.RemainBytes() < 6 {
+	if bs.RemainBytes() < 16 {
 		return errNeedMore
 	}
 	if bs.Uint32(24) != 0x000001 {
@@ -236,18 +256,39 @@ func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) error {
 	psm.Program_stream_map_version = bs.Uint8(5)
 	bs.SkipBits(8)
 	psm.Program_stream_info_length = bs.Uint16(16)
+	if bs.RemainBytes() < int(psm.Program_stream_info_length)+2 {
+		bs.UnRead(10)
+		return errNeedMore
+	}
 	bs.SkipBits(int(psm.Program_stream_info_length) * 8)
 	psm.Elementary_stream_map_length = bs.Uint16(16)
-	for i := 0; i < int(psm.Elementary_stream_map_length); {
+	if psm.Program_stream_map_length != 6+psm.Program_stream_info_length+psm.Elementary_stream_map_length+4 {
+		return errParser
+	}
+	if bs.RemainBytes() < int(psm.Elementary_stream_map_length)+4 {
+		bs.UnRead(12 + int(psm.Program_stream_info_length))
+		return errNeedMore
+	}
+
+	i := 0
+	for i < int(psm.Elementary_stream_map_length) {
 		elem := new(Elementary_stream_elem)
 		elem.Stream_type = bs.Uint8(8)
 		elem.Elementary_stream_id = bs.Uint8(8)
 		elem.Elementary_stream_info_length = bs.Uint16(16)
 		//TODO Parser descriptor
+		if bs.RemainBytes() < int(elem.Elementary_stream_info_length) {
+			return errParser
+		}
 		bs.SkipBits(int(elem.Elementary_stream_info_length) * 8)
 		i += int(4 + elem.Elementary_stream_info_length)
 		psm.Stream_map = append(psm.Stream_map, elem)
 	}
+
+	if i != int(psm.Elementary_stream_map_length) {
+		return errParser
+	}
+
 	bs.SkipBits(32)
 	return nil
 }
@@ -273,9 +314,30 @@ func (psd *Program_stream_directory) Decode(bs *mpeg.BitStream) error {
 	return nil
 }
 
+type CommonPesPacket struct {
+	Stream_id         uint8
+	PES_packet_length uint16
+}
+
+func (compes *CommonPesPacket) Decode(bs *mpeg.BitStream) error {
+	if bs.RemainBytes() < 6 {
+		return errNeedMore
+	}
+	bs.SkipBits(24)
+	compes.Stream_id = bs.Uint8(8)
+	compes.PES_packet_length = bs.Uint16(16)
+	if bs.RemainBytes() < int(compes.PES_packet_length) {
+		bs.UnRead(6)
+		return errNeedMore
+	}
+	bs.SkipBits(int(compes.PES_packet_length) * 8)
+	return nil
+}
+
 type PSPacket struct {
-	Header *PSPackHeader
-	Psm    *Program_stream_map
-	Psd    *Program_stream_directory
-	Pes    *PesPacket
+	Header  *PSPackHeader
+	Psm     *Program_stream_map
+	Psd     *Program_stream_directory
+	CommPes *CommonPesPacket
+	Pes     *PesPacket
 }
