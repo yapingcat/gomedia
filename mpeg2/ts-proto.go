@@ -115,7 +115,6 @@ func (pkg *TSPacket) DecodeHeader(bs *mpeg.BitStream) error {
 	pkg.Adaptation_field_control = bs.Uint8(2)
 	pkg.Continuity_counter = bs.Uint8(4)
 	if pkg.Adaptation_field_control == 0x02 || pkg.Adaptation_field_control == 0x03 {
-		fmt.Println("parser Adaptation_field")
 		if pkg.Field == nil {
 			pkg.Field = new(Adaptation_field)
 		}

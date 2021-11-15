@@ -207,6 +207,7 @@ func (pkg *PesPacket) Decode(bs *mpeg.BitStream) error {
 	if pkg.PES_packet_length == 0 ||
 		bs.RemainBits() <= int(pkg.PES_packet_length-3-uint16(pkg.PES_header_data_length))*8 {
 		pkg.Pes_payload = bs.RemainData()
+		bs.SkipBits(bs.RemainBits())
 	} else {
 		pkg.Pes_payload = bs.RemainData()[:pkg.PES_packet_length-3-uint16(pkg.PES_header_data_length)]
 		bs.SkipBits(int(pkg.PES_packet_length-3-uint16(pkg.PES_header_data_length)) * 8)
