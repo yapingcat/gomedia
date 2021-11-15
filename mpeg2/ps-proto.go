@@ -28,11 +28,12 @@ func (e *parserError) ParserError() bool { return true }
 type PS_STREAM_TYPE int
 
 const (
-	PS_STREAM_AAC   PS_STREAM_TYPE = 0x0F
-	PS_STREAM_H264  PS_STREAM_TYPE = 0x1B
-	PS_STREAM_H265  PS_STREAM_TYPE = 0x24
-	PS_STREAM_G711A PS_STREAM_TYPE = 0x90
-	PS_STREAM_G711U PS_STREAM_TYPE = 0x91
+	PS_STREAM_UNKNOW PS_STREAM_TYPE = 0xFF
+	PS_STREAM_AAC    PS_STREAM_TYPE = 0x0F
+	PS_STREAM_H264   PS_STREAM_TYPE = 0x1B
+	PS_STREAM_H265   PS_STREAM_TYPE = 0x24
+	PS_STREAM_G711A  PS_STREAM_TYPE = 0x90
+	PS_STREAM_G711U  PS_STREAM_TYPE = 0x91
 )
 
 // Table 2-33 – Program Stream pack header
@@ -61,6 +62,7 @@ const (
 // }
 
 type PSPackHeader struct {
+	IsMpeg1                          bool
 	System_clock_reference_base      uint64 //33 bits
 	System_clock_reference_extension uint16 //9 bits
 	Program_mux_rate                 uint32 //22 bits
@@ -69,12 +71,30 @@ type PSPackHeader struct {
 }
 
 func (ps_pkg_hdr *PSPackHeader) Decode(bs *mpeg.BitStream) error {
-	if bs.RemainBytes() < 14 {
+	if bs.RemainBytes() < 5 {
 		return errNeedMore
 	}
 	if bs.Uint32(32) != 0x000001BA {
 		panic("ps header must start with 000001BA")
 	}
+
+	if bs.NextBits(2) == 0x01 { //mpeg2
+		if bs.RemainBytes() < 10 {
+			return errNeedMore
+		}
+		return ps_pkg_hdr.decodeMpeg2(bs)
+	} else if bs.NextBits(4) == 0x02 { //mpeg1
+		if bs.RemainBytes() < 8 {
+			return errNeedMore
+		}
+		ps_pkg_hdr.IsMpeg1 = true
+		return ps_pkg_hdr.decodeMpeg1(bs)
+	} else {
+		return errParser
+	}
+}
+
+func (ps_pkg_hdr *PSPackHeader) decodeMpeg2(bs *mpeg.BitStream) error {
 	bs.SkipBits(2)
 	ps_pkg_hdr.System_clock_reference_base = bs.GetBits(3)
 	bs.SkipBits(1)
@@ -94,6 +114,22 @@ func (ps_pkg_hdr *PSPackHeader) Decode(bs *mpeg.BitStream) error {
 		return errNeedMore
 	}
 	bs.SkipBits(int(ps_pkg_hdr.Pack_stuffing_length) * 8)
+	return nil
+}
+
+func (ps_pkg_hdr *PSPackHeader) decodeMpeg1(bs *mpeg.BitStream) error {
+	bs.SkipBits(4)
+	ps_pkg_hdr.System_clock_reference_base = bs.GetBits(3)
+	bs.SkipBits(1)
+	ps_pkg_hdr.System_clock_reference_base = ps_pkg_hdr.System_clock_reference_base<<15 | bs.GetBits(15)
+	bs.SkipBits(1)
+	ps_pkg_hdr.System_clock_reference_base = ps_pkg_hdr.System_clock_reference_base<<15 | bs.GetBits(15)
+	bs.SkipBits(1)
+	ps_pkg_hdr.System_clock_reference_extension = 1
+	ps_pkg_hdr.Program_mux_rate = bs.Uint32(7)
+	bs.SkipBits(1)
+	ps_pkg_hdr.Program_mux_rate = ps_pkg_hdr.Program_mux_rate<<15 | bs.Uint32(15)
+	bs.SkipBits(1)
 	return nil
 }
 

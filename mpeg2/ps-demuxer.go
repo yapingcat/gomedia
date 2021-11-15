@@ -23,6 +23,7 @@ func newpsstream(sid uint8, cid PS_STREAM_TYPE) *psstream {
 type PSDemuxer struct {
 	streamMap map[uint8]*psstream
 	pkg       *PSPacket
+	mpeg1     bool
 	cache     []byte
 	OnPacket  func(pkg PSPacket)
 	OnFrame   func(frame []byte, cid PS_STREAM_TYPE, pts uint64, dts uint64)
@@ -73,6 +74,7 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 				psdemuxer.pkg.Header = new(PSPackHeader)
 			}
 			ret = psdemuxer.pkg.Header.Decode(bs)
+			psdemuxer.mpeg1 = psdemuxer.pkg.Header.IsMpeg1
 		case 0x000001BB: //system header
 			if psdemuxer.pkg.Header == nil {
 				panic("psdemuxer.pkg.Header must not be nil")
@@ -112,9 +114,23 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 				if psdemuxer.pkg.Pes == nil {
 					psdemuxer.pkg.Pes = NewPesPacket()
 				}
-				if ret = psdemuxer.pkg.Pes.Decode(bs); ret == nil {
+				if psdemuxer.mpeg1 {
+					ret = psdemuxer.pkg.Pes.DecodeMpeg1(bs)
+				} else {
+					ret = psdemuxer.pkg.Pes.Decode(bs)
+				}
+
+				if ret == nil {
 					if stream, found := psdemuxer.streamMap[psdemuxer.pkg.Pes.Stream_id]; found {
+						if psdemuxer.mpeg1 && stream.cid == PS_STREAM_UNKNOW {
+							psdemuxer.guessCodecid(stream)
+						}
 						psdemuxer.demuxPespacket(stream, psdemuxer.pkg.Pes)
+					} else {
+						if psdemuxer.mpeg1 {
+							stream := newpsstream(psdemuxer.pkg.Pes.Stream_id, PS_STREAM_UNKNOW)
+							psdemuxer.streamMap[stream.sid] = stream
+						}
 					}
 				}
 			} else {
@@ -128,6 +144,45 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 	}
 
 	return ret
+}
+
+func (psdemuxer *PSDemuxer) guessCodecid(stream *psstream) {
+	if stream.sid&0xE0 == uint8(PES_STREAM_AUDIO) {
+		stream.cid = PS_STREAM_AAC
+	} else if stream.sid&0xE0 == uint8(PES_STREAM_VIDEO) {
+		h264score := 0
+		h265score := 0
+		mpeg.SplitFrame(stream.streamBuf, func(nalu []byte) bool {
+			h264nalutype := mpeg.H264NaluTypeWithoutStartCode(nalu)
+			h265nalutype := mpeg.H265NaluTypeWithoutStartCode(nalu)
+			if h264nalutype == mpeg.H264_NAL_PPS ||
+				h264nalutype == mpeg.H264_NAL_SPS ||
+				h264nalutype == mpeg.H264_NAL_I_SLICE {
+				h264score += 2
+			} else if h264nalutype < 5 {
+				h264score += 1
+			} else if h264nalutype > 20 {
+				h264score -= 1
+			}
+
+			if h265nalutype == mpeg.H265_NAL_PPS ||
+				h265nalutype == mpeg.H265_NAL_SPS ||
+				h265nalutype == mpeg.H265_NAL_VPS ||
+				(h265nalutype >= mpeg.H265_NAL_SLICE_BLA_W_LP && h265nalutype <= mpeg.H265_NAL_SLICE_CRA) {
+				h265score += 2
+			} else if h265nalutype >= mpeg.H265_NAL_Slice_TRAIL_N && h265nalutype <= mpeg.H265_NAL_SLICE_RASL_R {
+				h265score += 1
+			} else if h265nalutype > 40 {
+				h265score -= 1
+			}
+			if h264score > h265score {
+				stream.cid = PS_STREAM_H264
+			} else {
+				stream.cid = PS_STREAM_H265
+			}
+			return true
+		})
+	}
 }
 
 func (psdemuxer *PSDemuxer) demuxPespacket(stream *psstream, pes *PesPacket) error {

@@ -215,6 +215,66 @@ func (pkg *PesPacket) Decode(bs *mpeg.BitStream) error {
 	return nil
 }
 
+func (pkg *PesPacket) DecodeMpeg1(bs *mpeg.BitStream) error {
+	if bs.RemainBytes() < 6 {
+		return errNeedMore
+	}
+	bs.SkipBits(24)             //packet_start_code_prefix
+	pkg.Stream_id = bs.Uint8(8) //stream_id
+	pkg.PES_packet_length = bs.Uint16(16)
+	if pkg.PES_packet_length != 0 && bs.RemainBytes() < int(pkg.PES_packet_length) {
+		bs.UnRead(6)
+		return errNeedMore
+	}
+	bs.Markdot()
+	for bs.NextBits(8) == 0xFF {
+		bs.SkipBits(8)
+	}
+	if bs.NextBits(2) == 0x01 {
+		bs.SkipBits(16)
+	}
+	if bs.NextBits(4) == 0x02 {
+		bs.SkipBits(4)
+		pkg.Pts = bs.GetBits(3)
+		bs.SkipBits(1)
+		pkg.Pts = pkg.Pts<<15 | bs.GetBits(15)
+		bs.SkipBits(1)
+		pkg.Pts = pkg.Pts<<15 | bs.GetBits(15)
+		bs.SkipBits(1)
+	} else if bs.NextBits(4) == 0x03 {
+		bs.SkipBits(4)
+		pkg.Pts = bs.GetBits(3)
+		bs.SkipBits(1)
+		pkg.Pts = pkg.Pts<<15 | bs.GetBits(15)
+		bs.SkipBits(1)
+		pkg.Pts = pkg.Pts<<15 | bs.GetBits(15)
+		bs.SkipBits(1)
+		pkg.Dts = bs.GetBits(3)
+		bs.SkipBits(1)
+		pkg.Dts = pkg.Pts<<15 | bs.GetBits(15)
+		bs.SkipBits(1)
+		pkg.Dts = pkg.Pts<<15 | bs.GetBits(15)
+		bs.SkipBits(1)
+	} else if bs.NextBits(8) == 0x0F {
+		bs.SkipBits(8)
+	} else {
+		return errParser
+	}
+	loc := bs.DistanceFromMarkDot()
+	if pkg.PES_packet_length < uint16(loc) {
+		return errParser
+	}
+	if pkg.PES_packet_length == 0 ||
+		bs.RemainBits() <= int(pkg.PES_packet_length-uint16(loc))*8 {
+		pkg.Pes_payload = bs.RemainData()
+		bs.SkipBits(bs.RemainBits())
+	} else {
+		pkg.Pes_payload = bs.RemainData()[:pkg.PES_packet_length-uint16(loc)]
+		bs.SkipBits(int(pkg.PES_packet_length-uint16(loc)) * 8)
+	}
+	return nil
+}
+
 func (pkg *PesPacket) Encode(bsw *mpeg.BitStreamWriter) {
 	bsw.PutBytes([]byte{0x00, 0x00, 0x01})
 	bsw.PutByte(pkg.Stream_id)
