@@ -130,6 +130,9 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 						if psdemuxer.mpeg1 {
 							stream := newpsstream(psdemuxer.pkg.Pes.Stream_id, PS_STREAM_UNKNOW)
 							psdemuxer.streamMap[stream.sid] = stream
+							stream.streamBuf = append(stream.streamBuf, psdemuxer.pkg.Pes.Pes_payload...)
+							stream.pts = psdemuxer.pkg.Pes.Pts
+							stream.dts = psdemuxer.pkg.Pes.Dts
 						}
 					}
 				}
@@ -175,9 +178,9 @@ func (psdemuxer *PSDemuxer) guessCodecid(stream *psstream) {
 			} else if h265nalutype > 40 {
 				h265score -= 1
 			}
-			if h264score > h265score {
+			if h264score > h265score && h264score >= 4 {
 				stream.cid = PS_STREAM_H264
-			} else {
+			} else if h264score < h265score && h265score >= 4 {
 				stream.cid = PS_STREAM_H265
 			}
 			return true
@@ -191,6 +194,13 @@ func (psdemuxer *PSDemuxer) demuxPespacket(stream *psstream, pes *PesPacket) err
 		return psdemuxer.demuxAudio(stream, pes)
 	case PS_STREAM_H264, PS_STREAM_H265:
 		return psdemuxer.demuxH26x(stream, pes)
+	case PS_STREAM_UNKNOW:
+		if stream.pts != pes.Pts {
+			stream.streamBuf = nil
+		}
+		stream.streamBuf = append(stream.streamBuf, pes.Pes_payload...)
+		stream.pts = pes.Pts
+		stream.dts = pes.Dts
 	}
 	return nil
 }

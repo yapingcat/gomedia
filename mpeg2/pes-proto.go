@@ -260,7 +260,7 @@ func (pkg *PesPacket) DecodeMpeg1(bs *mpeg.BitStream) error {
 	} else {
 		return errParser
 	}
-	loc := bs.DistanceFromMarkDot()
+	loc := bs.DistanceFromMarkDot() / 8
 	if pkg.PES_packet_length < uint16(loc) {
 		return errParser
 	}
