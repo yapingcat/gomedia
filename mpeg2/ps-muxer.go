@@ -3,15 +3,18 @@ package mpeg2
 import "github.com/yapingcat/gomedia/mpeg"
 
 type PSMuxer struct {
-	system   *System_header
-	psm      *Program_stream_map
-	OnPacket func(pkg []byte)
+	system     *System_header
+	psm        *Program_stream_map
+	OnPacket   func(pkg []byte)
+	firstframe bool
 }
 
 func NewPsMuxer() *PSMuxer {
 	muxer := new(PSMuxer)
+	muxer.firstframe = true
 	muxer.system = new(System_header)
 	muxer.system.Rate_bound = 26234
+	muxer.psm = new(Program_stream_map)
 	muxer.psm.Current_next_indicator = 1
 	muxer.psm.Program_stream_map_version = 1
 	muxer.OnPacket = nil
@@ -57,7 +60,7 @@ func (muxer *PSMuxer) Write(sid uint8, frame []byte, pts uint64, dts uint64) err
 	if stream.Stream_type == uint8(PS_STREAM_H264) || stream.Stream_type == uint8(PS_STREAM_H265) {
 		mpeg.SplitFrame(frame, func(nalu []byte) bool {
 			if stream.Stream_type == uint8(PS_STREAM_H264) {
-				nalu_type := mpeg.H264NaluType(nalu)
+				nalu_type := mpeg.H264NaluTypeWithoutStartCode(nalu)
 				if nalu_type == mpeg.H264_NAL_AUD {
 					withaud = true
 					return false
@@ -69,7 +72,7 @@ func (muxer *PSMuxer) Write(sid uint8, frame []byte, pts uint64, dts uint64) err
 				}
 				return true
 			} else {
-				nalu_type := mpeg.H265NaluType(nalu)
+				nalu_type := mpeg.H265NaluTypeWithoutStartCode(nalu)
 				if nalu_type == mpeg.H265_NAL_AUD {
 					withaud = true
 					return false
@@ -90,19 +93,19 @@ func (muxer *PSMuxer) Write(sid uint8, frame []byte, pts uint64, dts uint64) err
 	pack.System_clock_reference_extension = 0
 	pack.Program_mux_rate = 6106
 	pack.Encode(bsw)
-
-	if idr_flag {
+	if muxer.firstframe || idr_flag {
 		muxer.system.Encode(bsw)
 		muxer.psm.Encode(bsw)
-		if muxer.OnPacket != nil {
-			muxer.OnPacket(bsw.Bits())
-		}
-		bsw.Reset()
+		muxer.firstframe = false
 	}
-
+	if muxer.OnPacket != nil {
+		muxer.OnPacket(bsw.Bits())
+	}
+	bsw.Reset()
 	pespkg := NewPesPacket()
 	for len(frame) > 0 {
 		peshdrlen := 13
+		pespkg.Stream_id = sid
 		pespkg.PTS_DTS_flags = 0x03
 		pespkg.PES_header_data_length = 10
 		pespkg.Pts = pts
@@ -134,6 +137,7 @@ func (muxer *PSMuxer) Write(sid uint8, frame []byte, pts uint64, dts uint64) err
 			muxer.OnPacket(bsw.Bits())
 		}
 		bsw.Reset()
+		first = false
 	}
 	return nil
 }

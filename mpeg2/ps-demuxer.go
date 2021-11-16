@@ -233,9 +233,7 @@ func (psdemuxer *PSDemuxer) demuxH26x(stream *psstream, pes *PesPacket) error {
 		stream.dts = pes.Dts
 	}
 	stream.streamBuf = append(stream.streamBuf, pes.Pes_payload...)
-	framebeg := 0
 	start, sc := mpeg.FindStarCode(stream.streamBuf, 0)
-	framebeg = start
 	for start >= 0 {
 		end, sc2 := mpeg.FindStarCode(stream.streamBuf, start+int(sc))
 		if end < 0 {
@@ -243,29 +241,23 @@ func (psdemuxer *PSDemuxer) demuxH26x(stream *psstream, pes *PesPacket) error {
 		}
 		if stream.cid == PS_STREAM_H264 {
 			naluType := mpeg.H264NaluType(stream.streamBuf[start:])
-			if naluType == mpeg.H264_NAL_AUD {
-				framebeg = end
-			} else if mpeg.IsH264VCLNaluType(naluType) {
+			if naluType != mpeg.H264_NAL_AUD {
 				if psdemuxer.OnFrame != nil {
-					psdemuxer.OnFrame(stream.streamBuf[framebeg:end], stream.cid, stream.pts, stream.dts)
-					framebeg = end
+					psdemuxer.OnFrame(stream.streamBuf[start:end], stream.cid, stream.pts, stream.dts)
 				}
 			}
 		} else if stream.cid == PS_STREAM_H265 {
 			naluType := mpeg.H265NaluType(stream.streamBuf[start:])
-			if naluType == mpeg.H265_NAL_AUD {
-				framebeg = end
-			} else if mpeg.IsH265VCLNaluType(naluType) {
+			if naluType != mpeg.H265_NAL_AUD {
 				if psdemuxer.OnFrame != nil {
-					psdemuxer.OnFrame(stream.streamBuf[framebeg:end], stream.cid, stream.pts, stream.dts)
-					framebeg = end
+					psdemuxer.OnFrame(stream.streamBuf[start:end], stream.cid, stream.pts, stream.dts)
 				}
 			}
 		}
 		start = end
 		sc = sc2
 	}
-	stream.streamBuf = stream.streamBuf[framebeg:]
+	stream.streamBuf = stream.streamBuf[start:]
 	stream.pts = pes.Pts
 	stream.dts = pes.Dts
 	return nil

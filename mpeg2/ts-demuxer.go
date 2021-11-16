@@ -2,7 +2,6 @@ package mpeg2
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/yapingcat/gomedia/mpeg"
 )
@@ -52,7 +51,6 @@ func (demuxer *TSDemuxer) Input(data []byte) error {
 		bs := mpeg.NewBitStream(data[0:TS_PAKCET_SIZE])
 		var pkg TSPacket
 		if err := pkg.DecodeHeader(bs); err != nil {
-			fmt.Println(err)
 			return err
 		}
 		if pkg.PID == uint16(TS_PID_PAT) {
@@ -83,15 +81,12 @@ func (demuxer *TSDemuxer) Input(data []byte) error {
 					}
 					pmt := NewPmt()
 					if err := pmt.Decode(bs); err != nil {
-						fmt.Println(err)
 						return err
 					}
-					//fmt.Println(pmt.PCR_PID)
 					pkg.Payload = pmt
 					s.pn = pmt.Program_number
 					for _, ps := range pmt.Streams {
 						if _, found := s.streams[ps.Elementary_PID]; !found {
-							fmt.Println(ps.Elementary_PID)
 							s.streams[ps.Elementary_PID] = &tsstream{
 								cid:     TS_STREAM_TYPE(ps.StreamType),
 								pes_sid: findPESIDByStreamType(TS_STREAM_TYPE(ps.StreamType)),

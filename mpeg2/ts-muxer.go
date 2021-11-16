@@ -118,7 +118,7 @@ func (mux *TSMuxer) Write(pid uint16, data []byte, pts uint64, dts uint64) error
 	if whichstream.streamtype == TS_STREAM_H264 || whichstream.streamtype == TS_STREAM_H265 {
 		mpeg.SplitFrame(data, func(nalu []byte) bool {
 			if whichstream.streamtype == TS_STREAM_H264 {
-				nalu_type := mpeg.H264NaluType(nalu)
+				nalu_type := mpeg.H264NaluTypeWithoutStartCode(nalu)
 				if nalu_type == mpeg.H264_NAL_AUD {
 					withaud = true
 					return false
@@ -127,7 +127,7 @@ func (mux *TSMuxer) Write(pid uint16, data []byte, pts uint64, dts uint64) error
 				}
 				return true
 			} else {
-				nalu_type := mpeg.H265NaluType(nalu)
+				nalu_type := mpeg.H265NaluTypeWithoutStartCode(nalu)
 				if nalu_type == mpeg.H265_NAL_AUD {
 					withaud = true
 					return false

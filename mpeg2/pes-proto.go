@@ -7,7 +7,7 @@ import (
 	"github.com/yapingcat/gomedia/mpeg"
 )
 
-var H264_AUD_NALU []byte = []byte{0x00, 0x00, 0x00, 0x01, 0x09, 0xF0} //ffmpeg mpegtsenc.c mpegts_write_packet_internal
+var H264_AUD_NALU []byte = []byte{0x00, 0x00, 0x00, 0x01, 0x09, 0xE0} //ffmpeg mpegtsenc.c mpegts_write_packet_internal
 var H265_AUD_NALU []byte = []byte{0x00, 0x00, 0x00, 0x01, 0x46, 0x01, 0x50}
 
 type PES_STREMA_ID int

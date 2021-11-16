@@ -2,7 +2,6 @@ package mpeg
 
 import (
 	"encoding/binary"
-	"fmt"
 )
 
 var BitMask [8]byte = [8]byte{0x01, 0x03, 0x07, 0x0F, 0x1F, 0x3F, 0x7F, 0xFF}
@@ -42,7 +41,6 @@ func (bs *BitStream) GetBits(n int) uint64 {
 	if bs.bytesOffset >= len(bs.bits) {
 		panic("OUT OF RANGE")
 	}
-	//fmt.Println(*bs)
 	var ret uint64 = 0
 	if 8-bs.bitsOffset >= n {
 		ret = uint64((bs.bits[bs.bytesOffset] >> (8 - bs.bitsOffset - n)) & BitMask[n-1])
@@ -57,9 +55,7 @@ func (bs *BitStream) GetBits(n int) uint64 {
 		n -= 8 - bs.bitsOffset
 		bs.bitsOffset = 0
 		for n > 0 {
-			//fmt.Printf("byteoffset:%d,totallen:%d\n", bs.bytesOffset, len(bs.bits))
 			if bs.bytesOffset >= len(bs.bits) {
-				fmt.Printf("panic ?? byteoffset:%d,totallen:%d\n", bs.bytesOffset, len(bs.bits))
 				panic("OUT OF RANGE")
 			}
 			if n >= 8 {

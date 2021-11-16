@@ -1,6 +1,8 @@
 package mpeg2
 
 import (
+	"encoding/binary"
+
 	"github.com/yapingcat/gomedia/mpeg"
 )
 
@@ -234,7 +236,7 @@ func (sh *System_header) Encode(bsw *mpeg.BitStreamWriter) {
 		bsw.PutUint8(stream.P_STD_buffer_bound_scale, 1)
 		bsw.PutUint16(stream.P_STD_buffer_size_bound, 13)
 	}
-	length := bsw.DistanceFromMarkDot()
+	length := bsw.DistanceFromMarkDot() / 8
 	bsw.SetUint16(uint16(length), loc)
 }
 
@@ -347,8 +349,12 @@ func (psm *Program_stream_map) Encode(bsw *mpeg.BitStreamWriter) {
 		bsw.PutUint8(streaminfo.Elementary_stream_id, 8)
 		bsw.PutUint16(0, 16)
 	}
-	length := bsw.DistanceFromMarkDot()
+	length := bsw.DistanceFromMarkDot()/8 + 4
 	bsw.SetUint16(uint16(length), loc)
+	crc := mpeg.CalcCrc32(0xffffffff, bsw.Bits()[bsw.ByteOffset()-int(length-4)-4:bsw.ByteOffset()])
+	tmpcrc := make([]byte, 4)
+	binary.LittleEndian.PutUint32(tmpcrc, crc)
+	bsw.PutBytes(tmpcrc)
 }
 
 func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) error {
