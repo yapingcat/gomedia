@@ -281,13 +281,7 @@ func (bsw *BitStreamWriter) PutUint64(v uint64, n int) {
 			bsw.byteoffset++
 		}
 	} else {
-		// fmt.Println(v)
-		// fmt.Println(n)
-		// fmt.Println(bsw.byteoffset)
-		// fmt.Println(bsw.bitsoffset)
-		// fmt.Println(len(bsw.bits))
 		bsw.bits[bsw.byteoffset] |= uint8(v>>(n-int(8-bsw.bitsoffset))) & BitMask[8-bsw.bitsoffset-1]
-
 		bsw.byteoffset++
 		n -= 8 - bsw.bitsoffset
 		for n-8 >= 0 {

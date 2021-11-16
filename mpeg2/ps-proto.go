@@ -7,23 +7,35 @@ import (
 type Error interface {
 	NeedMore() bool
 	ParserError() bool
+	StreamIdNotFound() bool
 }
 
 var errNeedMore error = &needmoreError{}
 
 type needmoreError struct{}
 
-func (e *needmoreError) Error() string     { return "need more bytes" }
-func (e *needmoreError) NeedMore() bool    { return true }
-func (e *needmoreError) ParserError() bool { return false }
+func (e *needmoreError) Error() string          { return "need more bytes" }
+func (e *needmoreError) NeedMore() bool         { return true }
+func (e *needmoreError) ParserError() bool      { return false }
+func (e *needmoreError) StreamIdNotFound() bool { return false }
 
 var errParser error = &parserError{}
 
 type parserError struct{}
 
-func (e *parserError) Error() string     { return "parser packet error" }
-func (e *parserError) NeedMore() bool    { return false }
-func (e *parserError) ParserError() bool { return true }
+func (e *parserError) Error() string          { return "parser packet error" }
+func (e *parserError) NeedMore() bool         { return false }
+func (e *parserError) ParserError() bool      { return true }
+func (e *parserError) StreamIdNotFound() bool { return false }
+
+var errNotFound error = &sidNotFoundError{}
+
+type sidNotFoundError struct{}
+
+func (e *sidNotFoundError) Error() string          { return "stream id not found" }
+func (e *sidNotFoundError) NeedMore() bool         { return false }
+func (e *sidNotFoundError) ParserError() bool      { return false }
+func (e *sidNotFoundError) StreamIdNotFound() bool { return true }
 
 type PS_STREAM_TYPE int
 
@@ -66,8 +78,7 @@ type PSPackHeader struct {
 	System_clock_reference_base      uint64 //33 bits
 	System_clock_reference_extension uint16 //9 bits
 	Program_mux_rate                 uint32 //22 bits
-	Pack_stuffing_length             uint8  //3 bits
-	Sys_Header                       *System_header
+	Pack_stuffing_length             uint8  //3 bitss
 }
 
 func (ps_pkg_hdr *PSPackHeader) Decode(bs *mpeg.BitStream) error {
@@ -134,13 +145,34 @@ func (ps_pkg_hdr *PSPackHeader) decodeMpeg1(bs *mpeg.BitStream) error {
 }
 
 func (ps_pkg_hdr *PSPackHeader) Encode(bsw *mpeg.BitStreamWriter) {
-
+	bsw.PutBytes([]byte{0x00, 0x00, 0x01, 0xBA})
+	bsw.PutUint8(1, 2)
+	bsw.PutUint64(ps_pkg_hdr.System_clock_reference_base>>30, 3)
+	bsw.PutUint8(1, 1)
+	bsw.PutUint64(ps_pkg_hdr.System_clock_reference_base>>15, 15)
+	bsw.PutUint8(1, 1)
+	bsw.PutUint64(ps_pkg_hdr.System_clock_reference_base, 15)
+	bsw.PutUint8(1, 1)
+	bsw.PutUint16(ps_pkg_hdr.System_clock_reference_extension, 9)
+	bsw.PutUint8(1, 1)
+	bsw.PutUint32(ps_pkg_hdr.Program_mux_rate, 22)
+	bsw.PutUint8(1, 1)
+	bsw.PutUint8(1, 1)
+	bsw.PutUint8(0x1F, 5)
+	bsw.PutUint8(ps_pkg_hdr.Pack_stuffing_length, 3)
+	bsw.PutRepetValue(0xFF, int(ps_pkg_hdr.Pack_stuffing_length))
 }
 
 type Elementary_Stream struct {
 	Stream_id                uint8
 	P_STD_buffer_bound_scale uint8
 	P_STD_buffer_size_bound  uint16
+}
+
+func NewElementary_Stream(sid uint8) *Elementary_Stream {
+	return &Elementary_Stream{
+		Stream_id: sid,
+	}
 }
 
 // system_header () {
@@ -180,7 +212,30 @@ type System_header struct {
 }
 
 func (sh *System_header) Encode(bsw *mpeg.BitStreamWriter) {
-
+	bsw.PutBytes([]byte{0x00, 0x00, 0x01, 0xBB})
+	loc := bsw.ByteOffset()
+	bsw.PutUint16(0, 16)
+	bsw.Markdot()
+	bsw.PutUint8(1, 1)
+	bsw.PutUint32(sh.Rate_bound, 22)
+	bsw.PutUint8(1, 1)
+	bsw.PutUint8(sh.Audio_bound, 6)
+	bsw.PutUint8(sh.Fixed_flag, 1)
+	bsw.PutUint8(sh.CSPS_flag, 1)
+	bsw.PutUint8(sh.System_audio_lock_flag, 1)
+	bsw.PutUint8(sh.System_video_lock_flag, 1)
+	bsw.PutUint8(1, 1)
+	bsw.PutUint8(sh.Video_bound, 5)
+	bsw.PutUint8(sh.Packet_rate_restriction_flag, 1)
+	bsw.PutUint8(0x7F, 7)
+	for _, stream := range sh.Streams {
+		bsw.PutUint8(stream.Stream_id, 8)
+		bsw.PutUint8(3, 2)
+		bsw.PutUint8(stream.P_STD_buffer_bound_scale, 1)
+		bsw.PutUint16(stream.P_STD_buffer_size_bound, 13)
+	}
+	length := bsw.DistanceFromMarkDot()
+	bsw.SetUint16(uint16(length), loc)
 }
 
 func (sh *System_header) Decode(bs *mpeg.BitStream) error {
@@ -232,6 +287,13 @@ type Elementary_stream_elem struct {
 	Elementary_stream_info_length uint16
 }
 
+func NewElementary_stream_elem(stype uint8, esid uint8) *Elementary_stream_elem {
+	return &Elementary_stream_elem{
+		Stream_type:          stype,
+		Elementary_stream_id: esid,
+	}
+}
+
 // program_stream_map() {
 // 	packet_start_code_prefix 			24 	bslbf
 // 	map_stream_id 						8 	uimsbf
@@ -268,7 +330,25 @@ type Program_stream_map struct {
 }
 
 func (psm *Program_stream_map) Encode(bsw *mpeg.BitStreamWriter) {
-
+	bsw.PutBytes([]byte{0x00, 0x00, 0x01, 0xBC})
+	loc := bsw.ByteOffset()
+	bsw.PutUint16(psm.Program_stream_map_length, 16)
+	bsw.Markdot()
+	bsw.PutUint8(psm.Current_next_indicator, 1)
+	bsw.PutUint8(3, 2)
+	bsw.PutUint8(psm.Program_stream_map_version, 5)
+	bsw.PutUint8(0x7F, 7)
+	bsw.PutUint8(1, 1)
+	bsw.PutUint16(0, 16)
+	psm.Elementary_stream_map_length = uint16(len(psm.Stream_map) * 4)
+	bsw.PutUint16(psm.Elementary_stream_map_length, 16)
+	for _, streaminfo := range psm.Stream_map {
+		bsw.PutUint8(streaminfo.Stream_type, 8)
+		bsw.PutUint8(streaminfo.Elementary_stream_id, 8)
+		bsw.PutUint16(0, 16)
+	}
+	length := bsw.DistanceFromMarkDot()
+	bsw.SetUint16(uint16(length), loc)
 }
 
 func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) error {
@@ -372,6 +452,7 @@ func (compes *CommonPesPacket) Decode(bs *mpeg.BitStream) error {
 
 type PSPacket struct {
 	Header  *PSPackHeader
+	System  *System_header
 	Psm     *Program_stream_map
 	Psd     *Program_stream_directory
 	CommPes *CommonPesPacket

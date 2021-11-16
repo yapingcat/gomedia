@@ -81,5 +81,6 @@ func main() {
 		}
 	}
 	fmt.Println(demuxer.Input(buf))
+	demuxer.Flush()
 	fd.Close()
 }

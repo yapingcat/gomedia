@@ -278,6 +278,9 @@ func (mux *TSMuxer) writePES(pes *pes_stream, pmt *table_pmt, data []byte, pts u
 			pespkg.PES_header_data_length = 10
 			pespkg.Pts = pts
 			pespkg.Dts = dts
+			if idr_flag {
+				pespkg.Data_alignment_indicator = 1
+			}
 			if headlen-oldheadlen-6+len(data) > 0xFFFF {
 				pespkg.PES_packet_length = 0
 			} else {

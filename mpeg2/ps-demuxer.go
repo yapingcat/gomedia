@@ -77,10 +77,10 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 			if psdemuxer.pkg.Header == nil {
 				panic("psdemuxer.pkg.Header must not be nil")
 			}
-			if psdemuxer.pkg.Header.Sys_Header == nil {
-				psdemuxer.pkg.Header.Sys_Header = new(System_header)
+			if psdemuxer.pkg.System == nil {
+				psdemuxer.pkg.System = new(System_header)
 			}
-			ret = psdemuxer.pkg.Header.Sys_Header.Decode(bs)
+			ret = psdemuxer.pkg.System.Decode(bs)
 		case 0x000001BC: //program stream map
 			if psdemuxer.pkg.Psm == nil {
 				psdemuxer.pkg.Psm = new(Program_stream_map)
