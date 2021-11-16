@@ -15,13 +15,13 @@ func main() {
 	defer rfd.Close()
 	buf, _ := ioutil.ReadAll(rfd)
 	fmt.Printf("read %d size\n", len(buf))
-	fd, err := os.OpenFile("1.h264", os.O_CREATE|os.O_RDWR, 0666)
+	fd, err := os.OpenFile(os.Args[2], os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	defer fd.Close()
-	fd2, err := os.OpenFile("4.aac", os.O_CREATE|os.O_RDWR, 0666)
+	fd2, err := os.OpenFile(os.Args[3], os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -33,7 +33,7 @@ func main() {
 			if mpeg.H264NaluType(frame) == 9 {
 				return
 			}
-			fmt.Printf("write h264 frame:%d\n", len(frame))
+			//fmt.Printf("write h264 frame:%d\n", len(frame))
 			n, err := fd.Write(frame)
 			if err != nil || n != len(frame) {
 				fmt.Println(err)
@@ -46,4 +46,5 @@ func main() {
 		}
 	}
 	fmt.Println(demuxer.Input(buf))
+	demuxer.Flush()
 }
