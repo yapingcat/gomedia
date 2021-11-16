@@ -129,6 +129,19 @@ func (demuxer *TSDemuxer) Input(data []byte) error {
 	return nil
 }
 
+func (demuxer *TSDemuxer) Flush() {
+	for _, pm := range demuxer.programs {
+		for _, stream := range pm.streams {
+			if len(stream.pkg.payload) == 0 {
+				continue
+			}
+			if demuxer.OnFrame != nil {
+				demuxer.OnFrame(stream.cid, stream.pkg.payload, stream.pkg.pts, stream.pkg.dts)
+			}
+		}
+	}
+}
+
 func (demuxer *TSDemuxer) doVideoPesPacket(bs *mpeg.BitStream, stream *tsstream, start uint8) {
 	if stream.cid != TS_STREAM_H264 && stream.cid != TS_STREAM_H265 {
 		return

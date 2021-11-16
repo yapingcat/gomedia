@@ -25,7 +25,6 @@ type PSDemuxer struct {
 	pkg       *PSPacket
 	mpeg1     bool
 	cache     []byte
-	OnPacket  func(pkg PSPacket)
 	OnFrame   func(frame []byte, cid PS_STREAM_TYPE, pts uint64, dts uint64)
 }
 
@@ -34,7 +33,6 @@ func NewPSDemuxer() *PSDemuxer {
 		streamMap: make(map[uint8]*psstream),
 		pkg:       new(PSPacket),
 		cache:     make([]byte, 0, 256),
-		OnPacket:  nil,
 		OnFrame:   nil,
 	}
 }
@@ -147,6 +145,17 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 	}
 
 	return ret
+}
+
+func (psdemuxer *PSDemuxer) Flush() {
+	for _, stream := range psdemuxer.streamMap {
+		if len(stream.streamBuf) == 0 {
+			continue
+		}
+		if psdemuxer.OnFrame != nil {
+			psdemuxer.OnFrame(stream.streamBuf, stream.cid, stream.pts, stream.dts)
+		}
+	}
 }
 
 func (psdemuxer *PSDemuxer) guessCodecid(stream *psstream) {
