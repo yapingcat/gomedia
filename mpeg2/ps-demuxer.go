@@ -26,6 +26,10 @@ type PSDemuxer struct {
 	mpeg1     bool
 	cache     []byte
 	OnFrame   func(frame []byte, cid PS_STREAM_TYPE, pts uint64, dts uint64)
+	//解ps包过程中，解码回调psm，system header，pes包等
+	//decodeResult 解码ps包时的产生的错误
+	//这个回调主要用于debug，查看是否ps包存在问题
+	OnPacket func(pkg Display, decodeResult error)
 }
 
 func NewPSDemuxer() *PSDemuxer {
@@ -34,6 +38,7 @@ func NewPSDemuxer() *PSDemuxer {
 		pkg:       new(PSPacket),
 		cache:     make([]byte, 0, 256),
 		OnFrame:   nil,
+		OnPacket:  nil,
 	}
 }
 
@@ -73,6 +78,9 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 			}
 			ret = psdemuxer.pkg.Header.Decode(bs)
 			psdemuxer.mpeg1 = psdemuxer.pkg.Header.IsMpeg1
+			if psdemuxer.OnPacket != nil {
+				psdemuxer.OnPacket(psdemuxer.pkg.Header, ret)
+			}
 		case 0x000001BB: //system header
 			if psdemuxer.pkg.Header == nil {
 				panic("psdemuxer.pkg.Header must not be nil")
@@ -81,6 +89,9 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 				psdemuxer.pkg.System = new(System_header)
 			}
 			ret = psdemuxer.pkg.System.Decode(bs)
+			if psdemuxer.OnPacket != nil {
+				psdemuxer.OnPacket(psdemuxer.pkg.System, ret)
+			}
 		case 0x000001BC: //program stream map
 			if psdemuxer.pkg.Psm == nil {
 				psdemuxer.pkg.Psm = new(Program_stream_map)
@@ -92,6 +103,9 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 						psdemuxer.streamMap[stream.sid] = stream
 					}
 				}
+			}
+			if psdemuxer.OnPacket != nil {
+				psdemuxer.OnPacket(psdemuxer.pkg.Psm, ret)
 			}
 		case 0x000001BD, 0x000001BE, 0x000001BF, 0x000001F0, 0x000001F1,
 			0x000001F2, 0x000001F3, 0x000001F4, 0x000001F5, 0x000001F6,
@@ -117,7 +131,9 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
 				} else {
 					ret = psdemuxer.pkg.Pes.Decode(bs)
 				}
-
+				if psdemuxer.OnPacket != nil {
+					psdemuxer.OnPacket(psdemuxer.pkg.Pes, ret)
+				}
 				if ret == nil {
 					if stream, found := psdemuxer.streamMap[psdemuxer.pkg.Pes.Stream_id]; found {
 						if psdemuxer.mpeg1 && stream.cid == PS_STREAM_UNKNOW {

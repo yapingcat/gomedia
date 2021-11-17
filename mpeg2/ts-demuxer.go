@@ -54,7 +54,6 @@ func (demuxer *TSDemuxer) Input(data []byte) error {
 			return err
 		}
 		if pkg.PID == uint16(TS_PID_PAT) {
-			//showPacketHexdump(data[0:TS_PAKCET_SIZE])
 			if pkg.Payload_unit_start_indicator == 1 {
 				bs.SkipBits(8)
 			}

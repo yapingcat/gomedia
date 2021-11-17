@@ -44,7 +44,7 @@ const (
 )
 
 type Display interface {
-	PrettyPrint()
+	PrettyPrint(file *os.File)
 }
 
 // transport_packet(){
