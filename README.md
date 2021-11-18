@@ -8,8 +8,9 @@
 - [ ] flv muxer
 - [x] flv demuxer(H264/AAC)
 
+开发的过程中参考了media-server,ffmpeg,vlc的代码
 强烈推荐[老陈](https://github.com/ireader/media-server)的开源项目media-server  
-gomedia 很多参考了老陈,ffmpeg,vlc的代码
+
 
 
   
