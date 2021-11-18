@@ -125,6 +125,7 @@ func (pkg *PesPacket) PrettyPrint(file *os.File) {
 		}
 		file.WriteString(fmt.Sprintf("0x%02x ", pkg.Pes_payload[i]))
 	}
+	file.WriteString("\n")
 }
 
 func (pkg *PesPacket) Decode(bs *mpeg.BitStream) error {

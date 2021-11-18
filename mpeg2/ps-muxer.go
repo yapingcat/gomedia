@@ -57,6 +57,7 @@ func (muxer *PSMuxer) Write(sid uint8, frame []byte, pts uint64, dts uint64) err
 	var withaud bool = false
 	var idr_flag bool = false
 	var first bool = true
+	var vcl bool = false
 	if stream.Stream_type == uint8(PS_STREAM_H264) || stream.Stream_type == uint8(PS_STREAM_H265) {
 		mpeg.SplitFrame(frame, func(nalu []byte) bool {
 			if stream.Stream_type == uint8(PS_STREAM_H264) {
@@ -68,6 +69,7 @@ func (muxer *PSMuxer) Write(sid uint8, frame []byte, pts uint64, dts uint64) err
 					if nalu_type == mpeg.H264_NAL_I_SLICE {
 						idr_flag = true
 					}
+					vcl = true
 					return false
 				}
 				return true
@@ -80,6 +82,7 @@ func (muxer *PSMuxer) Write(sid uint8, frame []byte, pts uint64, dts uint64) err
 					if nalu_type >= mpeg.H265_NAL_SLICE_BLA_W_LP && nalu_type <= mpeg.H265_NAL_SLICE_CRA {
 						idr_flag = true
 					}
+					vcl = true
 					return false
 				}
 				return true
@@ -113,7 +116,7 @@ func (muxer *PSMuxer) Write(sid uint8, frame []byte, pts uint64, dts uint64) err
 		if idr_flag {
 			pespkg.Data_alignment_indicator = 1
 		}
-		if first && !withaud {
+		if first && !withaud && vcl {
 			if stream.Stream_type == uint8(PS_STREAM_H264) {
 				pespkg.Pes_payload = append(pespkg.Pes_payload, H264_AUD_NALU...)
 				peshdrlen += 6

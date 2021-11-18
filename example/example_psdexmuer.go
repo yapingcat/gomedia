@@ -26,7 +26,15 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	defer fd.Close()
+	defer fd2.Close()
+
+	fd3, err := os.OpenFile("ps_demux_result", os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer fd3.Close()
+
 	demuxer := mpeg2.NewPSDemuxer()
 	demuxer.OnFrame = func(frame []byte, cid mpeg2.PS_STREAM_TYPE, pts uint64, dts uint64) {
 		if cid == mpeg2.PS_STREAM_H264 {
@@ -42,6 +50,39 @@ func main() {
 			n, err := fd2.Write(frame)
 			if err != nil || n != len(frame) {
 				fmt.Println(err)
+			}
+		}
+	}
+	demuxer.OnPacket = func(pkg mpeg2.Display, decodeResult error) {
+
+		switch value := pkg.(type) {
+		case *mpeg2.PSPackHeader:
+			fd3.WriteString("--------------PS Pack Header--------------\n")
+			if decodeResult == nil {
+				value.PrettyPrint(fd3)
+			} else {
+				fd3.WriteString(fmt.Sprintf("Decode Ps Packet Failed %s\n", decodeResult.Error()))
+			}
+		case *mpeg2.System_header:
+			fd3.WriteString("--------------System Header--------------\n")
+			if decodeResult == nil {
+				value.PrettyPrint(fd3)
+			} else {
+				fd3.WriteString(fmt.Sprintf("Decode Ps Packet Failed %s\n", decodeResult.Error()))
+			}
+		case *mpeg2.Program_stream_map:
+			fd3.WriteString("--------------------PSM-------------------\n")
+			if decodeResult == nil {
+				value.PrettyPrint(fd3)
+			} else {
+				fd3.WriteString(fmt.Sprintf("Decode Ps Packet Failed %s\n", decodeResult.Error()))
+			}
+		case *mpeg2.PesPacket:
+			fd3.WriteString("-------------------PES--------------------\n")
+			if decodeResult == nil {
+				value.PrettyPrint(fd3)
+			} else {
+				fd3.WriteString(fmt.Sprintf("Decode Ps Packet Failed %s\n", decodeResult.Error()))
 			}
 		}
 	}
