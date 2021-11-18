@@ -6,20 +6,6 @@ import (
 
 var testbit []byte = []byte{0x01, 0x44, 0x55}
 
-func Test_GetBit(t *testing.T) {
-	bs := NewBitStream(testbit)
-	for i := 0; i < 24; i++ {
-		t.Logf("Location:%d,Value:%d", i, bs.GetBit())
-	}
-	defer func() {
-		if err := recover(); err != nil {
-			t.Log(err)
-		}
-	}()
-	bs.GetBit()
-	t.Error("Except For panic")
-}
-
 func Test_GetBits(t *testing.T) {
 	bs := NewBitStream(testbit)
 	t.Log(bs.GetBits(4))
@@ -124,6 +110,31 @@ func TestBitStream_RemainBits(t *testing.T) {
 			}
 			if got := bs.RemainBits(); got != tt.want {
 				t.Errorf("BitStream.RemainBits() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+var bits []byte = []byte{0x80}
+var bits1 []byte = []byte{0x40}
+var bits2 []byte = []byte{0x60}
+var bits3 []byte = []byte{0x20}
+
+func TestBitStream_ReadUE(t *testing.T) {
+	tests := []struct {
+		name string
+		bs   *BitStream
+		want uint64
+	}{
+		{name: "test1", bs: NewBitStream(bits), want: 0},
+		{name: "test1", bs: NewBitStream(bits1), want: 1},
+		{name: "test1", bs: NewBitStream(bits2), want: 2},
+		{name: "test1", bs: NewBitStream(bits3), want: 3},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.bs.ReadUE(); got != tt.want {
+				t.Errorf("BitStream.ReadUE() = %v, want %v", got, tt.want)
 			}
 		})
 	}

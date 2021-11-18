@@ -36,6 +36,19 @@ func (bs *BitStream) Uint32(n int) uint32 {
 	return uint32(bs.GetBits(n))
 }
 
+func (bs *BitStream) GetBytes(n int) []byte {
+	if bs.bytesOffset+n >= len(bs.bits) {
+		panic("OUT OF RANGE")
+	}
+	if bs.bitsOffset != 0 {
+		panic("invaild operation")
+	}
+	data := make([]byte, n)
+	copy(data, bs.bits[bs.bytesOffset:bs.bytesOffset+n])
+	bs.bytesOffset += n
+	return data
+}
+
 //n <= 64
 func (bs *BitStream) GetBits(n int) uint64 {
 	if bs.bytesOffset >= len(bs.bits) {
@@ -133,13 +146,27 @@ func (bs *BitStream) RemainData() []byte {
 	return bs.bits[bs.bytesOffset:]
 }
 
-func (bs *BitStream) ReadUE() uint32 {
-
-	return 0
+//无符号哥伦布熵编码
+func (bs *BitStream) ReadUE() uint64 {
+	leadingZeroBits := 0
+	for bs.GetBit() == 0 {
+		leadingZeroBits++
+	}
+	if leadingZeroBits == 0 {
+		return 0
+	}
+	info := bs.GetBits(leadingZeroBits)
+	return uint64(1)<<leadingZeroBits - 1 + info
 }
 
-func (bs *BitStream) ReadSE() uint32 {
-	return 0
+//有符号哥伦布熵编码
+func (bs *BitStream) ReadSE() int64 {
+	v := bs.ReadUE()
+	if v%2 == 0 {
+		return -1 * int64(v/2)
+	} else {
+		return int64(v+1) / 2
+	}
 }
 
 func (bs *BitStream) ByteOffset() int {
