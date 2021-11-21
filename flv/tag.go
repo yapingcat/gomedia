@@ -23,10 +23,10 @@ const FLVTAG_SIZE uint32 = 11
 //  DataSize                UI24               Length of the message. Number of bytes after StreamID to end of tag (Equal to length of the tag – 11)
 
 //  Timestamp               UI24               Time in milliseconds at which the data in this tag applies. This value is relative to the first tag in the FLV file,
-//                                               which always has a timestamp of 0.
+//                                             which always has a timestamp of 0.
 //
 //  TimestampExtended       UI8                Extension of the Timestamp field to form a SI32 value. This
-//                                               field represents the upper 8 bits, while the previous
+//                                             field represents the upper 8 bits, while the previous
 //                                             Timestamp field represents the lower 24 bits of the time in milliseconds.
 //
 //  StreamID                UI24               Always 0
@@ -65,17 +65,17 @@ func (ftag *FlvTag) Decode(data []byte) {
 //  ------------------------------------------------------------------------
 //  Frame Type              UB[4]              Type of video frame. The following values are defined:
 //                                             1 = key frame (for AVC, a seekable frame)
-//                                                2 = inter frame (for AVC, a non-seekable frame)
-//                                                3 = disposable inter frame (H.263 only)
-//                                                4 = generated key frame (reserved for server use only)
+//                                             2 = inter frame (for AVC, a non-seekable frame)
+//                                             3 = disposable inter frame (H.263 only)
+//                                             4 = generated key frame (reserved for server use only)
 //                                             5 = video info/command frame
 //
 //  CodecID                 UB[4]              Codec Identifier. The following values are defined:
 //                                             2 = Sorenson H.263
-//                                                3 = Screen video
-//                                                4 = On2 VP6
-//                                                5 = On2 VP6 with alpha channel 6 = Screen video version 2
-//                                                7 = AVC
+//                                             3 = Screen video
+//                                             4 = On2 VP6
+//                                             5 = On2 VP6 with alpha channel 6 = Screen video version 2
+//                                             7 = AVC
 //
 //  AVCPacketType          IF CodecID == 7     The following values are defined:
 //                              UI8               0 = AVC sequence header
@@ -95,7 +95,6 @@ type VideoTag struct {
 }
 
 func (vtag VideoTag) Encode() (tag []byte) {
-
     if vtag.CodecId == 7 {
         tag = make([]byte, 5)
         tag[1] = vtag.AVCPacketType
@@ -145,18 +144,18 @@ func (vtag *VideoTag) Decode(data []byte) error {
 //                                                         AAC is supported in Flash Player 9,0,115,0 and higher. Speex is supported in Flash Player 10 and higher.
 //
 //
-//  SoundRate               UB[2]                          Sampling rate. The following values are defined:
-//                                                           0 = 5.5 kHz
-//                                                            1 = 11 kHz
-//                                                            2 = 22 kHz
-//                                                            3 = 44 kHz
+//  SoundRate               UB[2]                       Sampling rate. The following values are defined:
+//                                                         0 = 5.5 kHz
+//                                                         1 = 11 kHz
+//                                                         2 = 22 kHz
+//                                                         3 = 44 kHz
 //
 //  SoundSize               UB[1]                       Size of each audio sample. This parameter only pertains to uncompressed formats. Compressed formats always decode to 16 bits internally.
 //                                                          0 = 8-bit samples
-//                                                         1 = 16-bit samples
+//                                                          1 = 16-bit samples
 //
 //  SoundType               UB[1]                       Mono or stereo sound
-//                                                      0 = Mono sound
+//                                                        0 = Mono sound
 //                                                        1 = Stereo sound
 //
 //  AACPacketType          IF SoundFormat == 10         The following values are defined:
@@ -181,7 +180,7 @@ func (atag AudioTag) Encode() (tag []byte) {
         tag = make([]byte, 1)
     }
     tag[0] = atag.SoundFormat<<4 | atag.SoundRate<<2 | atag.SoundSize<<1 | atag.SoundType
-    return nil
+    return
 }
 
 func (atag *AudioTag) Decode(data []byte) error {

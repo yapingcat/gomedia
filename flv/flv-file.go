@@ -8,16 +8,16 @@ import (
     "github.com/yapingcat/gomedia/mpeg"
 )
 
-//    FLV File
-//    TheFLVheader
-//    An FLV file shall begin with the FLV header:
-//    -------------------------------------------------------------------------------------------------------------
-//    FLV header
-//    Field                       Type                            Comment
-//    -------------------------------------------------------------------------------------------------------------
-//    Signature                   UI8                            Signature byte always 'F' (0x46)
+//  FLV File
+//  TheFLVheader
+//  An FLV file shall begin with the FLV header:
+//  -------------------------------------------------------------------------------------------------------------
+//  FLV header
+//  Field                       Type                            Comment
+//  -------------------------------------------------------------------------------------------------------------
+//  Signature                   UI8                            Signature byte always 'F' (0x46)
 //
-//    Signature                   UI8                            Signature byte always 'L' (0x4C)
+//  Signature                   UI8                            Signature byte always 'L' (0x4C)
 //
 //  Signature                   UI8                         Signature byte always 'V' (0x56)
 //
@@ -41,7 +41,7 @@ import (
 //  FLV File Body
 //  Field                       Type                        Comment
 //  -------------------------------------------------------------------------------------------------------------
-//    PreviousTagSize0            UI32                        Always 0
+//  PreviousTagSize0            UI32                        Always 0
 //  Tag1                        FLVTAG                      First tag
 //  PreviousTagSize1            UI32                        Size of previous tag, including its header, in bytes. For FLV version 1,
 //                                                          this value is 11 plus the DataSize of the previous tag
@@ -52,35 +52,20 @@ import (
 //  PreviousTagSizeN-1          UI32                        Size of second-to-last tag, including its header, in bytes.
 //  ---------------------------------------------------------------------------------------------------------------
 
-type FlvFileWriter struct {
-    //vcodecid mpeg.CodecID
-    //acodecid mpeg.CodecID
-    firstAudio bool
-    firstVideo bool
-    fd         *os.File
-}
-
 type FlvFileReader struct {
     fd      *os.File
-    onFrame func([]byte, uint32, mpeg.CodecID)
-    onTag   func(ftag FlvTag, tag interface{})
+    asc     []byte
+    OnFrame func(mpeg.CodecID, []byte, uint32, uint32)
+    OnTag   func(ftag FlvTag, tag interface{})
 }
 
 func CreateFlvFileReader() *FlvFileReader {
     flvFile := &FlvFileReader{
         fd:      nil,
-        onFrame: nil,
-        onTag:   nil,
+        OnFrame: nil,
+        OnTag:   nil,
     }
     return flvFile
-}
-
-func (f *FlvFileReader) SetOnFrame(onframe func([]byte, uint32, mpeg.CodecID)) {
-    f.onFrame = onframe
-}
-
-func (f *FlvFileReader) SetOnTag(ontag func(ftag FlvTag, tag interface{})) {
-    f.onTag = ontag
 }
 
 func (f *FlvFileReader) Open(filepath string) (err error) {
@@ -117,71 +102,116 @@ func (f *FlvFileReader) DeMuxFile() error {
             return errors.New("FLV File Header < 11 Bytes")
         }
         var ftag FlvTag
+        var vtag VideoTag
+        var atag AudioTag
         var taglen int = 0
+        var vcid FLV_VIDEO_CODEC_ID
+        var acid FLV_SOUND_FORMAT
+        var packtype uint8
         ftag.Decode(tag[:11])
-        if ftag.TagType == 8 {
+        if ftag.TagType == uint8(AUDIO_TAG) {
             if _, err := f.fd.Read(tag[11:12]); err != nil {
                 return err
             }
-            var atag AudioTag
-            if (tag[11]&0xF0)>>4 == 10 {
+            if (tag[11]&0xF0)>>4 == byte(FLV_AAC) {
                 if _, err := f.fd.Read(tag[12:13]); err != nil {
                     return err
                 } else {
                     atag.Decode(tag[11:13])
+                    acid = FLV_SOUND_FORMAT(atag.SoundFormat)
+                    packtype = atag.AACPacketType
                     taglen = 2
                 }
             } else {
                 taglen = 1
                 atag.Decode(tag[11:12])
+                acid = FLV_SOUND_FORMAT(atag.SoundFormat)
             }
-            if f.onTag != nil {
-                f.onTag(ftag, atag)
+            if f.OnTag != nil {
+                f.OnTag(ftag, atag)
             }
-        } else if ftag.TagType == 9 {
+        } else if ftag.TagType == uint8(VIDEO_TAG) {
             if _, err := f.fd.Read(tag[11:12]); err != nil {
                 return err
             }
-            var vtag VideoTag
-            if tag[11]&0x0F == 7 {
+            if tag[11]&0x0F == byte(FLV_AVC) {
                 if _, err := f.fd.Read(tag[12:16]); err != nil {
                     return err
                 } else {
                     vtag.Decode(tag[11:16])
                     taglen = 5
+                    vcid = FLV_VIDEO_CODEC_ID(vtag.CodecId)
+                    packtype = vtag.AVCPacketType
                 }
             } else {
                 taglen = 1
                 vtag.Decode(tag[11:12])
+                vcid = FLV_VIDEO_CODEC_ID(vtag.CodecId)
             }
-            if f.onTag != nil {
-                f.onTag(ftag, vtag)
+            if f.OnTag != nil {
+                f.OnTag(ftag, vtag)
             }
-        } else if ftag.TagType == 18 {
-            if f.onTag != nil {
-                f.onTag(ftag, nil)
+        } else if ftag.TagType == uint8(SCRIPT_TAG) {
+            if f.OnTag != nil {
+                f.OnTag(ftag, nil)
             }
         }
+        pts := uint32(ftag.TimestampExtended)<<24 | ftag.Timestamp
         data := make([]byte, ftag.DataSize-uint32(taglen))
         f.fd.Read(data)
+        if ftag.TagType == uint8(AUDIO_TAG) {
+            dts := pts
+            f.demuxAudio(acid, packtype, data, pts, dts)
+        } else if ftag.TagType == uint8(VIDEO_TAG) {
+            if vcid == FLV_AVC || vcid == FLV_HEVC {
+                dts := pts
+                if vtag.CompositionTime < 0 {
+                    dts -= uint32(-1 * vtag.CompositionTime)
+                } else {
+                    dts = uint32(vtag.CompositionTime)
+                }
+                f.demuxAudio(acid, packtype, data, pts, dts)
+            }
+        }
         f.fd.Read(tag[:4])
     }
 }
 
-type FileWriter struct {
-    fd *os.File
+func (f *FlvFileReader) demuxAudio(cid FLV_SOUND_FORMAT, packetType uint8, data []byte, pts uint32, dts uint32) {
+    var audioFrame []byte
+    if cid == FLV_AAC {
+        if packetType == AAC_SEQUENCE_HEADER {
+            f.asc = data
+        } else {
+            audioFrame = mpeg.ConvertASCToADTS(f.asc, len(data)+7)
+            audioFrame = append(audioFrame, data...)
+        }
+    } else {
+        audioFrame = data
+    }
+    if f.OnFrame != nil {
+        f.OnFrame(CovertFlvAudioCodecId2MpegCodecId(cid), audioFrame, pts, dts)
+    }
+}
+
+func (f *FlvFileReader) demuxVideo(cid FLV_VIDEO_CODEC_ID, packetType uint8, data []byte, pts uint32, dts uint32) {
+    return
+}
+
+type FlvFileWriter struct {
+    fd    *os.File
+    muxer *FlvMuxer
 }
 
 func CreateFlvFileWriter() *FlvFileWriter {
     flvFile := &FlvFileWriter{
-        fd:         nil,
-        firstAudio: true,
-        firstVideo: true,
+        fd:    nil,
+        muxer: new(FlvMuxer),
     }
     return flvFile
 }
 
-func (f *FileWriter) Open(path string) (err error) {
+func (f *FlvFileWriter) Open(path string) (err error) {
 
     if f.fd, err = os.OpenFile(path, os.O_APPEND|os.O_CREATE, 0666); err != nil {
         return err
@@ -191,11 +221,11 @@ func (f *FileWriter) Open(path string) (err error) {
     flvhdr[1] = 'L'
     flvhdr[2] = 'V'
     flvhdr[3] = 0x01
-    flvhdr[4] = 0
+    flvhdr[4] = 0x05
     flvhdr[5] = 0
     flvhdr[6] = 0
     flvhdr[7] = 0
-    flvhdr[8] = 0
+    flvhdr[8] = 9
 
     f.fd.Write(flvhdr[:])
 
@@ -209,68 +239,40 @@ func (f *FileWriter) Open(path string) (err error) {
     return nil
 }
 
-func (f *FlvFileWriter) MuxerAudio(data []byte, cid mpeg.CodecID, pts uint32, dts uint32, sample int, bitsPersample int) error {
-    flvtag := FlvTag{
-        StreamID:          0,
-        TimestampExtended: 0,
-        DataSize:          0,
-    }
-    flvtag.TagType = uint8(AUDIO_TAG)
-    if pts > 0x00FFFFFF {
-        flvtag.Timestamp = 0x00FFFFFF
-        flvtag.TimestampExtended = uint8(pts >> 24)
+//adts aac frame
+func (f *FlvFileWriter) WriteAAC(data []byte, pts uint32, dts uint32) error {
+    if f.muxer.audioMuxer == nil {
+        f.muxer.SetAudioCodeId(FLV_AAC)
     } else {
-        flvtag.Timestamp = pts
+        if _, ok := f.muxer.audioMuxer.(*AACMuxer); !ok {
+            panic("audio codec change")
+        }
     }
-    flvtag.DataSize = uint32(len(data))
-    count, err := f.fd.Write(flvtag.Encode())
-    if err != nil {
+    if tags, err := f.muxer.WriteAudio(data, pts, dts); err != nil {
         return err
-    }
-    if count != 11 {
-        return errors.New("write to file < 11 bytes")
-    }
-
-    atag := AudioTag{
-        SoundFormat: 0,
-        SoundSize:   0,
-        SoundType:   0,
-        SoundRate:   0,
-    }
-
-    switch cid {
-    case mpeg.CODECID_AUDIO_AAC:
-        atag.SoundFormat = FLV_AAC
-        atag.SoundRate = uint8(FLV_SAMPLE_44000)
-        atag.SoundSize = 1
-        atag.SoundType = 1
-        if f.firstAudio {
-            atag.AACPacketType = 0
+    } else {
+        for _, tag := range tags {
+            f.fd.Write(tag)
         }
-        tag := atag.Encode()
-
-        c, err := f.fd.Write(tag)
-        if err != nil {
-            return err
-        }
-
-        if c != len(tag) {
-            return errors.New("write to file too least bytes")
-        }
-        return f.muxerAAC(data)
-    default:
-        return errors.New("unsupport audio codec")
     }
-
-}
-
-func (f *FlvFileWriter) MuxerVideo() error {
     return nil
 }
 
-func (f *FlvFileWriter) muxerAAC(aac []byte) error {
-    if f.firstAudio {
-        f.firstAudio = false
+//H264 Frame with startcode 0x0000001
+func (f *FlvFileWriter) WriteH264(data []byte, pts uint32, dts uint32) error {
+    if f.muxer.videoMuxer == nil {
+        f.muxer.SetVideoCodeId(FLV_AVC)
+    } else {
+        if _, ok := f.muxer.audioMuxer.(*AVCMuxer); !ok {
+            panic("video codec change")
+        }
+    }
+    if tags, err := f.muxer.WriteVideo(data, pts, dts); err != nil {
+        return err
+    } else {
+        for _, tag := range tags {
+            f.fd.Write(tag)
+        }
     }
     return nil
 }
