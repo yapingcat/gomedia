@@ -201,6 +201,17 @@ func (sei *SEI) Encode(bsw *BitStreamWriter) []byte {
     return bsw.Bits()
 }
 
+func GetSPSId(sps []byte) uint64 {
+    bs := NewBitStream(sps)
+    bs.SkipBits(24)
+    return bs.ReadUE()
+}
+
+func GetPPSId(pps []byte) uint64 {
+    bs := NewBitStream(pps)
+    return bs.ReadUE()
+}
+
 //https://stackoverflow.com/questions/12018535/get-the-width-height-of-the-video-from-h-264-nalu
 //int Width = ((pic_width_in_mbs_minus1 +1)*16) - frame_crop_right_offset *2 - frame_crop_left_offset *2;
 //int Height = ((2 - frame_mbs_only_flag)* (pic_height_in_map_units_minus1 +1) * 16) - (frame_crop_bottom_offset* 2) - (frame_crop_top_offset* 2);
