@@ -1,4 +1,4 @@
-module mpeg2
+module github.com/yapingcat/mpeg2
 
 go 1.16
 

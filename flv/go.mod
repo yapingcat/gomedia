@@ -1,4 +1,4 @@
-module flv
+module github.com/yapingcat/flv
 
 go 1.16
 
