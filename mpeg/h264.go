@@ -324,10 +324,9 @@ func ConvertAnnexBToAVCC(annexb []byte) []byte {
     }
 }
 
-func CovertAVCCToAnnexB(avcc []byte) []byte {
+func CovertAVCCToAnnexB(avcc []byte) {
     avcc[0] = 0x00
     avcc[1] = 0x00
     avcc[2] = 0x00
     avcc[3] = 0x01
-    return avcc
 }

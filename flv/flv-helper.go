@@ -36,3 +36,19 @@ func CovertFlvAudioCodecId2MpegCodecId(cid FLV_SOUND_FORMAT) mpeg.CodecID {
     }
     return mpeg.CODECID_UNRECOGNIZED
 }
+
+func GetTagLenByAudioCodec(cid FLV_SOUND_FORMAT) int {
+    if cid == FLV_AAC {
+        return 2
+    } else {
+        return 1
+    }
+}
+
+func GetTagLenByVideoCodec(cid FLV_VIDEO_CODEC_ID) int {
+    if cid == FLV_AVC || cid == FLV_HEVC {
+        return 5
+    } else {
+        return 1
+    }
+}

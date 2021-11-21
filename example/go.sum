@@ -1,0 +1,7 @@
+github.com/yapingcat/gomedia/flv v0.0.0-20211121043712-92e3d17da7ea h1:n9tb9H4rmUzzgzDdMtBjab/LE4u+stcvpf8acRqP9bQ=
+github.com/yapingcat/gomedia/flv v0.0.0-20211121043712-92e3d17da7ea/go.mod h1:XF6WxFTIJZWPr1a8AOYzVSJs1SX5Ge5becoxQCbHjAQ=
+github.com/yapingcat/gomedia/mpeg v0.0.0-20211121043247-54c180fa81c4/go.mod h1:neT7Rmoi+yHT390+q+/73SC+nbR7MJCnCy1R9BcQCnE=
+github.com/yapingcat/gomedia/mpeg v0.0.0-20211121043712-92e3d17da7ea h1:8ZsbWM6KRoo8BzqJJ5xkLXS9K0wpkEU0eiNjNjoK4h0=
+github.com/yapingcat/gomedia/mpeg v0.0.0-20211121043712-92e3d17da7ea/go.mod h1:neT7Rmoi+yHT390+q+/73SC+nbR7MJCnCy1R9BcQCnE=
+github.com/yapingcat/gomedia/mpeg2 v0.0.0-20211121043712-92e3d17da7ea h1:BlzhcA2sot8KFEf5wSIBv4QLSAwHsB/7v24tQP8CnbY=
+github.com/yapingcat/gomedia/mpeg2 v0.0.0-20211121043712-92e3d17da7ea/go.mod h1:gOxScxbvhU3OmCQp5X49sAC/dYoj6ZtL+SbHX+W+EZI=
