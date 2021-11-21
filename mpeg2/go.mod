@@ -1,5 +1,5 @@
-module github.com/yapingcat/mpeg2
+module github.com/yapingcat/gomedia/mpeg2
 
 go 1.16
 
-require github.com/yapingcat/gomedia v0.0.0-20211121033221-deab0c1d5825
+require github.com/yapingcat/gomedia/mpeg v0.0.0-20211121043247-54c180fa81c4
