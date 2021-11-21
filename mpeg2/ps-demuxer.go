@@ -169,7 +169,7 @@ func (psdemuxer *PSDemuxer) Flush() {
             continue
         }
         if psdemuxer.OnFrame != nil {
-            psdemuxer.OnFrame(stream.streamBuf, stream.cid, stream.pts, stream.dts)
+            psdemuxer.OnFrame(stream.streamBuf, stream.cid, stream.pts/90, stream.dts/90)
         }
     }
 }
@@ -233,7 +233,7 @@ func (psdemuxer *PSDemuxer) demuxPespacket(stream *psstream, pes *PesPacket) err
 func (psdemuxer *PSDemuxer) demuxAudio(stream *psstream, pes *PesPacket) error {
     if stream.pts != pes.Pts && len(stream.streamBuf) > 0 {
         if psdemuxer.OnFrame != nil {
-            psdemuxer.OnFrame(stream.streamBuf, stream.cid, stream.pts, stream.dts)
+            psdemuxer.OnFrame(stream.streamBuf, stream.cid, stream.pts/90, stream.dts/90)
         }
         stream.streamBuf = stream.streamBuf[:0]
     }
@@ -259,14 +259,14 @@ func (psdemuxer *PSDemuxer) demuxH26x(stream *psstream, pes *PesPacket) error {
             naluType := mpeg.H264NaluType(stream.streamBuf[start:])
             if naluType != mpeg.H264_NAL_AUD {
                 if psdemuxer.OnFrame != nil {
-                    psdemuxer.OnFrame(stream.streamBuf[start:end], stream.cid, stream.pts, stream.dts)
+                    psdemuxer.OnFrame(stream.streamBuf[start:end], stream.cid, stream.pts/90, stream.dts/90)
                 }
             }
         } else if stream.cid == PS_STREAM_H265 {
             naluType := mpeg.H265NaluType(stream.streamBuf[start:])
             if naluType != mpeg.H265_NAL_AUD {
                 if psdemuxer.OnFrame != nil {
-                    psdemuxer.OnFrame(stream.streamBuf[start:end], stream.cid, stream.pts, stream.dts)
+                    psdemuxer.OnFrame(stream.streamBuf[start:end], stream.cid, stream.pts/90, stream.dts/90)
                 }
             }
         }

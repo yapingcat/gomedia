@@ -3,11 +3,11 @@ package mpeg
 import "errors"
 
 // Table 31 – Profiles
-// index         profile
-//   0             Main profile
-//   1             Low Complexity profile (LC)
-//   2             Scalable Sampling Rate profile (SSR)
-//   3            (reserved)
+// index      profile
+//   0        Main profile
+//   1        Low Complexity profile (LC)
+//   2        Scalable Sampling Rate profile (SSR)
+//   3        (reserved)
 
 type AAC_PROFILE int
 
@@ -85,12 +85,12 @@ type ADTS_Fix_Header struct {
 }
 
 // adts_variable_header() {
-//         copyright_identification_bit;               1      bslbf
+//      copyright_identification_bit;               1      bslbf
 //      copyright_identification_start;             1      bslbf
 //      frame_length;                               13     bslbf
-//         adts_buffer_fullness;                       11     bslbf
+//      adts_buffer_fullness;                       11     bslbf
 //      number_of_raw_data_blocks_in_frame;         2      uimsfb
-//     }
+// }
 
 type ADTS_Variable_Header struct {
     Copyright_identification_bit       uint8

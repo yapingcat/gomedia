@@ -274,6 +274,32 @@ func CreateH264AVCCExtradata(spss [][]byte, ppss [][]byte) []byte {
     return extradata
 }
 
+func CovertExtradata(extraData []byte) ([][]byte, [][]byte) {
+    spsnum := extraData[5] & 0x1F
+    spss := make([][]byte, spsnum)
+    offset := 6
+    for i := 0; i < int(spsnum); i++ {
+        spssize := binary.BigEndian.Uint16(extraData[offset:])
+        sps := make([]byte, spssize+4)
+        copy(sps, []byte{0x00, 0x00, 0x00, 0x01})
+        copy(sps[4:], extraData[offset+2:offset+2+int(spssize)])
+        offset += 2 + int(spssize)
+        spss[i] = sps
+    }
+    ppsnum := extraData[offset]
+    ppss := make([][]byte, ppsnum)
+    offset++
+    for i := 0; i < int(ppsnum); i++ {
+        ppssize := binary.BigEndian.Uint16(extraData[offset:])
+        pps := make([]byte, ppssize+4)
+        copy(pps, []byte{0x00, 0x00, 0x00, 0x01})
+        copy(pps[4:], extraData[offset+2:offset+2+int(ppssize)])
+        offset += 2 + int(ppssize)
+        ppss[i] = pps
+    }
+    return spss, ppss
+}
+
 func ConvertAnnexBToAVCC(annexb []byte) []byte {
     start, sc := FindStarCode(annexb, 0)
     if sc == START_CODE_4 {

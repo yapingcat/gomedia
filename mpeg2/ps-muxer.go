@@ -90,6 +90,8 @@ func (muxer *PSMuxer) Write(sid uint8, frame []byte, pts uint64, dts uint64) err
         })
     }
 
+    dts = dts * 90
+    pts = pts * 90
     bsw := mpeg.NewBitStreamWriter(1024)
     var pack PSPackHeader
     pack.System_clock_reference_base = dts - 3600
