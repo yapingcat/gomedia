@@ -27,25 +27,22 @@ const (
 type FLV_VIDEO_CODEC_ID int
 
 const (
-    FLV_AVC  FLV_VIDEO_CODEC_ID = 7
-    FLV_HEVC FLV_VIDEO_CODEC_ID = 12
+    AVC  FLV_VIDEO_CODEC_ID = 7
+    HEVC                    = 12
 )
 
-const (
-    AVC_SEQUENCE_HEADER = 0
-    AVC_NALU            = 1
-)
+type FLV_PACKET_TYPE int
 
 const (
-    AAC_SEQUENCE_HEADER = 0
-    AAC_RAW             = 1
+    AVC_SEQUENCE_HEADER FLV_PACKET_TYPE = 0
+    AVC_NALU                            = 1
 )
 
 type FLV_SOUND_FORMAT int
 
 const (
     FLV_MP3   FLV_SOUND_FORMAT = 2
-    FLV_G711A FLV_SOUND_FORMAT = 7
-    FLV_G711U FLV_SOUND_FORMAT = 8
-    FLV_AAC   FLV_SOUND_FORMAT = 10
+    FLV_G711A                  = 7
+    FLV_G711U                  = 8
+    FLV_AAC                    = 10
 )
