@@ -5,8 +5,8 @@
 - [x] mpeg-ts demuxer(H264/H265/AAC)
 - [x] mpeg-ps muxer(H264/H265/AAC/G711A/G711U)
 - [x] mpeg-ps demuxer(H264/H265/AAC/G711A/G711U)
-- [ ] flv muxer
-- [x] flv demuxer(H264/AAC)
+- [x] flv muxer(H264/AAC/G711A/G711U)
+- [x] flv demuxer(H264/AAC/G711A/G711U)
 
 
 
