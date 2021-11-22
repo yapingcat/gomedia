@@ -235,7 +235,7 @@ func (muxer *FlvMuxer) WriteFrames(frameType TagType, frames []byte, pts uint32,
     } else {
         return nil, errors.New("unsupport Frame Type")
     }
-    ftag.Timestamp = dts & 0x0FFF
+    ftag.Timestamp = dts & 0x00FFFFFF
     ftag.TimestampExtended = uint8(dts >> 24 & 0xFF)
 
     tmptags := make([][]byte, 0, 1)
