@@ -51,7 +51,7 @@ func SplitFrame(frames []byte, onFrame func(nalu []byte) bool) {
 
 func SplitFrameWithStartCode(frames []byte, onFrame func(nalu []byte) bool) {
     beg, sc := FindStarCode(frames, 0)
-    for {
+    for beg >= 0 {
         end, sc2 := FindStarCode(frames, beg+int(sc))
         if end == -1 {
             if onFrame != nil {

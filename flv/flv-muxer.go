@@ -235,7 +235,7 @@ func (muxer *FlvMuxer) WriteFrames(frameType TagType, frames []byte, pts uint32,
         tags = muxer.audioMuxer.Write(frames, pts, dts)
     } else if frameType == VIDEO_TAG {
         ftag.TagType = uint8(VIDEO_TAG)
-        tags = muxer.audioMuxer.Write(frames, pts, dts)
+        tags = muxer.videoMuxer.Write(frames, pts, dts)
     } else {
         return nil, errors.New("UNSupport Frame Type")
     }

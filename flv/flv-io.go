@@ -279,16 +279,18 @@ func (f *FlvWriter) WriteFlvHeader() (err error) {
     flvhdr[7] = 0
     flvhdr[8] = 9
 
-    f.writer.Write(flvhdr[:])
-
+    if _, err = f.writer.Write(flvhdr[:9]); err != nil {
+        return
+    }
     var previousTagSize0 [4]byte
     previousTagSize0[0] = 0
     previousTagSize0[1] = 0
     previousTagSize0[2] = 0
     previousTagSize0[3] = 0
-    f.writer.Write(previousTagSize0[:])
-
-    return nil
+    if _, err = f.writer.Write(previousTagSize0[:4]); err != nil {
+        return
+    }
+    return
 }
 
 //adts aac frame
@@ -304,7 +306,9 @@ func (f *FlvWriter) WriteAAC(data []byte, pts uint32, dts uint32) error {
         return err
     } else {
         for _, tag := range tags {
-            f.writer.Write(tag)
+            if _, err := f.writer.Write(tag); err != nil {
+                return err
+            }
         }
     }
     return nil
@@ -315,7 +319,7 @@ func (f *FlvWriter) WriteH264(data []byte, pts uint32, dts uint32) error {
     if f.muxer.videoMuxer == nil {
         f.muxer.SetVideoCodeId(FLV_AVC)
     } else {
-        if _, ok := f.muxer.audioMuxer.(*AVCMuxer); !ok {
+        if _, ok := f.muxer.videoMuxer.(*AVCMuxer); !ok {
             panic("video codec change")
         }
     }
@@ -323,7 +327,9 @@ func (f *FlvWriter) WriteH264(data []byte, pts uint32, dts uint32) error {
         return err
     } else {
         for _, tag := range tags {
-            f.writer.Write(tag)
+            if _, err := f.writer.Write(tag); err != nil {
+                return err
+            }
         }
     }
     return nil
