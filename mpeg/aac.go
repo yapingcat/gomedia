@@ -151,9 +151,9 @@ func (frame *ADTS_Frame_Header) Decode(aac []byte) error {
 func (frame *ADTS_Frame_Header) Encode() []byte {
     var hdr []byte
     if frame.Fix_Header.Protection_absent == 1 {
-        hdr = make([]byte, 11)
+        hdr = make([]byte, 7)
     } else {
-        hdr = make([]byte, 13)
+        hdr = make([]byte, 9)
     }
     hdr[0] = 0xFF
     hdr[1] = 0xF0
@@ -162,7 +162,7 @@ func (frame *ADTS_Frame_Header) Encode() []byte {
     hdr[3] = frame.Fix_Header.Channel_configuration<<6 | frame.Fix_Header.Originalorcopy<<5 | frame.Fix_Header.Home<<4
     hdr[3] = hdr[3] | frame.Variable_Header.copyright_identification_start<<3 | frame.Variable_Header.Copyright_identification_bit<<2 | byte(frame.Variable_Header.Frame_length<<11)
     hdr[4] = byte(frame.Variable_Header.Frame_length >> 3)
-    hdr[5] = byte(frame.Variable_Header.Frame_length&0x07) | byte(frame.Variable_Header.Adts_buffer_fullness>>6)
+    hdr[5] = byte((frame.Variable_Header.Frame_length&0x07)<<5) | byte(frame.Variable_Header.Adts_buffer_fullness>>3)
     hdr[6] = byte(frame.Variable_Header.Adts_buffer_fullness&0x3F<<2) | frame.Variable_Header.Number_of_raw_data_blocks_in_frame
     return hdr
 }
@@ -249,7 +249,7 @@ func ConvertASCToADTS(asc []byte, aacbytes int) []byte {
     aac_adts.Fix_Header.Channel_configuration = aac_asc.Channel_configuration
     aac_adts.Fix_Header.Sampling_frequency_index = aac_asc.Sample_freq_index
     aac_adts.Fix_Header.Protection_absent = 1
-    aac_adts.Variable_Header.Adts_buffer_fullness = 0xFC
+    aac_adts.Variable_Header.Adts_buffer_fullness = 0x3F
     aac_adts.Variable_Header.Frame_length = uint16(aacbytes)
     return aac_adts.Encode()
 }

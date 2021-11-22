@@ -30,17 +30,17 @@ func ReadVideoTag(reader io.Reader) (tag VideoTag, err error) {
 }
 
 func ReadVideoTagWithTimeout(reader io.Reader, timeout uint32) (tag VideoTag, err error) {
-    buf := make([]byte, 6)
+    buf := make([]byte, 5)
     if _, err := readAtLeastWithTimeout(reader, buf[:1], 1, timeout); err != nil {
         return VideoTag{}, err
     }
 
-    codecid := buf[1] & 0x0F
+    codecid := buf[0] & 0x0F
     if codecid == byte(FLV_AVC) || codecid == byte(FLV_HEVC) {
-        if _, err := readAtLeastWithTimeout(reader, buf[2:6], 5, timeout); err != nil {
+        if _, err := readAtLeastWithTimeout(reader, buf[1:5], 4, timeout); err != nil {
             return VideoTag{}, err
         }
-        tag.Decode(buf[:6])
+        tag.Decode(buf[:5])
     } else {
         tag.Decode(buf[:1])
     }

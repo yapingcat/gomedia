@@ -1,56 +1,35 @@
 package main
 
 import (
-    "fmt"
-    "os"
+	"fmt"
+	"os"
 
-    "github.com/yapingcat/gomedia/flv"
+	"github.com/yapingcat/gomedia/flv"
+	"github.com/yapingcat/gomedia/mpeg"
 )
 
-func exampleForReader(filename string) {
-    fr := flv.CreateFlvFileReader()
-    fr.SetOnTag(func(ftag flv.FlvTag, tag interface{}) {
-        var infostr string = "Tag:"
-        if ftag.TagType == 8 {
-            infostr += fmt.Sprintf("[%8s]", "Audio")
-        } else if ftag.TagType == 9 {
-            infostr += fmt.Sprintf("[%8s]", "Video")
-        } else if ftag.TagType == 18 {
-            infostr += fmt.Sprintf("[%8s]", "MetaData")
-        }
-        infostr += fmt.Sprintf("[Size:%8d]", int(ftag.DataSize))
-        infostr += fmt.Sprintf("[TimeStamp:%8d]", int(ftag.Timestamp))
-        if ftag.TimestampExtended != 0 {
-            infostr += fmt.Sprintf("[TimestampExtended:%10d]", int(ftag.TimestampExtended))
-        }
-        if ftag.TagType == 8 {
-            atag := tag.(flv.AudioTag)
-            infostr += fmt.Sprintf("[SoundFormat:%2d]", int(atag.SoundFormat))
-            infostr += fmt.Sprintf("[SoundRate:%d]", int(atag.SoundRate))
-            infostr += fmt.Sprintf("[SoundSize:%d]", int(atag.SoundSize))
-            infostr += fmt.Sprintf("[SoundType:%d]", int(atag.SoundType))
-            if atag.SoundFormat == 10 {
-                infostr += fmt.Sprintf("[AACPacketType:%d]", int(atag.AACPacketType))
-            }
-        } else if ftag.TagType == 9 {
-            vtag := tag.(flv.VideoTag)
-            infostr += fmt.Sprintf("[FrameType:%d]", int(vtag.FrameType))
-            infostr += fmt.Sprintf("[CodecId:%d]", int(vtag.CodecId))
-            if vtag.CodecId == 7 {
-                infostr += fmt.Sprintf("[AVCPacketType:%d]", int(vtag.AVCPacketType))
-                infostr += fmt.Sprintf("[CompositionTime:%5d]", int(vtag.CompositionTime))
-            }
-        }
-        fmt.Println(infostr)
-    })
-    fr.Open(filename)
-    if err := fr.DeMuxFile(); err != nil {
-        fmt.Println(err)
-    }
-
-}
-
 func main() {
-    fn := os.Args[1]
-    exampleForReader(fn)
+
+	flvfilereader, _ := os.Open(os.Args[1])
+	fr := flv.CreateFlvReader(flvfilereader)
+	firstAudio := true
+	var audiof *os.File
+	firstVideo := true
+	var videof *os.File
+	fr.OnFrame = func(ci mpeg.CodecID, b []byte, u1, u2 uint32) {
+		if ci == mpeg.CODECID_AUDIO_AAC {
+			if firstAudio {
+				audiof, _ = os.OpenFile("audio.aac", os.O_CREATE|os.O_RDWR, 0666)
+				firstAudio = false
+			}
+			audiof.Write(b)
+		} else if ci == mpeg.CODECID_VIDEO_H264 {
+			if firstVideo {
+				videof, _ = os.OpenFile("video.h264", os.O_CREATE|os.O_RDWR, 0666)
+				firstVideo = false
+			}
+			videof.Write(b)
+		}
+	}
+	fmt.Println(fr.LoopRead())
 }

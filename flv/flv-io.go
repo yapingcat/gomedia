@@ -215,10 +215,11 @@ func (f *FlvReader) demuxVideo(cid FLV_VIDEO_CODEC_ID, packetType uint8, data []
             var hassps bool
             var haspps bool
             var idr bool
-            for len(data) > 0 {
-                naluSize := binary.BigEndian.Uint32(data)
-                mpeg.CovertAVCCToAnnexB(data)
-                naluType := mpeg.H264NaluType(data)
+            tmpdata := data
+            for len(tmpdata) > 0 {
+                naluSize := binary.BigEndian.Uint32(tmpdata)
+                mpeg.CovertAVCCToAnnexB(tmpdata)
+                naluType := mpeg.H264NaluType(tmpdata)
                 if naluType == 5 {
                     idr = true
                 } else if naluType == 7 {
@@ -226,7 +227,7 @@ func (f *FlvReader) demuxVideo(cid FLV_VIDEO_CODEC_ID, packetType uint8, data []
                 } else if naluType == 8 {
                     haspps = true
                 }
-                data = data[:4+naluSize]
+                tmpdata = tmpdata[4+naluSize:]
             }
             if idr && (!hassps || !haspps) {
                 var nalus []byte = make([]byte, 0, 2048)
