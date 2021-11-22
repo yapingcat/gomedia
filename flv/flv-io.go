@@ -98,8 +98,8 @@ func (f *FlvReader) LoopRead() error {
 
         var ftag FlvTag
         ftag.Decode(tag[:11])
-        pts := uint32(ftag.TimestampExtended)<<24 | ftag.Timestamp
-        dts := pts
+        dts := uint32(ftag.TimestampExtended)<<24 | ftag.Timestamp
+        pts := dts
         var taglen int = 0
         var acid FLV_SOUND_FORMAT
         var vcid FLV_VIDEO_CODEC_ID
@@ -120,11 +120,7 @@ func (f *FlvReader) LoopRead() error {
             if err != nil {
                 return err
             }
-            if vtag.CompositionTime < 0 {
-                dts -= uint32(-1 * vtag.CompositionTime)
-            } else {
-                dts = uint32(vtag.CompositionTime)
-            }
+            pts = dts + uint32(vtag.CompositionTime)
             packetType = vtag.AVCPacketType
             vcid = FLV_VIDEO_CODEC_ID(vtag.CodecId)
             taglen = GetTagLenByVideoCodec(vcid)
@@ -309,6 +305,9 @@ func (f *FlvWriter) WriteAAC(data []byte, pts uint32, dts uint32) error {
             if _, err := f.writer.Write(tag); err != nil {
                 return err
             }
+            if err := f.writePreviousTagSize(uint32(len(tag))); err != nil {
+                return err
+            }
         }
     }
     return nil
@@ -330,7 +329,19 @@ func (f *FlvWriter) WriteH264(data []byte, pts uint32, dts uint32) error {
             if _, err := f.writer.Write(tag); err != nil {
                 return err
             }
+            if err := f.writePreviousTagSize(uint32(len(tag))); err != nil {
+                return err
+            }
         }
+    }
+    return nil
+}
+
+func (f *FlvWriter) writePreviousTagSize(preTagSize uint32) error {
+    tagsize := make([]byte, 4)
+    binary.BigEndian.PutUint32(tagsize, preTagSize)
+    if _, err := f.writer.Write(tagsize); err != nil {
+        return err
     }
     return nil
 }

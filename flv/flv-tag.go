@@ -193,7 +193,7 @@ func (atag *AudioTag) Decode(data []byte) error {
     atag.SoundType = data[0] & 0x01
     if atag.SoundFormat == 10 {
         if len(data) < 2 {
-            return errors.New("AAC audio tag header size < 2")
+            return errors.New("aac audio tag header size < 2")
         }
         atag.AACPacketType = data[1]
     }

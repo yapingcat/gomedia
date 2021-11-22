@@ -314,7 +314,7 @@ func CovertExtradata(extraData []byte) ([][]byte, [][]byte) {
 func ConvertAnnexBToAVCC(annexb []byte) []byte {
     start, sc := FindStarCode(annexb, 0)
     if sc == START_CODE_4 {
-        binary.BigEndian.PutUint32(annexb[start+4:], uint32(len(annexb)-4))
+        binary.BigEndian.PutUint32(annexb[start:], uint32(len(annexb)-4))
         return annexb
     } else {
         avcc := make([]byte, 1+len(annexb))

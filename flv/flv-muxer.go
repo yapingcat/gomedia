@@ -70,27 +70,23 @@ func (muxer *AVCMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
         case mpeg.H264_NAL_SPS:
             var sps mpeg.SPS
             sps.Decode(bs)
-            if s, found := muxer.spsset[sps.Seq_parameter_set_id]; found {
-                if !bytes.Equal(s, nalu) {
-                    muxer.spsset[sps.Seq_parameter_set_id] = nalu
-                    updateSequence = true
-                }
-            } else {
-                muxer.spsset[sps.Seq_parameter_set_id] = nalu
+            s, found := muxer.spsset[sps.Seq_parameter_set_id]
+            if !found || !bytes.Equal(s, nalu) {
+                naluCopy := make([]byte, len(nalu))
+                copy(naluCopy, nalu)
+                muxer.spsset[sps.Seq_parameter_set_id] = naluCopy
                 updateSequence = true
             }
             muxer.cache = append(muxer.cache, mpeg.ConvertAnnexBToAVCC(nalu)...)
         case mpeg.H264_NAL_PPS:
             var pps mpeg.PPS
             pps.Decode(bs)
-            muxer.spsset[pps.Pic_parameter_set_id] = nalu
-            if s, found := muxer.spsset[pps.Pic_parameter_set_id]; found {
-                if !bytes.Equal(s, nalu) {
-                    muxer.spsset[pps.Pic_parameter_set_id] = nalu
-                    updateSequence = true
-                }
-            } else {
-                muxer.spsset[pps.Pic_parameter_set_id] = nalu
+            muxer.ppsset[pps.Pic_parameter_set_id] = nalu
+            s, found := muxer.ppsset[pps.Pic_parameter_set_id]
+            if !found || !bytes.Equal(s, nalu) {
+                naluCopy := make([]byte, len(nalu))
+                copy(naluCopy, nalu)
+                muxer.ppsset[pps.Pic_parameter_set_id] = naluCopy
                 updateSequence = true
             }
             muxer.cache = append(muxer.cache, mpeg.ConvertAnnexBToAVCC(nalu)...)
@@ -117,7 +113,7 @@ func (muxer *AVCMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
             idx++
         }
         extraData := mpeg.CreateH264AVCCExtradata(spss, ppss)
-        tags = append(tags, WriteVideoTag(extraData, FLV_AVC, int32(pts-dts), true))
+        tags = append(tags, WriteVideoTag(extraData, FLV_AVC, 0, true))
     }
     if vcl {
         tags = append(tags, WriteVideoTag(muxer.cache, FLV_AVC, int32(pts-dts), false))
@@ -157,7 +153,7 @@ func (muxer *AACMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
             tags = append(tags, WriteAudioTag(asc, FLV_AAC, true))
             muxer.updateSequence = false
         }
-        tags = append(tags, WriteAudioTag(aac[7:], FLV_AAC, true))
+        tags = append(tags, WriteAudioTag(aac[7:], FLV_AAC, false))
     })
     return tags
 }
@@ -214,14 +210,14 @@ func (muxer *FlvMuxer) SetAudioCodeId(cid FLV_SOUND_FORMAT) {
 
 func (muxer *FlvMuxer) WriteVideo(frames []byte, pts uint32, dts uint32) ([][]byte, error) {
     if muxer.videoMuxer == nil {
-        return nil, errors.New("Video Muxer is Nil")
+        return nil, errors.New("video Muxer is Nil")
     }
     return muxer.WriteFrames(VIDEO_TAG, frames, pts, dts)
 }
 
 func (muxer *FlvMuxer) WriteAudio(frames []byte, pts uint32, dts uint32) ([][]byte, error) {
     if muxer.audioMuxer == nil {
-        return nil, errors.New("Audio Muxer is Nil")
+        return nil, errors.New("audio Muxer is Nil")
     }
     return muxer.WriteFrames(AUDIO_TAG, frames, pts, dts)
 }
@@ -237,10 +233,10 @@ func (muxer *FlvMuxer) WriteFrames(frameType TagType, frames []byte, pts uint32,
         ftag.TagType = uint8(VIDEO_TAG)
         tags = muxer.videoMuxer.Write(frames, pts, dts)
     } else {
-        return nil, errors.New("UNSupport Frame Type")
+        return nil, errors.New("unsupport Frame Type")
     }
-    ftag.Timestamp = pts & 0x0FFF
-    ftag.TimestampExtended = uint8(pts >> 24 & 0xFF)
+    ftag.Timestamp = dts & 0x0FFF
+    ftag.TimestampExtended = uint8(dts >> 24 & 0xFF)
 
     tmptags := make([][]byte, 0, 1)
     for _, tag := range tags {
