@@ -1,6 +1,12 @@
 package flv
 
-import "github.com/yapingcat/gomedia/mpeg"
+import (
+    "errors"
+    "io"
+    "time"
+
+    "github.com/yapingcat/gomedia/mpeg"
+)
 
 func PutUint24(b []byte, v uint32) {
     _ = b[2]
@@ -51,4 +57,30 @@ func GetTagLenByVideoCodec(cid FLV_VIDEO_CODEC_ID) int {
     } else {
         return 1
     }
+}
+
+type setReadDeadline interface {
+    SetReadDeadline(t time.Time) error
+}
+
+func readAtLeastWithTimeout(reader io.Reader, buf []byte, min int, timeout uint32) (n int, err error) {
+    if len(buf) < min {
+        return 0, errors.New("short buffer")
+    }
+    nc, ok := reader.(setReadDeadline)
+    for n < min && err == nil {
+        if ok && timeout > 0 {
+            nc.SetReadDeadline(time.Now().Add(time.Millisecond * time.Duration(timeout)))
+        }
+        var nn int
+        nn, err = reader.Read(buf[n:])
+        n += nn
+    }
+    if n >= min {
+        err = nil
+    } else if n > 0 && err == io.EOF {
+        err = io.ErrUnexpectedEOF
+    }
+    return
+
 }

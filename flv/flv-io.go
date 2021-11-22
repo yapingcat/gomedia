@@ -1,7 +1,6 @@
 package flv
 
 import (
-    "bufio"
     "encoding/binary"
     "errors"
     "io"
@@ -54,17 +53,20 @@ import (
 //  ---------------------------------------------------------------------------------------------------------------
 
 type FlvReader struct {
-    reader  io.Reader
-    asc     []byte
-    spss    map[uint64][]byte
-    ppss    map[uint64][]byte
-    OnFrame func(mpeg.CodecID, []byte, uint32, uint32)
-    OnTag   func(ftag FlvTag, tag interface{})
+    reader      io.Reader
+    timeout     uint32
+    hasDeadline bool
+    asc         []byte
+    spss        map[uint64][]byte
+    ppss        map[uint64][]byte
+    OnFrame     func(mpeg.CodecID, []byte, uint32, uint32)
+    OnTag       func(ftag FlvTag, tag interface{})
 }
 
-func CreateFlvFileReader(reader io.Reader) *FlvReader {
+func CreateFlvReader(reader io.Reader) *FlvReader {
     flvFile := &FlvReader{
         reader:  reader,
+        timeout: 0,
         asc:     make([]byte, 512),
         spss:    make(map[uint64][]byte),
         ppss:    make(map[uint64][]byte),
@@ -74,18 +76,23 @@ func CreateFlvFileReader(reader io.Reader) *FlvReader {
     return flvFile
 }
 
-func (f *FlvReader) ReadInloop() error {
-    reader := bufio.NewReader(f.reader)
-    if err := f.readFileHeader(reader); err != nil {
+//设置读超时，只有对实现了SetReadDeadline接口的 io.Reader 有效
+//如果没有实现SetReadDeadline，则默认都是阻塞读
+func (f *FlvReader) SetReadTimeout(timeout uint32) {
+    if _, ok := f.reader.(setReadDeadline); ok {
+        f.hasDeadline = true
+        f.timeout = timeout
+    }
+}
+
+func (f *FlvReader) LoopRead() error {
+    if err := f.readFileHeader(); err != nil {
         return nil
     }
     data := make([]byte, 4096)
     for {
         var tag [16]byte
-        if _, err := io.ReadFull(reader, tag[:11]); err != nil {
-            if err == io.EOF {
-                return nil
-            }
+        if _, err := readAtLeastWithTimeout(f.reader, tag[0:11], 11, f.timeout); err != nil {
             return err
         }
 
@@ -98,11 +105,8 @@ func (f *FlvReader) ReadInloop() error {
         var vcid FLV_VIDEO_CODEC_ID
         var packetType uint8 = 0
         if ftag.TagType == uint8(AUDIO_TAG) {
-            atag, err := ReadAudioTag(reader)
+            atag, err := ReadAudioTagWithTimeout(f.reader, f.timeout)
             if err != nil {
-                if err == io.EOF {
-                    return nil
-                }
                 return err
             }
             acid = FLV_SOUND_FORMAT(atag.SoundFormat)
@@ -112,11 +116,8 @@ func (f *FlvReader) ReadInloop() error {
                 f.OnTag(ftag, atag)
             }
         } else if ftag.TagType == uint8(VIDEO_TAG) {
-            vtag, err := ReadVideoTag(reader)
+            vtag, err := ReadVideoTagWithTimeout(f.reader, f.timeout)
             if err != nil {
-                if err == io.EOF {
-                    return nil
-                }
                 return err
             }
             if vtag.CompositionTime < 0 {
@@ -140,10 +141,7 @@ func (f *FlvReader) ReadInloop() error {
             data = make([]byte, ftag.DataSize)
         }
         data = data[:int(ftag.DataSize)-taglen]
-        if _, err := io.ReadFull(reader, data); err != nil {
-            if err == io.EOF {
-                return nil
-            }
+        if _, err := readAtLeastWithTimeout(f.reader, data, len(data), f.timeout); err != nil {
             return err
         }
 
@@ -153,26 +151,26 @@ func (f *FlvReader) ReadInloop() error {
             f.demuxVideo(vcid, packetType, data, pts, dts)
         }
 
-        if _, err := io.ReadFull(reader, data[:4]); err != nil {
-            if err == io.EOF {
-                return nil
-            }
+        if _, err := readAtLeastWithTimeout(f.reader, data[:4], 4, f.timeout); err != nil {
             return err
         }
     }
 }
 
-func (f *FlvReader) readFileHeader(reader *bufio.Reader) error {
+func (f *FlvReader) readFileHeader() error {
 
     var flvhdr [9]byte
-    if _, err := io.ReadFull(reader, flvhdr[0:9]); err != nil {
+    if _, err := readAtLeastWithTimeout(f.reader, flvhdr[0:9], 9, f.timeout); err != nil {
         return err
     }
     if flvhdr[0] != 'F' || flvhdr[1] != 'L' || flvhdr[2] != 'V' {
         return errors.New("this file Is Not FLV File")
     }
 
-    reader.Read(flvhdr[:4])
+    if _, err := readAtLeastWithTimeout(f.reader, flvhdr[0:4], 4, f.timeout); err != nil {
+        return err
+    }
+
     return nil
 }
 
@@ -259,7 +257,7 @@ type FlvWriter struct {
     muxer  *FlvMuxer
 }
 
-func CreateFlvFileWriter(writer io.Writer) *FlvWriter {
+func CreateFlvWriter(writer io.Writer) *FlvWriter {
     flvFile := &FlvWriter{
         writer: writer,
         muxer:  new(FlvMuxer),
