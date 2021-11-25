@@ -145,6 +145,22 @@ func IsH265IDRFrame(h265 []byte) bool {
     return ret
 }
 
+func Max(x, y int) int {
+    if x > y {
+        return x
+    } else {
+        return y
+    }
+}
+
+func Min(x, y int) int {
+    if x > y {
+        return y
+    } else {
+        return x
+    }
+}
+
 func ShowPacketHexdump(data []byte) {
     for k := 0; k < len(data); k++ {
         if k%8 == 0 && k != 0 {
@@ -207,4 +223,19 @@ func CalcCrc32(crc uint32, buffer []byte) uint32 {
         crc = crc32table[(crc^uint32(buffer[i]))&0xff] ^ (crc >> 8)
     }
     return crc
+}
+
+func CovertRbspToSodb(rbsp []byte) []byte {
+    bs := NewBitStream(rbsp)
+    bsw := NewBitStreamWriter(len(rbsp))
+    for !bs.EOS() {
+        if bs.RemainBytes() > 3 && bs.NextBits(24) == 0x000003 {
+            bsw.PutByte(bs.Uint8(8))
+            bsw.PutByte(bs.Uint8(8))
+            bs.SkipBits(8)
+        } else {
+            bsw.PutByte(bs.Uint8(8))
+        }
+    }
+    return bsw.Bits()
 }

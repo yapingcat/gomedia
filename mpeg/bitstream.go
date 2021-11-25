@@ -37,7 +37,7 @@ func (bs *BitStream) Uint32(n int) uint32 {
 }
 
 func (bs *BitStream) GetBytes(n int) []byte {
-    if bs.bytesOffset+n >= len(bs.bits) {
+    if bs.bytesOffset+n > len(bs.bits) {
         panic("OUT OF RANGE")
     }
     if bs.bitsOffset != 0 {
