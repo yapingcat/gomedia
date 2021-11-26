@@ -937,6 +937,17 @@ func (hvcc *HEVCRecordConfiguration) UpdateVPS(vps []byte) {
     }
 }
 
+func (hvcc *HEVCRecordConfiguration) ToNalus() (nalus []byte) {
+    startcode := []byte{0x00, 0x00, 0x00, 0x01}
+    for _, arrays := range hvcc.Arrays {
+        for _, unit := range arrays.NalUnits {
+            nalus = append(nalus, startcode...)
+            nalus = append(nalus, unit.Nalu[:unit.NalUnitLength]...)
+        }
+    }
+    return
+}
+
 func (hvcc *HEVCRecordConfiguration) updatePtl(ptl ProfileTierLevel) {
     hvcc.General_profile_space = ptl.General_profile_space
     if hvcc.General_tier_flag < ptl.General_tier_flag {
