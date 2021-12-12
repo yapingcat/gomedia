@@ -45,7 +45,7 @@ func main() {
     pts := uint64(0)
     dts := uint64(0)
     mpeg.SplitFrameWithStartCode(buf, func(nalu []byte) bool {
-        muxer.Write(pid, nalu, pts*90, dts*90)
+        muxer.Write(pid, nalu, pts, dts)
         if mpeg.H264NaluType(nalu) <= mpeg.H264_NAL_I_SLICE {
             pts += 40
             dts += 40
