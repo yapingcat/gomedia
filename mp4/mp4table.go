@@ -34,7 +34,20 @@ type movstsc struct {
 }
 
 type movstsz struct {
+	sampleSize    uint32
+	sampleCount   uint32
+	entrySizelist []uint32
 }
 
 type movstco struct {
+	entryCount      uint32
+	chunkOffsetlist []uint64
+}
+
+type movstbl struct {
+	stts *movstts
+	ctts *movctts
+	stsc *movstsc
+	stsz *movstsz
+	stco *movstco
 }
