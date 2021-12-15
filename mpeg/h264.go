@@ -201,13 +201,25 @@ func (sei *SEI) Encode(bsw *BitStreamWriter) []byte {
     return bsw.Bits()
 }
 
+func GetSPSIdWithStartCode(sps []byte) uint64 {
+    start, sc := FindStarCode(sps, 0)
+    return GetSPSId(sps[start+int(sc):])
+}
+
 func GetSPSId(sps []byte) uint64 {
+    sps = sps[1:]
     bs := NewBitStream(sps)
     bs.SkipBits(24)
     return bs.ReadUE()
 }
 
+func GetPPSIdWithStartCode(pps []byte) uint64 {
+    start, sc := FindStarCode(pps, 0)
+    return GetPPSId(pps[start+int(sc):])
+}
+
 func GetPPSId(pps []byte) uint64 {
+    pps = pps[1:]
     bs := NewBitStream(pps)
     return bs.ReadUE()
 }

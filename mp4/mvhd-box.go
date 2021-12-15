@@ -1,6 +1,9 @@
 package mp4
 
-import "encoding/binary"
+import (
+    "encoding/binary"
+    "time"
+)
 
 // aligned(8) class MovieHeaderBox extends FullBox(‘mvhd’, version, 0) {
 // if (version==1) {
@@ -39,10 +42,13 @@ type MovieHeaderBox struct {
 
 func NewMovieHeaderBox() *MovieHeaderBox {
     return &MovieHeaderBox{
-        Box:    NewFullBox([4]byte{'m', 'v', 'h', 'd'}, 0),
-        Rate:   0x00010000,
-        Volume: 0x0100,
-        Matrix: [9]uint32{0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000},
+        Box:               NewFullBox([4]byte{'m', 'v', 'h', 'd'}, 0),
+        Creation_time:     uint64(time.Now().Unix() + 0x7C25B080),
+        Modification_time: uint64(time.Now().Unix() + 0x7C25B080),
+        Timescale:         1000,
+        Rate:              0x00010000,
+        Volume:            0x0100,
+        Matrix:            [9]uint32{0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000},
     }
 }
 

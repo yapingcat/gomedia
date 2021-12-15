@@ -178,4 +178,5 @@ func (stsd *SampleDescriptionBox) Decode(buf []byte, handler_type [4]byte) (offs
 	} else {
 
 	}
+	return
 }

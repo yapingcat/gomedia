@@ -548,6 +548,15 @@ func (pps *H265RawPPS) Decode(nalu []byte) {
     pps.Entropy_coding_sync_enabled_flag = bs.GetBit()
 }
 
+func GetH265Resolution(sps []byte) (width uint32, height uint32) {
+    start, sc := FindStarCode(sps, 0)
+    h265sps := H265RawSPS{}
+    h265sps.Decode(sps[start+int(sc):])
+    width = uint32(h265sps.Pic_width_in_luma_samples)
+    height = uint32(h265sps.Pic_height_in_luma_samples)
+    return
+}
+
 func GetVPSIdWithStartCode(vps []byte) uint8 {
     start, sc := FindStarCode(vps, 0)
     return GetVPSId(vps[start+int(sc):])
@@ -559,7 +568,7 @@ func GetVPSId(vps []byte) uint8 {
     return rawvps.Vps_video_parameter_set_id
 }
 
-func GetSPSIdWithStartCode(sps []byte) uint64 {
+func GetH265SPSIdWithStartCode(sps []byte) uint64 {
     start, sc := FindStarCode(sps, 0)
     return GetH265SPSId(sps[start+int(sc):])
 }
@@ -570,7 +579,7 @@ func GetH265SPSId(sps []byte) uint64 {
     return rawsps.Sps_seq_parameter_set_id
 }
 
-func GetPPSIdWithStartCode(pps []byte) uint64 {
+func GetH65PPSIdWithStartCode(pps []byte) uint64 {
     start, sc := FindStarCode(pps, 0)
     return GetH265SPSId(pps[start+int(sc):])
 }
@@ -585,39 +594,39 @@ func GetH265PPSId(pps []byte) uint64 {
 ISO/IEC 14496-15:2017(E) 8.3.3.1.2 Syntax (p71)
 
 aligned(8) class HEVCDecoderConfigurationRecord {
-	unsigned int(8) configurationVersion = 1;
-	unsigned int(2) general_profile_space;
-	unsigned int(1) general_tier_flag;
-	unsigned int(5) general_profile_idc;
-	unsigned int(32) general_profile_compatibility_flags;
-	unsigned int(48) general_constraint_indicator_flags;
-	unsigned int(8) general_level_idc;
-	bit(4) reserved = '1111'b;
-	unsigned int(12) min_spatial_segmentation_idc;
-	bit(6) reserved = '111111'b;
-	unsigned int(2) parallelismType;
-	bit(6) reserved = '111111'b;
-	unsigned int(2) chromaFormat;
-	bit(5) reserved = '11111'b;
-	unsigned int(3) bitDepthLumaMinus8;
-	bit(5) reserved = '11111'b;
-	unsigned int(3) bitDepthChromaMinus8;
-	bit(16) avgFrameRate;
-	bit(2) constantFrameRate;
-	bit(3) numTemporalLayers;
-	bit(1) temporalIdNested;
-	unsigned int(2) lengthSizeMinusOne;
-	unsigned int(8) numOfArrays;
-	for (j=0; j < numOfArrays; j++) {
-		bit(1) array_completeness;
-		unsigned int(1) reserved = 0;
-		unsigned int(6) NAL_unit_type;
-		unsigned int(16) numNalus;
-		for (i=0; i< numNalus; i++) {
-			unsigned int(16) nalUnitLength;
-			bit(8*nalUnitLength) nalUnit;
-		}
-	}
+    unsigned int(8) configurationVersion = 1;
+    unsigned int(2) general_profile_space;
+    unsigned int(1) general_tier_flag;
+    unsigned int(5) general_profile_idc;
+    unsigned int(32) general_profile_compatibility_flags;
+    unsigned int(48) general_constraint_indicator_flags;
+    unsigned int(8) general_level_idc;
+    bit(4) reserved = '1111'b;
+    unsigned int(12) min_spatial_segmentation_idc;
+    bit(6) reserved = '111111'b;
+    unsigned int(2) parallelismType;
+    bit(6) reserved = '111111'b;
+    unsigned int(2) chromaFormat;
+    bit(5) reserved = '11111'b;
+    unsigned int(3) bitDepthLumaMinus8;
+    bit(5) reserved = '11111'b;
+    unsigned int(3) bitDepthChromaMinus8;
+    bit(16) avgFrameRate;
+    bit(2) constantFrameRate;
+    bit(3) numTemporalLayers;
+    bit(1) temporalIdNested;
+    unsigned int(2) lengthSizeMinusOne;
+    unsigned int(8) numOfArrays;
+    for (j=0; j < numOfArrays; j++) {
+        bit(1) array_completeness;
+        unsigned int(1) reserved = 0;
+        unsigned int(6) NAL_unit_type;
+        unsigned int(16) numNalus;
+        for (i=0; i< numNalus; i++) {
+            unsigned int(16) nalUnitLength;
+            bit(8*nalUnitLength) nalUnit;
+        }
+    }
 }
 */
 
