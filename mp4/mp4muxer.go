@@ -148,14 +148,18 @@ func (muxer *Movmuxer) Writetrailer() (err error) {
     mvhd := NewMovieHeaderBox()
     mvhd.Next_track_ID = muxer.nextTrackId
     _, moov := mvhd.Encode()
+    moovsize := 0
     for _, track := range muxer.tracks {
+        muxer.makeStblTable()
+
         if track.cid == MOV_CODEC_H264 || track.cid == MOV_CODEC_H265 {
             tkhd := NewTrackHeaderBox()
             tkhd.Track_ID = track.trackId
             tkhd.Duration = uint64(track.duration)
             tkhd.Width = muxer.width
             tkhd.Height = muxer.height
-            tkhd.Encode()
+            s1, tkhdbytes := tkhd.Encode()
+
         }
     }
 
