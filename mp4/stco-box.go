@@ -79,7 +79,7 @@ func (co64 *ChunkLargeOffsetBox) Encode() (int, []byte) {
     return offset, buf
 }
 
-func writeStco(stco *movstco) (boxdata []byte) {
+func makeStco(stco *movstco) (boxdata []byte) {
     if stco.entryCount <= 0 {
         panic("stco chunkoffset list is empty")
     }

@@ -19,19 +19,21 @@ package mp4
 // ‘meta’ Timed Metadata track
 // ‘auxv’ Auxiliary Video track
 
-var vide [4]byte = [4]byte{'v', 'i', 'd', 'e'}
-var soun [4]byte = [4]byte{'s', 'o', 'u', 'n'}
-var hint [4]byte = [4]byte{'h', 'i', 'n', 't'}
-var meta [4]byte = [4]byte{'m', 'e', 't', 'a'}
-var auxv [4]byte = [4]byte{'a', 'u', 'x', 'v'}
+type HandlerType [4]byte
+
+var vide HandlerType = HandlerType{'v', 'i', 'd', 'e'}
+var soun HandlerType = HandlerType{'s', 'o', 'u', 'n'}
+var hint HandlerType = HandlerType{'h', 'i', 'n', 't'}
+var meta HandlerType = HandlerType{'m', 'e', 't', 'a'}
+var auxv HandlerType = HandlerType{'a', 'u', 'x', 'v'}
 
 type HandlerBox struct {
     Box          *FullBox
-    Handler_type [4]byte
+    Handler_type HandlerType
     Name         string
 }
 
-func NewHandlerBox(handlerType [4]byte, name string) *HandlerBox {
+func NewHandlerBox(handlerType HandlerType, name string) *HandlerBox {
     return &HandlerBox{
         Box:          NewFullBox([4]byte{'h', 'd', 'l', 'r'}, 0),
         Handler_type: handlerType,

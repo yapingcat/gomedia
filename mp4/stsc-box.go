@@ -46,7 +46,7 @@ func (stsc *SampleToChunkBox) Encode() (int, []byte) {
     return offset, buf
 }
 
-func writeStsc(stsc *movstsc) (boxdata []byte) {
+func makeStsc(stsc *movstsc) (boxdata []byte) {
     stscbox := NewSampleToChunkBox()
     stscbox.stscentrys = stsc
     _, boxdata = stscbox.Encode()

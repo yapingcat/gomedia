@@ -32,14 +32,67 @@ type mp4track struct {
     sampleBits  uint8
     chanelCount uint8
     samplelist  []sampleEntry
+    extra       extraData
 }
 
 func newmp4track(cid MOV_CODEC_TYPE) *mp4track {
-    return &mp4track{
+    track := &mp4track{
         cid:        cid,
         stbltable:  nil,
         samplelist: make([]sampleEntry, 0),
     }
+    if cid == MOV_CODEC_H264 {
+        track.extra = new(h264ExtraData)
+    } else if cid == MOV_CODEC_H265 {
+        track.extra = new(h265ExtraData)
+    } else if cid == MOV_CODEC_AAC {
+        track.extra = new(aacExtraData)
+    }
+    return track
+}
+
+type extraData interface {
+    export() []byte
+    load(data []byte)
+}
+
+type h264ExtraData struct {
+    spss [][]byte
+    ppss [][]byte
+}
+
+func (extra *h264ExtraData) export() []byte {
+    return mpeg.CreateH264AVCCExtradata(extra.spss, extra.ppss)
+}
+
+func (extra *h264ExtraData) load(data []byte) {
+    extra.spss, extra.ppss = mpeg.CovertExtradata(data)
+}
+
+type h265ExtraData struct {
+    hvccExtra mpeg.HEVCRecordConfiguration
+}
+
+func (extra *h265ExtraData) export() []byte {
+    return extra.hvccExtra.Encode()
+}
+
+func (extra *h265ExtraData) load(data []byte) {
+    hevcExtra := mpeg.HEVCRecordConfiguration{}
+    hevcExtra.Decode(data)
+}
+
+type aacExtraData struct {
+    asc []byte
+}
+
+func (extra *aacExtraData) export() []byte {
+    return extra.asc
+}
+
+func (extra *aacExtraData) load(data []byte) {
+    extra.asc = make([]byte, len(data))
+    copy(extra.asc, data)
 }
 
 type Movmuxer struct {
@@ -49,10 +102,6 @@ type Movmuxer struct {
     tracks        map[uint32]*mp4track
     width         uint32
     height        uint32
-    spss          [][]byte
-    ppss          [][]byte
-    vpss          [][]byte
-    asc           []byte
 }
 
 func CreateMp4Muxer(wh Writer) *Movmuxer {
@@ -116,13 +165,13 @@ func (muxer *Movmuxer) Write(track uint32, data []byte, pts uint64, dts uint64) 
     mp4track.samplelist = append(mp4track.samplelist, entry)
     mp4track.duration += uint32(dts)
     if mp4track.cid == MOV_CODEC_H264 {
-        return muxer.writeH264(data)
+        return muxer.writeH264(mp4track, data)
     } else if mp4track.cid == MOV_CODEC_H265 {
-        return muxer.writeH265(data)
+        return muxer.writeH265(mp4track, data)
     } else if mp4track.cid == MOV_CODEC_AAC {
-        return muxer.writeAAC(data)
+        return muxer.writeAAC(mp4track, data)
     } else if mp4track.cid == MOV_CODEC_G711A || mp4track.cid == MOV_CODEC_G711U {
-        return muxer.writeG711(data)
+        return muxer.writeG711(mp4track, data)
     } else {
         return errors.New("UnSupport Codec")
     }
@@ -165,31 +214,39 @@ func (muxer *Movmuxer) Writetrailer() (err error) {
 
 }
 
-func (muxer *Movmuxer) writeH264(h264 []byte) (err error) {
+func (muxer *Movmuxer) writeH264(track *mp4track, h264 []byte) (err error) {
+    h264extra, ok := track.extra.(*h264ExtraData)
+    if !ok {
+        panic("must init h264ExtraData first")
+    }
     mpeg.SplitFrameWithStartCode(h264, func(nalu []byte) bool {
         nalu_type := mpeg.H264NaluType(nalu)
         switch nalu_type {
         case mpeg.H264_NAL_SPS:
             spsid := mpeg.GetSPSIdWithStartCode(nalu)
-            for _, sps := range muxer.spss {
+            for _, sps := range h264extra.spss {
                 if spsid == mpeg.GetSPSId(sps) {
                     return true
                 }
             }
             tmp := make([]byte, len(nalu))
             copy(tmp, nalu)
-            muxer.spss = append(muxer.spss, tmp)
-            muxer.width, muxer.height = mpeg.GetH264Resolution(muxer.spss[0])
+            h264extra.spss = append(h264extra.spss, tmp)
+            if muxer.width == 0 || muxer.height == 0 {
+                muxer.width, muxer.height = mpeg.GetH264Resolution(h264extra.spss[0])
+                track.width = muxer.width
+                track.height = muxer.height
+            }
         case mpeg.H264_NAL_PPS:
             ppsid := mpeg.GetSPSIdWithStartCode(nalu)
-            for _, pps := range muxer.ppss {
+            for _, pps := range h264extra.ppss {
                 if ppsid == mpeg.GetPPSId(pps) {
                     return true
                 }
             }
             tmp := make([]byte, len(nalu))
             copy(tmp, nalu)
-            muxer.ppss = append(muxer.ppss, tmp)
+            h264extra.ppss = append(h264extra.ppss, tmp)
         }
         avcc := mpeg.ConvertAnnexBToAVCC(nalu)
         if _, err = muxer.writerHandler.Write(avcc); err != nil {
@@ -200,41 +257,25 @@ func (muxer *Movmuxer) writeH264(h264 []byte) (err error) {
     return
 }
 
-func (muxer *Movmuxer) writeH265(h265 []byte) (err error) {
+func (muxer *Movmuxer) writeH265(track *mp4track, h265 []byte) (err error) {
+    h265extra, ok := track.extra.(*h265ExtraData)
+    if !ok {
+        panic("must init h265ExtraData first")
+    }
     mpeg.SplitFrameWithStartCode(h265, func(nalu []byte) bool {
         nalu_type := mpeg.H265NaluType(nalu)
         switch nalu_type {
         case mpeg.H265_NAL_SPS:
-            spsid := mpeg.GetH265SPSIdWithStartCode(nalu)
-            for _, sps := range muxer.spss {
-                if spsid == mpeg.GetH265SPSId(sps) {
-                    return true
-                }
+            h265extra.hvccExtra.UpdateSPS(nalu)
+            if muxer.width == 0 || muxer.height == 0 {
+                muxer.width, muxer.height = mpeg.GetH265Resolution(nalu)
+                track.width = muxer.width
+                track.height = muxer.height
             }
-            tmp := make([]byte, len(nalu))
-            copy(tmp, nalu)
-            muxer.spss = append(muxer.spss, tmp)
-            muxer.width, muxer.height = mpeg.GetH265Resolution(muxer.spss[0])
         case mpeg.H265_NAL_PPS:
-            ppsid := mpeg.GetH65PPSIdWithStartCode(nalu)
-            for _, pps := range muxer.ppss {
-                if ppsid == mpeg.GetH265PPSId(pps) {
-                    return true
-                }
-            }
-            tmp := make([]byte, len(nalu))
-            copy(tmp, nalu)
-            muxer.ppss = append(muxer.ppss, tmp)
+            h265extra.hvccExtra.UpdatePPS(nalu)
         case mpeg.H265_NAL_VPS:
-            vpsid := mpeg.GetVPSIdWithStartCode(nalu)
-            for _, pps := range muxer.ppss {
-                if vpsid == mpeg.GetVPSId(pps) {
-                    return true
-                }
-            }
-            tmp := make([]byte, len(nalu))
-            copy(tmp, nalu)
-            muxer.vpss = append(muxer.vpss, tmp)
+            h265extra.hvccExtra.UpdateVPS(nalu)
         }
         avcc := mpeg.ConvertAnnexBToAVCC(nalu)
         if _, err = muxer.writerHandler.Write(avcc); err != nil {
@@ -245,20 +286,23 @@ func (muxer *Movmuxer) writeH265(h265 []byte) (err error) {
     return
 }
 
-func (muxer *Movmuxer) writeAAC(aacframes []byte) (err error) {
-    if muxer.asc == nil || len(muxer.asc) <= 0 {
+func (muxer *Movmuxer) writeAAC(track *mp4track, aacframes []byte) (err error) {
+    aacextra, ok := track.extra.(*aacExtraData)
+    if !ok {
+        panic("must init aacExtraData first")
+    }
+    if aacextra.asc == nil || len(aacextra.asc) <= 0 {
         asc, err := mpeg.ConvertADTSToASC(aacframes)
         if err != nil {
             return err
         }
-        muxer.asc = make([]byte, len(asc))
-        copy(muxer.asc, asc)
+        copy(aacextra.asc, asc)
     }
     _, err = muxer.writerHandler.Write(aacframes[7:])
     return
 }
 
-func (muxer *Movmuxer) writeG711(g711 []byte) (err error) {
+func (muxer *Movmuxer) writeG711(track *mp4track, g711 []byte) (err error) {
     _, err = muxer.writerHandler.Write(g711)
     return
 }
@@ -270,11 +314,14 @@ func (muxer *Movmuxer) makeStblTable() {
         }
         sameSize := true
         stts := new(movstts)
-        stts.entrys = make([]sttsEntry, 1)
+        stts.entrys = make([]sttsEntry, 0)
         movchunks := make([]movchunk, 0)
+        ctts := new(movctts)
+        ctts.entrys = make([]cttsEntry, 0)
         ckn := uint32(1)
         for i, sample := range track.samplelist {
             sttsEntry := sttsEntry{sampleCount: 1, sampleDelta: 0}
+            cttsEntry := cttsEntry{sampleCount: 1, sampleOffset: uint32(sample.pts) - uint32(sample.dts)}
             if i == len(track.samplelist)-1 {
                 stts.entrys = append(stts.entrys, sttsEntry)
             } else {
@@ -286,6 +333,17 @@ func (muxer *Movmuxer) makeStblTable() {
                     stts.entrys = append(stts.entrys, sttsEntry)
                 }
             }
+
+            if len(ctts.entrys) == 0 {
+                ctts.entrys = append(ctts.entrys, cttsEntry)
+            } else {
+                if ctts.entrys[len(ctts.entrys)-1].sampleOffset == cttsEntry.sampleOffset {
+                    ctts.entrys[len(ctts.entrys)-1].sampleCount++
+                } else {
+                    ctts.entrys = append(ctts.entrys, cttsEntry)
+                }
+            }
+
             if sameSize && track.samplelist[i+1].size != track.samplelist[i].size {
                 sameSize = false
             }
@@ -333,5 +391,6 @@ func (muxer *Movmuxer) makeStblTable() {
         track.stbltable.stsc = stsc
         track.stbltable.stco = stco
         track.stbltable.stsz = stsz
+        track.stbltable.ctts = ctts
     }
 }

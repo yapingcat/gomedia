@@ -44,7 +44,7 @@ func (stts *TimeToSampleBox) Encode() (int, []byte) {
     return offset, buf
 }
 
-func writeStts(stts *movstts) (boxdata []byte) {
+func makeStts(stts *movstts) (boxdata []byte) {
     sttsbox := NewTimeToSampleBox()
     sttsbox.entryList = stts
     _, boxdata = sttsbox.Encode()

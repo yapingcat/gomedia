@@ -49,7 +49,7 @@ func (stsz *SampleSizeBox) Encode() (int, []byte) {
     return offset, buf
 }
 
-func writeStsz(stsz *movstsz) (boxdata []byte) {
+func makeStsz(stsz *movstsz) (boxdata []byte) {
     stszbox := NewSampleSizeBox()
     stszbox.stsz = stsz
     _, boxdata = stszbox.Encode()

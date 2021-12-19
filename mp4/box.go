@@ -13,6 +13,8 @@ var (
     NMHD FullBox  = FullBox{Box: NewBasicBox([4]byte{'n', 'm', 'h', 'd'}), Version: 0}
     STBL BasicBox = BasicBox{Type: [4]byte{'s', 't', 'b', 'l'}}
     MDAT BasicBox = BasicBox{Type: [4]byte{'m', 'd', 'a', 't'}}
+    AVCC BasicBox = BasicBox{Type: [4]byte{'a', 'v', 'c', 'C'}}
+    HVCC BasicBox = BasicBox{Type: [4]byte{'h', 'v', 'c', 'C'}}
 )
 
 type BoxEncoder interface {

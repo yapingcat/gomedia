@@ -1,8 +1,7 @@
 package mp4
 
 import (
-	"bytes"
-	"encoding/binary"
+    "encoding/binary"
 )
 
 // aligned(8) abstract class SampleEntry (unsigned int(32) format) extends Box(format){
@@ -11,25 +10,25 @@ import (
 // 	}
 
 type SampleEntry struct {
-	Box                  *BasicBox
-	Data_reference_index uint16
+    Box                  *BasicBox
+    Data_reference_index uint16
 }
 
 func NewSampleEntry(format [4]byte) *SampleEntry {
-	return &SampleEntry{
-		Box:                  NewBasicBox(format),
-		Data_reference_index: 1,
-	}
+    return &SampleEntry{
+        Box:                  NewBasicBox(format),
+        Data_reference_index: 1,
+    }
 }
 
 func (entry *SampleEntry) Decode(buf []byte) (offset int, err error) {
-	if offset, err = entry.Box.Decode(buf); err != nil {
-		return 0, err
-	}
-	offset += 6
-	entry.Data_reference_index = binary.BigEndian.Uint16(buf[offset:])
-	offset += 2
-	return
+    if offset, err = entry.Box.Decode(buf); err != nil {
+        return 0, err
+    }
+    offset += 6
+    entry.Data_reference_index = binary.BigEndian.Uint16(buf[offset:])
+    offset += 2
+    return
 }
 
 // class HintSampleEntry() extends SampleEntry (protocol) {
@@ -37,8 +36,8 @@ func (entry *SampleEntry) Decode(buf []byte) (offset int, err error) {
 // }
 
 type HintSampleEntry struct {
-	Entry *SampleEntry
-	Data  byte
+    Entry *SampleEntry
+    Data  byte
 }
 
 // class AudioSampleEntry(codingname) extends SampleEntry (codingname){
@@ -51,25 +50,25 @@ type HintSampleEntry struct {
 // }
 
 type AudioSampleEntry struct {
-	Entry        *SampleEntry
-	Channelcount uint16
-	Samplesize   uint16
-	Samplerate   uint32
+    Entry        *SampleEntry
+    Channelcount uint16
+    Samplesize   uint16
+    Samplerate   uint32
 }
 
 func (entry *AudioSampleEntry) Decode(buf []byte) (offset int, err error) {
-	if offset, err = entry.Entry.Decode(buf); err != nil {
-		return 0, err
-	}
-	offset += 8
-	entry.Channelcount = binary.BigEndian.Uint16(buf[offset:])
-	offset += 2
-	entry.Samplesize = binary.BigEndian.Uint16(buf[offset:])
-	offset += 2
-	offset += 4
-	entry.Samplerate = binary.BigEndian.Uint32(buf[offset:])
-	offset += 4
-	return
+    if offset, err = entry.Entry.Decode(buf); err != nil {
+        return 0, err
+    }
+    offset += 8
+    entry.Channelcount = binary.BigEndian.Uint16(buf[offset:])
+    offset += 2
+    entry.Samplesize = binary.BigEndian.Uint16(buf[offset:])
+    offset += 2
+    offset += 4
+    entry.Samplerate = binary.BigEndian.Uint32(buf[offset:])
+    offset += 4
+    return
 }
 
 // class VisualSampleEntry(codingname) extends SampleEntry (codingname){ unsigned int(16) pre_defined = 0;
@@ -90,40 +89,40 @@ func (entry *AudioSampleEntry) Decode(buf []byte) (offset int, err error) {
 // }
 
 type VisualSampleEntry struct {
-	Entry           *SampleEntry
-	Width           uint16
-	Height          uint16
-	Horizresolution uint32
-	Vertresolution  uint32
-	Frame_count     uint16
-	Compressorname  [32]byte
+    Entry           *SampleEntry
+    Width           uint16
+    Height          uint16
+    Horizresolution uint32
+    Vertresolution  uint32
+    Frame_count     uint16
+    Compressorname  [32]byte
 }
 
 func NewVisualSampleEntry(format [4]byte) *VisualSampleEntry {
-	return &VisualSampleEntry{
-		Entry: NewSampleEntry(format),
-	}
+    return &VisualSampleEntry{
+        Entry: NewSampleEntry(format),
+    }
 }
 
 func (entry *VisualSampleEntry) Decode(buf []byte) (offset int, err error) {
-	if offset, err = entry.Entry.Decode(buf); err != nil {
-		return 0, err
-	}
-	offset += 14
-	entry.Width = binary.BigEndian.Uint16(buf[offset:])
-	offset += 2
-	entry.Height = binary.BigEndian.Uint16(buf[offset:])
-	offset += 2
-	entry.Horizresolution = binary.BigEndian.Uint32(buf[offset:])
-	offset += 4
-	entry.Vertresolution = binary.BigEndian.Uint32(buf[offset:])
-	offset += 8
-	entry.Frame_count = binary.BigEndian.Uint16(buf[offset:])
-	offset += 2
-	copy(entry.Compressorname[:], buf[offset:offset+32])
-	offset += 32
-	offset += 4
-	return
+    if offset, err = entry.Entry.Decode(buf); err != nil {
+        return 0, err
+    }
+    offset += 14
+    entry.Width = binary.BigEndian.Uint16(buf[offset:])
+    offset += 2
+    entry.Height = binary.BigEndian.Uint16(buf[offset:])
+    offset += 2
+    entry.Horizresolution = binary.BigEndian.Uint32(buf[offset:])
+    offset += 4
+    entry.Vertresolution = binary.BigEndian.Uint32(buf[offset:])
+    offset += 8
+    entry.Frame_count = binary.BigEndian.Uint16(buf[offset:])
+    offset += 2
+    copy(entry.Compressorname[:], buf[offset:offset+32])
+    offset += 32
+    offset += 4
+    return
 }
 
 // aligned(8) class SampleDescriptionBox (unsigned int(32) handler_type) extends FullBox('stsd', 0, 0){
@@ -150,33 +149,60 @@ func (entry *VisualSampleEntry) Decode(buf []byte) (offset int, err error) {
 type SampleEntryType uint8
 
 const (
-	SAMPLE_AUDIO SampleEntryType = iota
-	SAMPLE_VIDEO
+    SAMPLE_AUDIO SampleEntryType = iota
+    SAMPLE_VIDEO
 )
 
 type SampleDescriptionBox struct {
-	Box         *FullBox
-	Entry_count uint32
-	EntryType   uint8
+    box         *FullBox
+    entry_count uint32
+    entryType   uint8
 }
 
 func NewSampleDescriptionBox() *SampleDescriptionBox {
-	return &SampleDescriptionBox{
-		Box: NewFullBox([4]byte{'s', 't', 's', 'd'}, 0),
-	}
+    return &SampleDescriptionBox{
+        box: NewFullBox([4]byte{'s', 't', 's', 'd'}, 0),
+    }
 }
 
 func (stsd *SampleDescriptionBox) Decode(buf []byte, handler_type [4]byte) (offset int, err error) {
-	if offset, err = stsd.Box.Decode(buf); err != nil {
-		return
-	}
-	_ = buf[stsd.Box.Box.Size-1]
-	if bytes.Equal(handler_type[:], []byte("vide")) {
 
-	} else if bytes.Equal(handler_type[:], []byte("soun")) {
+    return
+}
 
-	} else {
+func makeStsd(track *mp4track, handler_type HandlerType) []byte {
+    var avbox []byte
+    if track.cid == MOV_CODEC_H264 {
+        avbox = makeAvcCBox(track.extra)
+    } else if track.cid == MOV_CODEC_H265 {
+        avbox = makeAvcCBox(track.extra)
+    } else if track.cid == MOV_CODEC_AAC {
+        avbox = makeAvcCBox(track.extra)
+    }
+}
 
-	}
-	return
+func makeAvcCBox(extra extraData) []byte {
+    if extra == nil {
+        panic("avcc extraData is nil")
+    }
+    tmp := extra.export()
+    AVCC.Size = 8 + uint64(len(tmp))
+    offset, boxdata := AVCC.Encode()
+    copy(boxdata[offset:], tmp)
+    return boxdata
+}
+
+func makeHvcCBox(extra extraData) []byte {
+    if extra == nil {
+        panic("avcc extraData is nil")
+    }
+    tmp := extra.export()
+    HVCC.Size = 8 + uint64(len(tmp))
+    offset, boxdata := HVCC.Encode()
+    copy(boxdata[offset:], tmp)
+    return boxdata
+}
+
+func makeEsdsBox(extra extraData) []byte {
+
 }
