@@ -1,5 +1,7 @@
 package mp4
 
+import "bytes"
+
 // Box Type: 'hdlr'
 // Container: Media Box (‘mdia’) or Meta Box (‘meta’)
 // Mandatory: Yes
@@ -26,6 +28,10 @@ var soun HandlerType = HandlerType{'s', 'o', 'u', 'n'}
 var hint HandlerType = HandlerType{'h', 'i', 'n', 't'}
 var meta HandlerType = HandlerType{'m', 'e', 't', 'a'}
 var auxv HandlerType = HandlerType{'a', 'u', 'x', 'v'}
+
+func (ht HandlerType) equal(other HandlerType) bool {
+    return bytes.Equal(ht[:], other[:])
+}
 
 type HandlerBox struct {
     Box          *FullBox

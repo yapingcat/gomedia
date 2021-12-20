@@ -171,6 +171,14 @@ func (stsd *SampleDescriptionBox) Decode(buf []byte, handler_type [4]byte) (offs
 }
 
 func makeStsd(track *mp4track, handler_type HandlerType) []byte {
+
+    var se []byte
+    if handler_type.equal(vide) {
+        entry := NewVisualSampleEntry()
+    } else if handler_type.equal(soun) {
+
+    }
+
     var avbox []byte
     if track.cid == MOV_CODEC_H264 {
         avbox = makeAvcCBox(track.extra)
