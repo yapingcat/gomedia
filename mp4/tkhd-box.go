@@ -146,3 +146,16 @@ func (tkhd *TrackHeaderBox) Encode() (int, []byte) {
     binary.BigEndian.PutUint32(buf[offset:], uint32(tkhd.Height))
     return offset + 4, buf
 }
+
+func makeTkhdBox(track *mp4track) []byte {
+    tkhd := NewTrackHeaderBox()
+    tkhd.Duration = uint64(track.duration)
+    if track.cid == MP4_CODEC_AAC || track.cid == MP4_CODEC_G711A || track.cid == MP4_CODEC_G711U {
+        tkhd.Volume = 0x0100
+    } else {
+        tkhd.Width = track.width
+        tkhd.Height = track.height
+    }
+    _, tkhdbox := tkhd.Encode()
+    return tkhdbox
+}

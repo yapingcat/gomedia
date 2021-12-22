@@ -250,24 +250,24 @@ func (entry *SampleDescriptionBox) Encode() (int, []byte) {
 func makeStsd(track *mp4track, handler_type HandlerType) []byte {
 
     var avbox []byte
-    if track.cid == MOV_CODEC_H264 {
+    if track.cid == MP4_CODEC_H264 {
         avbox = makeAvcCBox(track.extra)
-    } else if track.cid == MOV_CODEC_H265 {
-        avbox = makeAvcCBox(track.extra)
-    } else if track.cid == MOV_CODEC_AAC {
-        avbox = makeAvcCBox(track.extra)
+    } else if track.cid == MP4_CODEC_H265 {
+        avbox = makeHvcCBox(track.extra)
+    } else if track.cid == MP4_CODEC_AAC {
+        avbox = makeEsdsBox(track)
     }
 
     var se []byte
     var offset int
     if handler_type.equal(vide) {
-        entry := NewVisualSampleEntry(TranscodeCidToCodecName(track.cid))
+        entry := NewVisualSampleEntry(getCodecNameWithCodecId(track.cid))
         entry.width = uint16(track.width)
         entry.height = uint16(track.height)
         entry.entry.box.Size = entry.Size() + uint64(len(avbox))
         offset, se = entry.Encode()
     } else if handler_type.equal(soun) {
-        entry := NewAudioSampleEntry(TranscodeCidToCodecName(track.cid))
+        entry := NewAudioSampleEntry(getCodecNameWithCodecId(track.cid))
         entry.channelcount = uint16(track.chanelCount)
         entry.samplerate = track.sampleRate
         entry.samplesize = uint16(track.sampleBits)
@@ -305,6 +305,10 @@ func makeHvcCBox(extra extraData) []byte {
     return boxdata
 }
 
-func makeEsdsBox(extra extraData) []byte {
-    return nil
+func makeEsdsBox(track *mp4track) []byte {
+    esd := makeESDescriptor(uint16(track.trackId), track.cid, track.extra.export())
+    ESDS.Box.Size = ESDS.Size() + uint64(len(esd))
+    offset, buf := ESDS.Encode()
+    copy(buf[offset:], esd)
+    return buf
 }

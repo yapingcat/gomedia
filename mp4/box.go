@@ -15,6 +15,8 @@ var (
     MDAT BasicBox = BasicBox{Type: [4]byte{'m', 'd', 'a', 't'}}
     AVCC BasicBox = BasicBox{Type: [4]byte{'a', 'v', 'c', 'C'}}
     HVCC BasicBox = BasicBox{Type: [4]byte{'h', 'v', 'c', 'C'}}
+    ESDS FullBox  = FullBox{Box: NewBasicBox([4]byte{'e', 's', 'd', 's'}), Version: 0}
+    DINF BasicBox = BasicBox{Type: [4]byte{'d', 'i', 'n', 'f'}}
 )
 
 type BoxEncoder interface {

@@ -75,3 +75,33 @@ func (hdlr *HandlerBox) Encode() (int, []byte) {
     copy(buf[offset:], []byte(hdlr.Name))
     return offset + len(hdlr.Name), buf
 }
+
+func getHandlerType(cid MP4_CODEC_TYPE) HandlerType {
+    switch cid {
+    case MP4_CODEC_H264:
+        return vide
+    case MP4_CODEC_H265:
+        return vide
+    case MP4_CODEC_AAC:
+        return soun
+    case MP4_CODEC_G711A:
+        return soun
+    case MP4_CODEC_G711U:
+        return soun
+    default:
+        panic("unsupport codec id")
+    }
+}
+
+func makeHdlrBox(hdt HandlerType) []byte {
+    var hdlr *HandlerBox = nil
+    if hdt.equal(vide) {
+        hdlr = NewHandlerBox(hdt, "VideoHandler")
+    } else if hdt.equal(soun) {
+        hdlr = NewHandlerBox(hdt, "SoundHandler")
+    } else {
+        hdlr = NewHandlerBox(hdt, "")
+    }
+    _, boxdata := hdlr.Encode()
+    return boxdata
+}

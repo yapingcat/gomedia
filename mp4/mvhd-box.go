@@ -135,3 +135,11 @@ func (mvhd *MovieHeaderBox) Encode() (int, []byte) {
     binary.BigEndian.PutUint16(buf[offset:], uint16(mvhd.Next_track_ID))
     return offset + 2, buf
 }
+
+func makeMvhdBox(trackid uint32, duration uint32) []byte {
+    mvhd := NewMovieHeaderBox()
+    mvhd.Next_track_ID = trackid
+    mvhd.Duration = uint64(duration)
+    _, mvhdbox := mvhd.Encode()
+    return mvhdbox
+}

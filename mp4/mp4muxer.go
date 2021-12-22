@@ -1,6 +1,7 @@
 package mp4
 
 import (
+    "encoding/binary"
     "errors"
 
     "github.com/yapingcat/gomedia/mpeg"
@@ -21,7 +22,7 @@ type movchunk struct {
 }
 
 type mp4track struct {
-    cid         MOV_CODEC_TYPE
+    cid         MP4_CODEC_TYPE
     trackId     uint32
     stbltable   *movstbl
     duration    uint32
@@ -35,20 +36,105 @@ type mp4track struct {
     extra       extraData
 }
 
-func newmp4track(cid MOV_CODEC_TYPE) *mp4track {
+func newmp4track(cid MP4_CODEC_TYPE) *mp4track {
     track := &mp4track{
         cid:        cid,
         stbltable:  nil,
         samplelist: make([]sampleEntry, 0),
     }
-    if cid == MOV_CODEC_H264 {
+    if cid == MP4_CODEC_H264 {
         track.extra = new(h264ExtraData)
-    } else if cid == MOV_CODEC_H265 {
+    } else if cid == MP4_CODEC_H265 {
         track.extra = new(h265ExtraData)
-    } else if cid == MOV_CODEC_AAC {
+    } else if cid == MP4_CODEC_AAC {
         track.extra = new(aacExtraData)
     }
     return track
+}
+
+func (track *mp4track) makeStblTable() {
+    if track.stbltable == nil {
+        track.stbltable = new(movstbl)
+    }
+    sameSize := true
+    stts := new(movstts)
+    stts.entrys = make([]sttsEntry, 0)
+    movchunks := make([]movchunk, 0)
+    ctts := new(movctts)
+    ctts.entrys = make([]cttsEntry, 0)
+    ckn := uint32(1)
+    for i, sample := range track.samplelist {
+        sttsEntry := sttsEntry{sampleCount: 1, sampleDelta: 0}
+        cttsEntry := cttsEntry{sampleCount: 1, sampleOffset: uint32(sample.pts) - uint32(sample.dts)}
+        if i == len(track.samplelist)-1 {
+            stts.entrys = append(stts.entrys, sttsEntry)
+        } else {
+            delta := track.samplelist[i+1].dts - sample.dts
+            if len(stts.entrys) > 0 && delta == uint64(stts.entrys[len(stts.entrys)-1].sampleDelta) {
+                stts.entrys[len(stts.entrys)-1].sampleCount++
+            } else {
+                sttsEntry.sampleDelta = uint32(delta)
+                stts.entrys = append(stts.entrys, sttsEntry)
+            }
+        }
+
+        if len(ctts.entrys) == 0 {
+            ctts.entrys = append(ctts.entrys, cttsEntry)
+        } else {
+            if ctts.entrys[len(ctts.entrys)-1].sampleOffset == cttsEntry.sampleOffset {
+                ctts.entrys[len(ctts.entrys)-1].sampleCount++
+            } else {
+                ctts.entrys = append(ctts.entrys, cttsEntry)
+            }
+        }
+
+        if sameSize && track.samplelist[i+1].size != track.samplelist[i].size {
+            sameSize = false
+        }
+        if i > 0 && sample.offset == track.samplelist[i-1].offset+track.samplelist[i-1].size {
+            movchunks[ckn-1].samplenum++
+        } else {
+            ck := movchunk{chunknum: ckn, samplenum: 1, chunkoffset: sample.offset}
+            movchunks = append(movchunks, ck)
+            ckn++
+        }
+    }
+    stsz := &movstsz{
+        sampleSize:  0,
+        sampleCount: uint32(len(track.samplelist)),
+    }
+    if sameSize {
+        stsz.sampleSize = uint32(track.samplelist[0].size)
+    } else {
+        stsz.entrySizelist = make([]uint32, stsz.sampleCount)
+        for i := 0; i < len(stsz.entrySizelist); i++ {
+            stsz.entrySizelist[i] = uint32(track.samplelist[i].size)
+        }
+    }
+
+    stsc := &movstsc{
+        entrys:     make([]stscEntry, len(movchunks)),
+        entryCount: 0,
+    }
+
+    for i, chunk := range movchunks {
+        if i == 0 || chunk.samplenum == movchunks[i-1].samplenum {
+            stsc.entrys[stsc.entryCount].firstChunk = chunk.chunknum
+            stsc.entrys[stsc.entryCount].sampleDescriptionIndex = 1
+            stsc.entrys[stsc.entryCount].samplesPerChunk = chunk.samplenum
+            stsc.entryCount++
+        }
+    }
+
+    stco := &movstco{entryCount: ckn, chunkOffsetlist: make([]uint64, ckn)}
+    for i := 0; i < int(stco.entryCount); i++ {
+        stco.chunkOffsetlist[i] = movchunks[i].chunkoffset
+    }
+    track.stbltable.stts = stts
+    track.stbltable.stsc = stsc
+    track.stbltable.stco = stco
+    track.stbltable.stsz = stsz
+    track.stbltable.ctts = ctts
 }
 
 type extraData interface {
@@ -100,6 +186,7 @@ type Movmuxer struct {
     nextTrackId   uint32
     mdatOffset    uint32
     tracks        map[uint32]*mp4track
+    duration      uint32
     width         uint32
     height        uint32
 }
@@ -124,13 +211,13 @@ func CreateMp4Muxer(wh Writer) *Movmuxer {
     freelen, freeboxdata := free.Encode()
     muxer.writerHandler.Write(freeboxdata[0:freelen])
     muxer.mdatOffset = uint32(muxer.writerHandler.Tell())
-    MDAT.Size = 0
+    MDAT.Size = 8
     mdatlen, mdat := MDAT.Encode()
     muxer.writerHandler.Write(mdat[0:mdatlen])
     return muxer
 }
 
-func (muxer *Movmuxer) AddAudioTrack(cid MOV_CODEC_TYPE, channelcount uint8, sampleBits uint8, sampleRate uint) uint32 {
+func (muxer *Movmuxer) AddAudioTrack(cid MP4_CODEC_TYPE, channelcount uint8, sampleBits uint8, sampleRate uint) uint32 {
     track := &mp4track{
         cid:         cid,
         trackId:     muxer.nextTrackId,
@@ -143,7 +230,7 @@ func (muxer *Movmuxer) AddAudioTrack(cid MOV_CODEC_TYPE, channelcount uint8, sam
     return track.trackId
 }
 
-func (muxer *Movmuxer) AddVideoTrack(cid MOV_CODEC_TYPE) uint32 {
+func (muxer *Movmuxer) AddVideoTrack(cid MP4_CODEC_TYPE) uint32 {
     track := &mp4track{
         cid:     cid,
         trackId: muxer.nextTrackId,
@@ -162,15 +249,24 @@ func (muxer *Movmuxer) Write(track uint32, data []byte, pts uint64, dts uint64) 
         SampleDescriptionIndex: 1,
         offset:                 uint64(muxer.writerHandler.Tell()),
     }
+    if len(mp4track.samplelist) <= 1 {
+        mp4track.duration = 0
+    } else {
+        delta := dts - mp4track.samplelist[len(mp4track.samplelist)-1].dts
+        if delta < 0 {
+            mp4track.duration += 1
+        } else {
+            mp4track.duration += uint32(delta)
+        }
+    }
     mp4track.samplelist = append(mp4track.samplelist, entry)
-    mp4track.duration += uint32(dts)
-    if mp4track.cid == MOV_CODEC_H264 {
+    if mp4track.cid == MP4_CODEC_H264 {
         return muxer.writeH264(mp4track, data)
-    } else if mp4track.cid == MOV_CODEC_H265 {
+    } else if mp4track.cid == MP4_CODEC_H265 {
         return muxer.writeH265(mp4track, data)
-    } else if mp4track.cid == MOV_CODEC_AAC {
+    } else if mp4track.cid == MP4_CODEC_AAC {
         return muxer.writeAAC(mp4track, data)
-    } else if mp4track.cid == MOV_CODEC_G711A || mp4track.cid == MOV_CODEC_G711U {
+    } else if mp4track.cid == MP4_CODEC_G711A || mp4track.cid == MP4_CODEC_G711U {
         return muxer.writeG711(mp4track, data)
     } else {
         return errors.New("UnSupport Codec")
@@ -184,34 +280,55 @@ func (muxer *Movmuxer) Writetrailer() (err error) {
         MDAT.Size = uint64(datalen)
         len, mdata := MDAT.Encode()
         if _, err = muxer.writerHandler.Seek(int64(muxer.mdatOffset)-8, 0); err != nil {
-            return err
+            return
         }
         if _, err = muxer.writerHandler.Write(mdata[0:len]); err != nil {
-            return err
+            return
         }
         if _, err = muxer.writerHandler.Seek(currentoffset, 0); err != nil {
-            return err
+            return
+        }
+    } else {
+        if _, err = muxer.writerHandler.Seek(int64(muxer.mdatOffset), 0); err != nil {
+            return
+        }
+        tmpdata := make([]byte, 4)
+        binary.BigEndian.PutUint32(tmpdata, uint32(datalen))
+        if _, err = muxer.writerHandler.Write(tmpdata); err != nil {
+            return
+        }
+        if _, err = muxer.writerHandler.Seek(currentoffset, 0); err != nil {
+            return
         }
     }
 
-    mvhd := NewMovieHeaderBox()
-    mvhd.Next_track_ID = muxer.nextTrackId
-    _, moov := mvhd.Encode()
-    moovsize := 0
+    maxdurtaion := uint32(0)
     for _, track := range muxer.tracks {
-        muxer.makeStblTable()
-
-        if track.cid == MOV_CODEC_H264 || track.cid == MOV_CODEC_H265 {
-            tkhd := NewTrackHeaderBox()
-            tkhd.Track_ID = track.trackId
-            tkhd.Duration = uint64(track.duration)
-            tkhd.Width = muxer.width
-            tkhd.Height = muxer.height
-            s1, tkhdbytes := tkhd.Encode()
-
+        if maxdurtaion < track.duration {
+            maxdurtaion = track.duration
         }
     }
 
+    muxer.duration = maxdurtaion
+    mvhd := makeMvhdBox(muxer.nextTrackId, muxer.duration)
+    moovsize := len(mvhd)
+    traks := make([][]byte, len(muxer.tracks))
+    for i, track := range muxer.tracks {
+        traks[i] = makeTrak(track)
+        moovsize += len(traks[i])
+    }
+    MOOV.Size = 8 + uint64(moovsize)
+    offset, moov := MOOV.Encode()
+    copy(moov[offset:], mvhd)
+    offset += len(mvhd)
+    for _, trak := range traks {
+        copy(moov[offset:], trak)
+        offset += len(trak)
+    }
+    if _, err = muxer.writerHandler.Write(moov); err != nil {
+        return
+    }
+    return
 }
 
 func (muxer *Movmuxer) writeH264(track *mp4track, h264 []byte) (err error) {
@@ -305,92 +422,4 @@ func (muxer *Movmuxer) writeAAC(track *mp4track, aacframes []byte) (err error) {
 func (muxer *Movmuxer) writeG711(track *mp4track, g711 []byte) (err error) {
     _, err = muxer.writerHandler.Write(g711)
     return
-}
-
-func (muxer *Movmuxer) makeStblTable() {
-    for _, track := range muxer.tracks {
-        if track.stbltable == nil {
-            track.stbltable = new(movstbl)
-        }
-        sameSize := true
-        stts := new(movstts)
-        stts.entrys = make([]sttsEntry, 0)
-        movchunks := make([]movchunk, 0)
-        ctts := new(movctts)
-        ctts.entrys = make([]cttsEntry, 0)
-        ckn := uint32(1)
-        for i, sample := range track.samplelist {
-            sttsEntry := sttsEntry{sampleCount: 1, sampleDelta: 0}
-            cttsEntry := cttsEntry{sampleCount: 1, sampleOffset: uint32(sample.pts) - uint32(sample.dts)}
-            if i == len(track.samplelist)-1 {
-                stts.entrys = append(stts.entrys, sttsEntry)
-            } else {
-                delta := track.samplelist[i+1].dts - sample.dts
-                if len(stts.entrys) > 0 && delta == uint64(stts.entrys[len(stts.entrys)-1].sampleDelta) {
-                    stts.entrys[len(stts.entrys)-1].sampleCount++
-                } else {
-                    sttsEntry.sampleDelta = uint32(delta)
-                    stts.entrys = append(stts.entrys, sttsEntry)
-                }
-            }
-
-            if len(ctts.entrys) == 0 {
-                ctts.entrys = append(ctts.entrys, cttsEntry)
-            } else {
-                if ctts.entrys[len(ctts.entrys)-1].sampleOffset == cttsEntry.sampleOffset {
-                    ctts.entrys[len(ctts.entrys)-1].sampleCount++
-                } else {
-                    ctts.entrys = append(ctts.entrys, cttsEntry)
-                }
-            }
-
-            if sameSize && track.samplelist[i+1].size != track.samplelist[i].size {
-                sameSize = false
-            }
-            if i > 0 && sample.offset == track.samplelist[i-1].offset+track.samplelist[i-1].size {
-                movchunks[ckn-1].samplenum++
-            } else {
-                ck := movchunk{chunknum: ckn, samplenum: 1, chunkoffset: sample.offset}
-                movchunks = append(movchunks, ck)
-                ckn++
-            }
-        }
-        stsz := &movstsz{
-            sampleSize:  0,
-            sampleCount: uint32(len(track.samplelist)),
-        }
-        if sameSize {
-            stsz.sampleSize = uint32(track.samplelist[0].size)
-        } else {
-            stsz.entrySizelist = make([]uint32, stsz.sampleCount)
-            for i := 0; i < len(stsz.entrySizelist); i++ {
-                stsz.entrySizelist[i] = uint32(track.samplelist[i].size)
-            }
-        }
-
-        stsc := &movstsc{
-            entrys:     make([]stscEntry, len(movchunks)),
-            entryCount: 0,
-        }
-
-        for i, chunk := range movchunks {
-            if i == 0 || chunk.samplenum == movchunks[i-1].samplenum {
-                stsc.entrys[stsc.entryCount].firstChunk = chunk.chunknum
-                stsc.entrys[stsc.entryCount].sampleDescriptionIndex = 1
-                stsc.entrys[stsc.entryCount].samplesPerChunk = chunk.samplenum
-                stsc.entryCount++
-            }
-        }
-
-        stco := &movstco{entryCount: ckn, chunkOffsetlist: make([]uint64, ckn)}
-        for i := 0; i < int(stco.entryCount); i++ {
-            stco.chunkOffsetlist[i] = movchunks[i].chunkoffset
-        }
-
-        track.stbltable.stts = stts
-        track.stbltable.stsc = stsc
-        track.stbltable.stco = stco
-        track.stbltable.stsz = stsz
-        track.stbltable.ctts = ctts
-    }
 }

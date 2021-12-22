@@ -1,30 +1,9 @@
 package mp4
 
-import "github.com/yapingcat/gomedia/mpeg"
+import (
+    "encoding/binary"
 
-//List of Class Tags for Descriptors
-const (
-    Forbidden                           = 0x00
-    ObjectDescrTag                      = 0x01
-    InitialObjectDescrTag               = 0x02
-    ES_DescrTag                         = 0x03
-    DecoderConfigDescrTag               = 0x04
-    DecSpecificInfoTag                  = 0x05
-    SLConfigDescrTag                    = 0x06
-    ContentIdentDescrTag                = 0x07
-    SupplContentIdentDescrTag           = 0x08
-    IPI_DescrPointerTag                 = 0x09
-    IPMP_DescrPointerTag                = 0x0A
-    IPMP_DescrTag                       = 0x0B
-    QoS_DescrTag                        = 0x0C
-    RegistrationDescrTag                = 0x0D
-    ES_ID_IncTag                        = 0x0E
-    ES_ID_RefTag                        = 0x0F
-    MP4_IOD_Tag                         = 0x10
-    MP4_OD_Tag                          = 0x11
-    IPL_DescrPointerRefTag              = 0x12
-    ExtensionProfileLevelDescrTag       = 0x13
-    profileLevelIndicationIndexDescrTag = 0x14
+    "github.com/yapingcat/gomedia/mpeg"
 )
 
 // abstract aligned(8) expandable(228-1) class BaseDescriptor : bit(8) tag=0 {
@@ -56,7 +35,7 @@ func (base *BaseDescriptor) Decode(data []byte) {
 }
 
 func (base *BaseDescriptor) Encode() []byte {
-    bsw := mpeg.NewBitStreamWriter(5)
+    bsw := mpeg.NewBitStreamWriter(5 + int(base.sizeOfInstance))
     bsw.PutByte(base.tag)
     size := base.sizeOfInstance
     bsw.PutUint8(1, 1)
@@ -67,13 +46,64 @@ func (base *BaseDescriptor) Encode() []byte {
     bsw.PutUint8(uint8(size>>7), 7)
     bsw.PutUint8(1, 0)
     bsw.PutUint8(uint8(size), 7)
-    return bsw.Bits()
+    return bsw.Bits()[:5+int(base.sizeOfInstance)]
 }
 
+//ffmpeg mov_write_esds_tag
 func makeBaseDescriptor(tag uint8, size uint32) []byte {
     base := BaseDescriptor{
         tag:            tag,
         sizeOfInstance: size,
     }
     return base.Encode()
+}
+
+func makeESDescriptor(trackid uint16, cid MP4_CODEC_TYPE, vosData []byte) []byte {
+    dcd := makeDecoderConfigDescriptor(cid, vosData)
+    sld := makeSLDescriptor()
+    esd := makeBaseDescriptor(0x03, uint32(len(dcd)+len(sld)+3))
+    binary.BigEndian.PutUint16(esd[5:], trackid)
+    esd[7] = 0x00
+    copy(esd[8:], dcd)
+    copy(esd[8+len(dcd):], sld)
+    return esd
+}
+
+func makeDecoderConfigDescriptor(cid MP4_CODEC_TYPE, vosData []byte) []byte {
+
+    decoder_specific_info_len := uint32(0)
+    if len(vosData) > 0 {
+        decoder_specific_info_len = uint32(len(vosData)) + 5
+    }
+    dcd := makeBaseDescriptor(0x04, 13+decoder_specific_info_len)
+    dcd[5] = getBojecttypeWithCodecId(cid)
+    if cid == MP4_CODEC_H264 || cid == MP4_CODEC_H265 {
+        dcd[6] = 0x11
+    } else if cid == MP4_CODEC_G711A || cid == MP4_CODEC_G711U || cid == MP4_CODEC_AAC {
+        dcd[6] = 0x15
+    } else {
+        dcd[6] = (0x38 << 2) | 1
+    }
+    dcd[7] = 0
+    dcd[8] = 0
+    dcd[9] = 0
+    binary.BigEndian.PutUint32(dcd[10:], 88360)
+    binary.BigEndian.PutUint32(dcd[14:], 88360)
+    if decoder_specific_info_len > 0 {
+        dsd := makeDecoderSpecificInfoDescriptor(vosData)
+        copy(dcd[18:], dsd)
+    }
+    return dcd
+}
+
+func makeDecoderSpecificInfoDescriptor(vosData []byte) []byte {
+    dsd := makeBaseDescriptor(0x05, uint32(len(vosData)))
+    copy(dsd[5:], vosData)
+    return dsd
+}
+
+func makeSLDescriptor() []byte {
+    sldes := makeBaseDescriptor(0x06, 1)
+    sldes[5] = 0x02
+    return sldes
 }

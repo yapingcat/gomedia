@@ -11,7 +11,7 @@ var mp41 [4]byte = [4]byte{'m', 'p', '4', '1'}
 var dash [4]byte = [4]byte{'d', 'a', 's', 'h'}
 
 func mov_tag(tag [4]byte) uint32 {
-	return binary.BigEndian.Uint32(tag[:])
+	return binary.LittleEndian.Uint32(tag[:])
 }
 
 type FileTypeBox struct {
