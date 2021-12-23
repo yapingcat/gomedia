@@ -47,10 +47,11 @@ type TrackHeaderBox struct {
 }
 
 func NewTrackHeaderBox() *TrackHeaderBox {
+    _, offset := time.Now().Zone()
     return &TrackHeaderBox{
         Box:               NewFullBox([4]byte{'t', 'k', 'h', 'd'}, 0),
-        Creation_time:     uint64(time.Now().Unix() + 0x7C25B080),
-        Modification_time: uint64(time.Now().Unix() + 0x7C25B080),
+        Creation_time:     uint64(time.Now().Unix() + int64(offset) + 0x7C25B080),
+        Modification_time: uint64(time.Now().Unix() + int64(offset) + 0x7C25B080),
         Layer:             0,
         Alternate_group:   0,
         Matrix:            [9]uint32{0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000},
@@ -136,9 +137,8 @@ func (tkhd *TrackHeaderBox) Encode() (int, []byte) {
     offset += 2
     binary.BigEndian.PutUint16(buf[offset:], tkhd.Volume)
     offset += 4
-    binary.BigEndian.PutUint16(buf[offset:], tkhd.Layer)
     for i, _ := range tkhd.Matrix {
-        tkhd.Matrix[i] = binary.BigEndian.Uint32(buf[offset:])
+        binary.BigEndian.PutUint32(buf[offset:], tkhd.Matrix[i])
         offset += 4
     }
     binary.BigEndian.PutUint32(buf[offset:], uint32(tkhd.Width))
@@ -150,11 +150,17 @@ func (tkhd *TrackHeaderBox) Encode() (int, []byte) {
 func makeTkhdBox(track *mp4track) []byte {
     tkhd := NewTrackHeaderBox()
     tkhd.Duration = uint64(track.duration)
+    tkhd.Track_ID = track.trackId
+    //  flags is a 24-bit integer with flags; the following values are defined:
+    // Track_enabled: Indicates that the track is enabled. Flag value is 0x000001. A disabled track (the low bit is zero) is treated as if it were not present.
+    // Track_in_movie: Indicates that the track is used in the presentation. Flag value is 0x000002.
+    // Track_in_preview: Indicates that the track is used when previewing the presentation. Flag value is 0x000004.
+    tkhd.Box.Flags[2] = 0x03 //Track_enabled | Track_in_movie
     if track.cid == MP4_CODEC_AAC || track.cid == MP4_CODEC_G711A || track.cid == MP4_CODEC_G711U {
         tkhd.Volume = 0x0100
     } else {
-        tkhd.Width = track.width
-        tkhd.Height = track.height
+        tkhd.Width = track.width << 16
+        tkhd.Height = track.height << 16
     }
     _, tkhdbox := tkhd.Encode()
     return tkhdbox

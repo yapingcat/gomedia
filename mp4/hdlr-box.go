@@ -1,13 +1,16 @@
 package mp4
 
-import "bytes"
+import (
+    "bytes"
+)
 
 // Box Type: 'hdlr'
 // Container: Media Box (‘mdia’) or Meta Box (‘meta’)
 // Mandatory: Yes
 // Quantity: Exactly one
 
-// aligned(8) class HandlerBox extends FullBox(‘hdlr’, version = 0, 0) { unsigned int(32) pre_defined = 0;
+// aligned(8) class HandlerBox extends FullBox(‘hdlr’, version = 0, 0) {
+//  unsigned int(32) pre_defined = 0;
 // 	unsigned int(32) handler_type;
 // 	const unsigned int(32)[3] reserved = 0;
 // 	   string   name;
@@ -48,7 +51,7 @@ func NewHandlerBox(handlerType HandlerType, name string) *HandlerBox {
 }
 
 func (hdlr *HandlerBox) Size() uint64 {
-    return hdlr.Box.Size() + 16 + uint64(len(hdlr.Name))
+    return hdlr.Box.Size() + 20 + uint64(len(hdlr.Name)+1)
 }
 
 func (hdlr *HandlerBox) Decode(buf []byte) (offset int, err error) {
@@ -68,10 +71,12 @@ func (hdlr *HandlerBox) Decode(buf []byte) (offset int, err error) {
 func (hdlr *HandlerBox) Encode() (int, []byte) {
     hdlr.Box.Box.Size = hdlr.Size()
     offset, buf := hdlr.Box.Encode()
+    offset += 4
     buf[offset] = hdlr.Handler_type[0]
     buf[offset+1] = hdlr.Handler_type[1]
     buf[offset+2] = hdlr.Handler_type[2]
     buf[offset+3] = hdlr.Handler_type[3]
+    offset += 16
     copy(buf[offset:], []byte(hdlr.Name))
     return offset + len(hdlr.Name), buf
 }

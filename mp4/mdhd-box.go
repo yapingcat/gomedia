@@ -48,10 +48,11 @@ type MediaHeaderBox struct {
 }
 
 func NewMediaHeaderBox() *MediaHeaderBox {
+    _, offset := time.Now().Zone()
     return &MediaHeaderBox{
         Box:               NewFullBox([4]byte{'m', 'd', 'h', 'd'}, 0),
-        Creation_time:     uint64(time.Now().Unix() + 0x7C25B080),
-        Modification_time: uint64(time.Now().Unix() + 0x7C25B080),
+        Creation_time:     uint64(time.Now().Unix() + int64(offset) + 0x7C25B080),
+        Modification_time: uint64(time.Now().Unix() + int64(offset) + 0x7C25B080),
         Timescale:         1000,
         Language:          [3]byte{'u', 'n', 'd'},
     }

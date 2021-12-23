@@ -1,6 +1,8 @@
 package mp4
 
-import "encoding/binary"
+import (
+    "encoding/binary"
+)
 
 // aligned(8) class TimeToSampleBox extends FullBox(’stts’, version = 0, 0) {
 //     unsigned int(32) entry_count;

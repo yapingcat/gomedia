@@ -41,10 +41,11 @@ type MovieHeaderBox struct {
 }
 
 func NewMovieHeaderBox() *MovieHeaderBox {
+    _, offset := time.Now().Zone()
     return &MovieHeaderBox{
         Box:               NewFullBox([4]byte{'m', 'v', 'h', 'd'}, 0),
-        Creation_time:     uint64(time.Now().Unix() + 0x7C25B080),
-        Modification_time: uint64(time.Now().Unix() + 0x7C25B080),
+        Creation_time:     uint64(time.Now().Unix() + int64(offset) + 0x7C25B080),
+        Modification_time: uint64(time.Now().Unix() + int64(offset) + 0x7C25B080),
         Timescale:         1000,
         Rate:              0x00010000,
         Volume:            0x0100,
@@ -126,13 +127,14 @@ func (mvhd *MovieHeaderBox) Encode() (int, []byte) {
     binary.BigEndian.PutUint32(buf[offset:], mvhd.Rate)
     offset += 4
     binary.BigEndian.PutUint16(buf[offset:], mvhd.Volume)
+    offset += 2
     offset += 10
     for i, _ := range mvhd.Matrix {
         mvhd.Matrix[i] = binary.BigEndian.Uint32(buf[offset:])
         offset += 4
     }
     offset += 24
-    binary.BigEndian.PutUint16(buf[offset:], uint16(mvhd.Next_track_ID))
+    binary.BigEndian.PutUint32(buf[offset:], mvhd.Next_track_ID)
     return offset + 2, buf
 }
 

@@ -333,7 +333,7 @@ func CreateH264AVCCExtradata(spss [][]byte, ppss [][]byte) []byte {
         extradata = append(extradata, pps...)
     }
     var h264sps SPS
-    h264sps.Decode(NewBitStream(spss[0]))
+    h264sps.Decode(NewBitStream(spss[0][1:]))
     if h264sps.Profile_idc == 100 ||
         h264sps.Profile_idc == 110 ||
         h264sps.Profile_idc == 122 ||

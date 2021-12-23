@@ -1,6 +1,8 @@
 package mp4
 
-import "encoding/binary"
+import (
+    "encoding/binary"
+)
 
 // aligned(8) class SampleToChunkBox extends FullBox(‘stsc’, version = 0, 0) {
 //     unsigned int(32) entry_count;
@@ -32,7 +34,7 @@ func (stsc *SampleToChunkBox) Size() uint64 {
 
 func (stsc *SampleToChunkBox) Encode() (int, []byte) {
     stsc.box.Box.Size = stsc.Size()
-    offset, buf := stsc.Encode()
+    offset, buf := stsc.box.Encode()
     binary.BigEndian.PutUint32(buf[offset:], stsc.stscentrys.entryCount)
     offset += 4
     for i := 0; i < int(stsc.stscentrys.entryCount); i++ {

@@ -1,8 +1,7 @@
 package mpeg
 
 import (
-	"bytes"
-	"fmt"
+    "bytes"
 )
 
 // nal_unit_header() {
@@ -664,6 +663,16 @@ type HEVCRecordConfiguration struct {
     Arrays                              []*HVCCNALUnitArray
 }
 
+func NewHEVCRecordConfiguration() *HEVCRecordConfiguration {
+    return &HEVCRecordConfiguration{
+        ConfigurationVersion:                1,
+        General_profile_compatibility_flags: 0xffffffff,
+        General_constraint_indicator_flags:  0xffffffffffffffff,
+        Min_spatial_segmentation_idc:        4097,
+        LengthSizeMinusOne:                  3,
+    }
+}
+
 func (hvcc *HEVCRecordConfiguration) Encode() []byte {
     bsw := NewBitStreamWriter(512)
     bsw.PutByte(hvcc.ConfigurationVersion)
@@ -676,6 +685,15 @@ func (hvcc *HEVCRecordConfiguration) Encode() []byte {
     bsw.PutUint8(0x0F, 4)
     bsw.PutUint16(hvcc.Min_spatial_segmentation_idc, 12)
     bsw.PutUint8(0x3F, 6)
+    //ffmpeg hvcc_write(AVIOContext *pb, HEVCDecoderConfigurationRecord *hvcc)
+    /*
+     * parallelismType indicates the type of parallelism that is used to meet
+     * the restrictions imposed by min_spatial_segmentation_idc when the value
+     * of min_spatial_segmentation_idc is greater than 0.
+     */
+    if hvcc.Min_spatial_segmentation_idc == 0 {
+        hvcc.ParallelismType = 0
+    }
     bsw.PutUint8(hvcc.ParallelismType, 2)
     bsw.PutUint8(0x3F, 6)
     bsw.PutUint8(hvcc.ChromaFormat, 2)
@@ -688,7 +706,7 @@ func (hvcc *HEVCRecordConfiguration) Encode() []byte {
     bsw.PutUint8(hvcc.NumTemporalLayers, 3)
     bsw.PutUint8(hvcc.TemporalIdNested, 1)
     bsw.PutUint8(hvcc.LengthSizeMinusOne, 2)
-    bsw.PutByte(hvcc.NumOfArrays)
+    bsw.PutByte(uint8(len(hvcc.Arrays)))
     for _, arrays := range hvcc.Arrays {
         bsw.PutUint8(arrays.Array_completeness, 1)
         bsw.PutUint8(0, 1)
@@ -738,7 +756,6 @@ func (hvcc *HEVCRecordConfiguration) Decode(hevc []byte) {
         for j := 0; j < int(hvcc.Arrays[i].NumNalus); j++ {
             hvcc.Arrays[i].NalUnits[j] = new(NalUnit)
             hvcc.Arrays[i].NalUnits[j].NalUnitLength = bs.Uint16(16)
-            fmt.Println(hvcc.Arrays[i].NalUnits[j].NalUnitLength)
             hvcc.Arrays[i].NalUnits[j].Nalu = bs.GetBytes(int(hvcc.Arrays[i].NalUnits[j].NalUnitLength))
         }
     }
@@ -759,6 +776,7 @@ func (hvcc *HEVCRecordConfiguration) UpdateSPS(sps []byte) {
             j := 0
             for ; j < len(arrays.NalUnits); j++ {
                 if spsid != GetH265SPSId(arrays.NalUnits[j].Nalu) {
+                    found = true
                     continue
                 }
                 //find the same sps nalu
@@ -800,6 +818,7 @@ func (hvcc *HEVCRecordConfiguration) UpdateSPS(sps []byte) {
         copy(nu.Nalu, sps)
         nua.NalUnits[0] = nu
         hvcc.Arrays = append(hvcc.Arrays, nua)
+        needUpdate = true
     }
     if needUpdate {
         hvcc.NumTemporalLayers = uint8(Max(int(hvcc.NumTemporalLayers), int(rawsps.Sps_max_sub_layers_minus1+1)))
@@ -827,6 +846,7 @@ func (hvcc *HEVCRecordConfiguration) UpdatePPS(pps []byte) {
             j := 0
             for ; j < len(arrays.NalUnits); j++ {
                 if ppsid != GetH265PPSId(arrays.NalUnits[j].Nalu) {
+                    found = true
                     continue
                 }
                 //find the same sps nalu
@@ -868,6 +888,7 @@ func (hvcc *HEVCRecordConfiguration) UpdatePPS(pps []byte) {
         copy(nu.Nalu, pps)
         nua.NalUnits[0] = nu
         hvcc.Arrays = append(hvcc.Arrays, nua)
+        needUpdate = true
     }
     if needUpdate {
         if rawpps.Entropy_coding_sync_enabled_flag == 1 && rawpps.Tiles_enabled_flag == 1 {
@@ -898,6 +919,7 @@ func (hvcc *HEVCRecordConfiguration) UpdateVPS(vps []byte) {
             j := 0
             for ; j < len(arrays.NalUnits); j++ {
                 if vpsid != GetVPSId(arrays.NalUnits[j].Nalu) {
+                    found = true
                     continue
                 }
                 //find the same sps nalu
@@ -939,6 +961,7 @@ func (hvcc *HEVCRecordConfiguration) UpdateVPS(vps []byte) {
         copy(nu.Nalu, vps)
         nua.NalUnits[0] = nu
         hvcc.Arrays = append(hvcc.Arrays, nua)
+        needUpdate = true
     }
     if needUpdate {
         hvcc.NumTemporalLayers = uint8(Max(int(hvcc.NumTemporalLayers), int(rawvps.Vps_max_layers_minus1+1)))

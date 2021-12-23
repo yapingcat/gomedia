@@ -1,6 +1,8 @@
 package mp4
 
-import "encoding/binary"
+import (
+    "encoding/binary"
+)
 
 // aligned(8) class ChunkOffsetBox
 //     extends FullBox(‘stco’, version = 0, 0) {
@@ -38,7 +40,7 @@ func (stco *ChunkOffsetBox) Size() uint64 {
 
 func (stco *ChunkOffsetBox) Encode() (int, []byte) {
     stco.box.Box.Size = stco.Size()
-    offset, buf := stco.Encode()
+    offset, buf := stco.box.Encode()
     binary.BigEndian.PutUint32(buf[offset:], stco.stco.entryCount)
     offset += 4
     for i := 0; i < int(stco.stco.entryCount); i++ {
@@ -69,7 +71,7 @@ func (co64 *ChunkLargeOffsetBox) Size() uint64 {
 
 func (co64 *ChunkLargeOffsetBox) Encode() (int, []byte) {
     co64.box.Box.Size = co64.Size()
-    offset, buf := co64.Encode()
+    offset, buf := co64.box.Encode()
     binary.BigEndian.PutUint32(buf[offset:], co64.stco.entryCount)
     offset += 4
     for i := 0; i < int(co64.stco.entryCount); i++ {
@@ -83,12 +85,13 @@ func makeStco(stco *movstco) (boxdata []byte) {
     if stco.entryCount <= 0 {
         panic("stco chunkoffset list is empty")
     }
+
     if stco.chunkOffsetlist[stco.entryCount-1] > 0xFFFFFFFF {
         co64 := NewChunkLargeOffsetBox()
         co64.stco = stco
         _, boxdata = co64.Encode()
     } else {
-        stcobox := NewChunkLargeOffsetBox()
+        stcobox := NewChunkOffsetBox()
         stcobox.stco = stco
         _, boxdata = stcobox.Encode()
     }

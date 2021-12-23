@@ -45,7 +45,7 @@ func newmp4track(cid MP4_CODEC_TYPE) *mp4track {
     if cid == MP4_CODEC_H264 {
         track.extra = new(h264ExtraData)
     } else if cid == MP4_CODEC_H265 {
-        track.extra = new(h265ExtraData)
+        track.extra = newh265ExtraData()
     } else if cid == MP4_CODEC_AAC {
         track.extra = new(aacExtraData)
     }
@@ -62,7 +62,7 @@ func (track *mp4track) makeStblTable() {
     movchunks := make([]movchunk, 0)
     ctts := new(movctts)
     ctts.entrys = make([]cttsEntry, 0)
-    ckn := uint32(1)
+    ckn := uint32(0)
     for i, sample := range track.samplelist {
         sttsEntry := sttsEntry{sampleCount: 1, sampleDelta: 0}
         cttsEntry := cttsEntry{sampleCount: 1, sampleOffset: uint32(sample.pts) - uint32(sample.dts)}
@@ -75,6 +75,7 @@ func (track *mp4track) makeStblTable() {
             } else {
                 sttsEntry.sampleDelta = uint32(delta)
                 stts.entrys = append(stts.entrys, sttsEntry)
+                stts.entryCount++
             }
         }
 
@@ -85,6 +86,7 @@ func (track *mp4track) makeStblTable() {
                 ctts.entrys[len(ctts.entrys)-1].sampleCount++
             } else {
                 ctts.entrys = append(ctts.entrys, cttsEntry)
+                ctts.entryCount++
             }
         }
 
@@ -116,16 +118,14 @@ func (track *mp4track) makeStblTable() {
         entrys:     make([]stscEntry, len(movchunks)),
         entryCount: 0,
     }
-
     for i, chunk := range movchunks {
         if i == 0 || chunk.samplenum == movchunks[i-1].samplenum {
-            stsc.entrys[stsc.entryCount].firstChunk = chunk.chunknum
+            stsc.entrys[stsc.entryCount].firstChunk = chunk.chunknum + 1
             stsc.entrys[stsc.entryCount].sampleDescriptionIndex = 1
             stsc.entrys[stsc.entryCount].samplesPerChunk = chunk.samplenum
             stsc.entryCount++
         }
     }
-
     stco := &movstco{entryCount: ckn, chunkOffsetlist: make([]uint64, ckn)}
     for i := 0; i < int(stco.entryCount); i++ {
         stco.chunkOffsetlist[i] = movchunks[i].chunkoffset
@@ -156,16 +156,27 @@ func (extra *h264ExtraData) load(data []byte) {
 }
 
 type h265ExtraData struct {
-    hvccExtra mpeg.HEVCRecordConfiguration
+    hvccExtra *mpeg.HEVCRecordConfiguration
+}
+
+func newh265ExtraData() *h265ExtraData {
+    return &h265ExtraData{
+        hvccExtra: mpeg.NewHEVCRecordConfiguration(),
+    }
 }
 
 func (extra *h265ExtraData) export() []byte {
-    return extra.hvccExtra.Encode()
+    if extra.hvccExtra != nil {
+        return extra.hvccExtra.Encode()
+    }
+    panic("extra.hvccExtra must init")
 }
 
 func (extra *h265ExtraData) load(data []byte) {
-    hevcExtra := mpeg.HEVCRecordConfiguration{}
-    hevcExtra.Decode(data)
+    if extra.hvccExtra != nil {
+        extra.hvccExtra.Decode(data)
+    }
+    panic("extra.hvccExtra must init")
 }
 
 type aacExtraData struct {
@@ -194,7 +205,7 @@ type Movmuxer struct {
 func CreateMp4Muxer(wh Writer) *Movmuxer {
     muxer := &Movmuxer{
         writerHandler: wh,
-        nextTrackId:   0,
+        nextTrackId:   1,
         tracks:        make(map[uint32]*mp4track),
     }
     ftyp := NewFileTypeBox()
@@ -218,23 +229,19 @@ func CreateMp4Muxer(wh Writer) *Movmuxer {
 }
 
 func (muxer *Movmuxer) AddAudioTrack(cid MP4_CODEC_TYPE, channelcount uint8, sampleBits uint8, sampleRate uint) uint32 {
-    track := &mp4track{
-        cid:         cid,
-        trackId:     muxer.nextTrackId,
-        sampleRate:  uint32(sampleRate),
-        sampleBits:  sampleBits,
-        chanelCount: channelcount,
-    }
+    track := newmp4track(cid)
+    track.trackId = muxer.nextTrackId
+    track.sampleRate = uint32(sampleRate)
+    track.sampleBits = sampleBits
+    track.chanelCount = channelcount
     muxer.tracks[muxer.nextTrackId] = track
     muxer.nextTrackId++
     return track.trackId
 }
 
 func (muxer *Movmuxer) AddVideoTrack(cid MP4_CODEC_TYPE) uint32 {
-    track := &mp4track{
-        cid:     cid,
-        trackId: muxer.nextTrackId,
-    }
+    track := newmp4track(cid)
+    track.trackId = muxer.nextTrackId
     muxer.tracks[muxer.nextTrackId] = track
     muxer.nextTrackId++
     return track.trackId
@@ -252,25 +259,32 @@ func (muxer *Movmuxer) Write(track uint32, data []byte, pts uint64, dts uint64) 
     if len(mp4track.samplelist) <= 1 {
         mp4track.duration = 0
     } else {
-        delta := dts - mp4track.samplelist[len(mp4track.samplelist)-1].dts
+        delta := int64(dts - mp4track.samplelist[len(mp4track.samplelist)-1].dts)
         if delta < 0 {
             mp4track.duration += 1
         } else {
             mp4track.duration += uint32(delta)
         }
     }
-    mp4track.samplelist = append(mp4track.samplelist, entry)
+    n := 0
+    var err error
     if mp4track.cid == MP4_CODEC_H264 {
-        return muxer.writeH264(mp4track, data)
+        n, err = muxer.writeH264(mp4track, data)
     } else if mp4track.cid == MP4_CODEC_H265 {
-        return muxer.writeH265(mp4track, data)
+        n, err = muxer.writeH265(mp4track, data)
     } else if mp4track.cid == MP4_CODEC_AAC {
-        return muxer.writeAAC(mp4track, data)
+        n, err = muxer.writeAAC(mp4track, data)
     } else if mp4track.cid == MP4_CODEC_G711A || mp4track.cid == MP4_CODEC_G711U {
-        return muxer.writeG711(mp4track, data)
+        n, err = muxer.writeG711(mp4track, data)
     } else {
         return errors.New("UnSupport Codec")
     }
+    if err != nil {
+        return err
+    }
+    entry.size = uint64(n)
+    mp4track.samplelist = append(mp4track.samplelist, entry)
+    return nil
 }
 
 func (muxer *Movmuxer) Writetrailer() (err error) {
@@ -313,9 +327,11 @@ func (muxer *Movmuxer) Writetrailer() (err error) {
     mvhd := makeMvhdBox(muxer.nextTrackId, muxer.duration)
     moovsize := len(mvhd)
     traks := make([][]byte, len(muxer.tracks))
-    for i, track := range muxer.tracks {
-        traks[i] = makeTrak(track)
-        moovsize += len(traks[i])
+    idx := 0
+    for _, track := range muxer.tracks {
+        traks[idx] = makeTrak(track)
+        moovsize += len(traks[idx])
+        idx++
     }
     MOOV.Size = 8 + uint64(moovsize)
     offset, moov := MOOV.Encode()
@@ -331,7 +347,7 @@ func (muxer *Movmuxer) Writetrailer() (err error) {
     return
 }
 
-func (muxer *Movmuxer) writeH264(track *mp4track, h264 []byte) (err error) {
+func (muxer *Movmuxer) writeH264(track *mp4track, h264 []byte) (n int, err error) {
     h264extra, ok := track.extra.(*h264ExtraData)
     if !ok {
         panic("must init h264ExtraData first")
@@ -342,7 +358,7 @@ func (muxer *Movmuxer) writeH264(track *mp4track, h264 []byte) (err error) {
         case mpeg.H264_NAL_SPS:
             spsid := mpeg.GetSPSIdWithStartCode(nalu)
             for _, sps := range h264extra.spss {
-                if spsid == mpeg.GetSPSId(sps) {
+                if spsid == mpeg.GetSPSIdWithStartCode(sps) {
                     return true
                 }
             }
@@ -355,9 +371,9 @@ func (muxer *Movmuxer) writeH264(track *mp4track, h264 []byte) (err error) {
                 track.height = muxer.height
             }
         case mpeg.H264_NAL_PPS:
-            ppsid := mpeg.GetSPSIdWithStartCode(nalu)
+            ppsid := mpeg.GetPPSIdWithStartCode(nalu)
             for _, pps := range h264extra.ppss {
-                if ppsid == mpeg.GetPPSId(pps) {
+                if ppsid == mpeg.GetPPSIdWithStartCode(pps) {
                     return true
                 }
             }
@@ -366,15 +382,17 @@ func (muxer *Movmuxer) writeH264(track *mp4track, h264 []byte) (err error) {
             h264extra.ppss = append(h264extra.ppss, tmp)
         }
         avcc := mpeg.ConvertAnnexBToAVCC(nalu)
-        if _, err = muxer.writerHandler.Write(avcc); err != nil {
+        nn := 0
+        if nn, err = muxer.writerHandler.Write(avcc); err != nil {
             return false
         }
+        n += nn
         return true
     })
     return
 }
 
-func (muxer *Movmuxer) writeH265(track *mp4track, h265 []byte) (err error) {
+func (muxer *Movmuxer) writeH265(track *mp4track, h265 []byte) (n int, err error) {
     h265extra, ok := track.extra.(*h265ExtraData)
     if !ok {
         panic("must init h265ExtraData first")
@@ -394,16 +412,18 @@ func (muxer *Movmuxer) writeH265(track *mp4track, h265 []byte) (err error) {
         case mpeg.H265_NAL_VPS:
             h265extra.hvccExtra.UpdateVPS(nalu)
         }
-        avcc := mpeg.ConvertAnnexBToAVCC(nalu)
-        if _, err = muxer.writerHandler.Write(avcc); err != nil {
+        hvcc := mpeg.ConvertAnnexBToAVCC(nalu)
+        nn := 0
+        if nn, err = muxer.writerHandler.Write(hvcc); err != nil {
             return false
         }
+        n += nn
         return true
     })
     return
 }
 
-func (muxer *Movmuxer) writeAAC(track *mp4track, aacframes []byte) (err error) {
+func (muxer *Movmuxer) writeAAC(track *mp4track, aacframes []byte) (n int, err error) {
     aacextra, ok := track.extra.(*aacExtraData)
     if !ok {
         panic("must init aacExtraData first")
@@ -411,15 +431,15 @@ func (muxer *Movmuxer) writeAAC(track *mp4track, aacframes []byte) (err error) {
     if aacextra.asc == nil || len(aacextra.asc) <= 0 {
         asc, err := mpeg.ConvertADTSToASC(aacframes)
         if err != nil {
-            return err
+            return 0, err
         }
         copy(aacextra.asc, asc)
     }
-    _, err = muxer.writerHandler.Write(aacframes[7:])
+    n, err = muxer.writerHandler.Write(aacframes[7:])
     return
 }
 
-func (muxer *Movmuxer) writeG711(track *mp4track, g711 []byte) (err error) {
-    _, err = muxer.writerHandler.Write(g711)
+func (muxer *Movmuxer) writeG711(track *mp4track, g711 []byte) (n int, err error) {
+    n, err = muxer.writerHandler.Write(g711)
     return
 }

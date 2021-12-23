@@ -278,6 +278,7 @@ func makeStsd(track *mp4track, handler_type HandlerType) []byte {
 
     stsd := NewSampleDescriptionBox()
     stsd.box.Box.Size = stsd.Size() + uint64(len(se))
+    stsd.entry_count = 1
     offset2, stsdbox := stsd.Encode()
     copy(stsdbox[offset2:], se)
     return stsdbox

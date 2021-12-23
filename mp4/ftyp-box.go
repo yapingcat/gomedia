@@ -36,11 +36,11 @@ func (ftyp *FileTypeBox) Decode(buf []byte) (int, error) {
 		return 0, err
 	} else {
 		_ = buf[ftyp.Box.Size]
-		ftyp.Major_brand = binary.BigEndian.Uint32(buf[offset:])
+		ftyp.Major_brand = binary.LittleEndian.Uint32(buf[offset:])
 		ftyp.Minor_version = binary.BigEndian.Uint32(buf[offset+4:])
 		offset += 8
 		for ; offset < int(ftyp.Box.Size); offset += 4 {
-			ftyp.Compatible_brands = append(ftyp.Compatible_brands, binary.BigEndian.Uint32(buf[offset:]))
+			ftyp.Compatible_brands = append(ftyp.Compatible_brands, binary.LittleEndian.Uint32(buf[offset:]))
 		}
 		return offset, nil
 	}
@@ -49,11 +49,12 @@ func (ftyp *FileTypeBox) Decode(buf []byte) (int, error) {
 func (ftyp *FileTypeBox) Encode() (int, []byte) {
 	ftyp.Box.Size = ftyp.Size()
 	offset, buf := ftyp.Box.Encode()
-	binary.BigEndian.PutUint32(buf[offset:], ftyp.Major_brand)
+	binary.LittleEndian.PutUint32(buf[offset:], ftyp.Major_brand)
+	offset += 4
 	binary.BigEndian.PutUint32(buf[offset:], ftyp.Minor_version)
-	offset += 8
+	offset += 4
 	for i := 0; offset < int(ftyp.Box.Size); offset += 4 {
-		binary.BigEndian.PutUint32(buf[offset:], ftyp.Compatible_brands[i])
+		binary.LittleEndian.PutUint32(buf[offset:], ftyp.Compatible_brands[i])
 		i++
 	}
 	return offset, buf

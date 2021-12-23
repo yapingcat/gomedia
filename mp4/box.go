@@ -114,7 +114,11 @@ func NewFullBox(boxtype [4]byte, version uint8) *FullBox {
 }
 
 func (box *FullBox) Size() uint64 {
-    return 12
+    if box.Box.Size > 0 {
+        return box.Box.Size
+    } else {
+        return 12
+    }
 }
 
 func (box *FullBox) Decode(buf []byte) (int, error) {
@@ -130,7 +134,6 @@ func (box *FullBox) Decode(buf []byte) (int, error) {
 func (box *FullBox) Encode() (int, []byte) {
     box.Box.Size = box.Size()
     offset, buf := box.Box.Encode()
-    buf = append(buf, make([]byte, 4)...)
     buf[offset] = box.Version
     copy(buf[offset+1:], box.Flags[:])
     return offset + 4, buf
