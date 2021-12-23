@@ -1,5 +1,5 @@
-module mp4
+module github.com/yapingcat/gomedia/mp4
 
 go 1.16
 
-require github.com/yapingcat/gomedia/mpeg v0.0.0-20211126124544-b15b631ee13c
+require github.com/yapingcat/gomedia/mpeg v0.0.0-20211223030151-f9d27414937c
