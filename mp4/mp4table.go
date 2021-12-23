@@ -51,10 +51,3 @@ type movstbl struct {
     stsz *movstsz
     stco *movstco
 }
-
-func writeStblTable(stbl *movstbl) (table []byte) {
-    if stbl.stts != nil {
-
-    }
-
-}
