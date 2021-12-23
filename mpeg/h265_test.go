@@ -51,7 +51,7 @@ func TestVPS_Decode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			vps := &VPS{}
-			start, sc := FindStarCode(tt.args.nalu, 0)
+			start, sc := FindStartCode(tt.args.nalu, 0)
 			ShowPacketHexdump(tt.args.nalu[start+int(sc):])
 			vps.Decode(tt.args.nalu[start+int(sc):])
 			t.Logf("%+v\n", vps)
@@ -74,7 +74,7 @@ func TestH265RawSPS_Decode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rawsps := H265RawSPS{}
-			start, sc := FindStarCode(tt.args.nalu, 0)
+			start, sc := FindStartCode(tt.args.nalu, 0)
 			rawsps.Decode(tt.args.nalu[start+int(sc):])
 			t.Logf("%+v\n", rawsps)
 		})
@@ -97,7 +97,7 @@ func TestH265RawPPS_Decode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rawpps := H265RawPPS{}
-			start, sc := FindStarCode(tt.args.nalu, 0)
+			start, sc := FindStartCode(tt.args.nalu, 0)
 			rawpps.Decode(tt.args.nalu[start+int(sc):])
 			t.Logf("%+v\n", rawpps)
 		})

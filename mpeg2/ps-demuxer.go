@@ -1,7 +1,7 @@
 package mpeg2
 
 import (
-    "github.com/yapingcat/gomedia/mpeg"
+	"github.com/yapingcat/gomedia/mpeg"
 )
 
 type psstream struct {
@@ -249,9 +249,9 @@ func (psdemuxer *PSDemuxer) demuxH26x(stream *psstream, pes *PesPacket) error {
         stream.dts = pes.Dts
     }
     stream.streamBuf = append(stream.streamBuf, pes.Pes_payload...)
-    start, sc := mpeg.FindStarCode(stream.streamBuf, 0)
+    start, sc := mpeg.FindStartCode(stream.streamBuf, 0)
     for start >= 0 {
-        end, sc2 := mpeg.FindStarCode(stream.streamBuf, start+int(sc))
+        end, sc2 := mpeg.FindStartCode(stream.streamBuf, start+int(sc))
         if end < 0 {
             break
         }

@@ -1,8 +1,8 @@
 package mpeg
 
 import (
-    "bytes"
-    "fmt"
+	"bytes"
+	"fmt"
 )
 
 // nal_unit_header() {
@@ -549,7 +549,7 @@ func (pps *H265RawPPS) Decode(nalu []byte) {
 }
 
 func GetH265Resolution(sps []byte) (width uint32, height uint32) {
-    start, sc := FindStarCode(sps, 0)
+    start, sc := FindStartCode(sps, 0)
     h265sps := H265RawSPS{}
     h265sps.Decode(sps[start+int(sc):])
     width = uint32(h265sps.Pic_width_in_luma_samples)
@@ -558,7 +558,7 @@ func GetH265Resolution(sps []byte) (width uint32, height uint32) {
 }
 
 func GetVPSIdWithStartCode(vps []byte) uint8 {
-    start, sc := FindStarCode(vps, 0)
+    start, sc := FindStartCode(vps, 0)
     return GetVPSId(vps[start+int(sc):])
 }
 
@@ -569,7 +569,7 @@ func GetVPSId(vps []byte) uint8 {
 }
 
 func GetH265SPSIdWithStartCode(sps []byte) uint64 {
-    start, sc := FindStarCode(sps, 0)
+    start, sc := FindStartCode(sps, 0)
     return GetH265SPSId(sps[start+int(sc):])
 }
 
@@ -580,7 +580,7 @@ func GetH265SPSId(sps []byte) uint64 {
 }
 
 func GetH65PPSIdWithStartCode(pps []byte) uint64 {
-    start, sc := FindStarCode(pps, 0)
+    start, sc := FindStartCode(pps, 0)
     return GetH265SPSId(pps[start+int(sc):])
 }
 
@@ -745,7 +745,7 @@ func (hvcc *HEVCRecordConfiguration) Decode(hevc []byte) {
 }
 
 func (hvcc *HEVCRecordConfiguration) UpdateSPS(sps []byte) {
-    start, sc := FindStarCode(sps, 0)
+    start, sc := FindStartCode(sps, 0)
     sps = sps[start+int(sc):]
     var rawsps H265RawSPS
     rawsps.Decode(sps)
@@ -813,7 +813,7 @@ func (hvcc *HEVCRecordConfiguration) UpdateSPS(sps []byte) {
 }
 
 func (hvcc *HEVCRecordConfiguration) UpdatePPS(pps []byte) {
-    start, sc := FindStarCode(pps, 0)
+    start, sc := FindStartCode(pps, 0)
     pps = pps[start+int(sc):]
     var rawpps H265RawPPS
     rawpps.Decode(pps)
@@ -883,7 +883,7 @@ func (hvcc *HEVCRecordConfiguration) UpdatePPS(pps []byte) {
 }
 
 func (hvcc *HEVCRecordConfiguration) UpdateVPS(vps []byte) {
-    start, sc := FindStarCode(vps, 0)
+    start, sc := FindStartCode(vps, 0)
     vps = vps[start+int(sc):]
     var rawvps VPS
     rawvps.Decode(vps)

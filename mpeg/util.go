@@ -9,7 +9,7 @@ const (
     START_CODE_4                 = 4
 )
 
-func FindStarCode(nalu []byte, offset int) (int, START_CODE_TYPE) {
+func FindStartCode(nalu []byte, offset int) (int, START_CODE_TYPE) {
     for i := offset; i < len(nalu)-4; i++ {
         if nalu[i] == 0x00 && nalu[i+1] == 0x00 {
             if nalu[i+2] == 0x01 {
@@ -32,9 +32,9 @@ func FindSyncword(aac []byte, offset int) int {
 }
 
 func SplitFrame(frames []byte, onFrame func(nalu []byte) bool) {
-    beg, sc := FindStarCode(frames, 0)
+    beg, sc := FindStartCode(frames, 0)
     for beg >= 0 {
-        end, sc2 := FindStarCode(frames, beg+int(sc))
+        end, sc2 := FindStartCode(frames, beg+int(sc))
         if end == -1 {
             if onFrame != nil {
                 onFrame(frames[beg+int(sc):])
@@ -50,9 +50,9 @@ func SplitFrame(frames []byte, onFrame func(nalu []byte) bool) {
 }
 
 func SplitFrameWithStartCode(frames []byte, onFrame func(nalu []byte) bool) {
-    beg, sc := FindStarCode(frames, 0)
+    beg, sc := FindStartCode(frames, 0)
     for beg >= 0 {
-        end, sc2 := FindStarCode(frames, beg+int(sc))
+        end, sc2 := FindStartCode(frames, beg+int(sc))
         if end == -1 {
             if onFrame != nil {
                 onFrame(frames[beg:])
@@ -78,7 +78,7 @@ func SplitAACFrame(frames []byte, onFrame func(aac []byte)) {
 }
 
 func H264NaluType(h264 []byte) H264_NAL_TYPE {
-    loc, sc := FindStarCode(h264, 0)
+    loc, sc := FindStartCode(h264, 0)
     return H264_NAL_TYPE(h264[loc+int(sc)] & 0x1F)
 }
 
@@ -87,7 +87,7 @@ func H264NaluTypeWithoutStartCode(h264 []byte) H264_NAL_TYPE {
 }
 
 func H265NaluType(h265 []byte) H265_NAL_TYPE {
-    loc, sc := FindStarCode(h265, 0)
+    loc, sc := FindStartCode(h265, 0)
     return H265_NAL_TYPE((h265[loc+int(sc)] >> 1) & 0x3F)
 }
 

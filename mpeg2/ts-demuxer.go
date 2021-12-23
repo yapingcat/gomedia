@@ -1,9 +1,9 @@
 package mpeg2
 
 import (
-    "errors"
+	"errors"
 
-    "github.com/yapingcat/gomedia/mpeg"
+	"github.com/yapingcat/gomedia/mpeg"
 )
 
 type pakcet_t struct {
@@ -170,10 +170,10 @@ func (demuxer *TSDemuxer) doAudioPesPacket(bs *mpeg.BitStream, stream *tsstream,
 
 func (demuxer *TSDemuxer) splitH26XFrame(stream *tsstream) {
     data := stream.pkg.payload
-    start, _ := mpeg.FindStarCode(data, 0)
+    start, _ := mpeg.FindStartCode(data, 0)
     datalen := len(data)
     for start < datalen {
-        end, _ := mpeg.FindStarCode(data, start+3)
+        end, _ := mpeg.FindStartCode(data, start+3)
         if end < 0 {
             break
         }

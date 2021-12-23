@@ -202,7 +202,7 @@ func (sei *SEI) Encode(bsw *BitStreamWriter) []byte {
 }
 
 func GetSPSIdWithStartCode(sps []byte) uint64 {
-    start, sc := FindStarCode(sps, 0)
+    start, sc := FindStartCode(sps, 0)
     return GetSPSId(sps[start+int(sc):])
 }
 
@@ -214,7 +214,7 @@ func GetSPSId(sps []byte) uint64 {
 }
 
 func GetPPSIdWithStartCode(pps []byte) uint64 {
-    start, sc := FindStarCode(pps, 0)
+    start, sc := FindStartCode(pps, 0)
     return GetPPSId(pps[start+int(sc):])
 }
 
@@ -228,7 +228,7 @@ func GetPPSId(pps []byte) uint64 {
 //int Width = ((pic_width_in_mbs_minus1 +1)*16) - frame_crop_right_offset *2 - frame_crop_left_offset *2;
 //int Height = ((2 - frame_mbs_only_flag)* (pic_height_in_map_units_minus1 +1) * 16) - (frame_crop_bottom_offset* 2) - (frame_crop_top_offset* 2);
 func GetH264Resolution(sps []byte) (width uint32, height uint32) {
-    start, sc := FindStarCode(sps, 0)
+    start, sc := FindStartCode(sps, 0)
     bs := NewBitStream(sps[start+int(sc)+1:])
     var s SPS
     s.Decode(bs)
@@ -266,12 +266,12 @@ func GetH264Resolution(sps []byte) (width uint32, height uint32) {
 func CreateH264AVCCExtradata(spss [][]byte, ppss [][]byte) []byte {
     extradata := make([]byte, 6, 256)
     for i, sps := range spss {
-        start, sc := FindStarCode(sps, 0)
+        start, sc := FindStartCode(sps, 0)
         spss[i] = sps[start+int(sc):]
     }
 
     for i, pps := range ppss {
-        start, sc := FindStarCode(pps, 0)
+        start, sc := FindStartCode(pps, 0)
         ppss[i] = pps[start+int(sc):]
     }
 
@@ -324,7 +324,7 @@ func CovertExtradata(extraData []byte) ([][]byte, [][]byte) {
 }
 
 func ConvertAnnexBToAVCC(annexb []byte) []byte {
-    start, sc := FindStarCode(annexb, 0)
+    start, sc := FindStartCode(annexb, 0)
     if sc == START_CODE_4 {
         binary.BigEndian.PutUint32(annexb[start:], uint32(len(annexb)-4))
         return annexb
