@@ -47,6 +47,8 @@ type SPS struct {
     Seq_parameter_set_id                 uint64
     Chroma_format_idc                    uint64
     Separate_colour_plane_flag           uint8
+    Bit_depth_luma_minus8                uint64
+    Bit_depth_chroma_minus8              uint64
     Log2_max_frame_num_minus4            uint64
     Pic_order_cnt_type                   uint64
     Max_num_ref_frames                   uint64
@@ -82,9 +84,9 @@ func (sps *SPS) Decode(bs *BitStream) {
         if sps.Chroma_format_idc == 3 {
             sps.Separate_colour_plane_flag = bs.Uint8(1) //separate_colour_plane_flag
         }
-        bs.ReadUE()    //bit_depth_luma_minus8
-        bs.ReadUE()    //bit_depth_chroma_minus8
-        bs.SkipBits(1) //qpprime_y_zero_transform_bypass_flag
+        sps.Bit_depth_luma_minus8 = bs.ReadUE()   //bit_depth_luma_minus8
+        sps.Bit_depth_chroma_minus8 = bs.ReadUE() //bit_depth_chroma_minus8
+        bs.SkipBits(1)                            //qpprime_y_zero_transform_bypass_flag
         seq_scaling_matrix_present_flag := bs.GetBit()
         if seq_scaling_matrix_present_flag == 1 {
             //seq_scaling_list_present_flag[i]
@@ -201,13 +203,25 @@ func (sei *SEI) Encode(bsw *BitStreamWriter) []byte {
     return bsw.Bits()
 }
 
+func GetSPSIdWithStartCode(sps []byte) uint64 {
+    start, sc := FindStartCode(sps, 0)
+    return GetSPSId(sps[start+int(sc):])
+}
+
 func GetSPSId(sps []byte) uint64 {
+    sps = sps[1:]
     bs := NewBitStream(sps)
     bs.SkipBits(24)
     return bs.ReadUE()
 }
 
+func GetPPSIdWithStartCode(pps []byte) uint64 {
+    start, sc := FindStartCode(pps, 0)
+    return GetPPSId(pps[start+int(sc):])
+}
+
 func GetPPSId(pps []byte) uint64 {
+    pps = pps[1:]
     bs := NewBitStream(pps)
     return bs.ReadUE()
 }
@@ -216,7 +230,7 @@ func GetPPSId(pps []byte) uint64 {
 //int Width = ((pic_width_in_mbs_minus1 +1)*16) - frame_crop_right_offset *2 - frame_crop_left_offset *2;
 //int Height = ((2 - frame_mbs_only_flag)* (pic_height_in_map_units_minus1 +1) * 16) - (frame_crop_bottom_offset* 2) - (frame_crop_top_offset* 2);
 func GetH264Resolution(sps []byte) (width uint32, height uint32) {
-    start, sc := FindStarCode(sps, 0)
+    start, sc := FindStartCode(sps, 0)
     bs := NewBitStream(sps[start+int(sc)+1:])
     var s SPS
     s.Decode(bs)
@@ -232,6 +246,42 @@ func GetH264Resolution(sps []byte) (width uint32, height uint32) {
     return
 }
 
+// aligned(8) class AVCDecoderConfigurationRecord {
+// 	unsigned int(8) configurationVersion = 1;
+// 	unsigned int(8) AVCProfileIndication;
+// 	unsigned int(8) profile_compatibility;
+// 	unsigned int(8) AVCLevelIndication;
+// 	bit(6) reserved = ‘111111’b;
+// 	unsigned int(2) lengthSizeMinusOne;
+// 	bit(3) reserved = ‘111’b;
+// 	unsigned int(5) numOfSequenceParameterSets;
+// 	for (i=0; i< numOfSequenceParameterSets;  i++) {
+// 		unsigned int(16) sequenceParameterSetLength ;
+// 		bit(8*sequenceParameterSetLength) sequenceParameterSetNALUnit;
+// 	}
+// 	unsigned int(8) numOfPictureParameterSets;
+// 	for (i=0; i< numOfPictureParameterSets;  i++) {
+// 		unsigned int(16) pictureParameterSetLength;
+// 		bit(8*pictureParameterSetLength) pictureParameterSetNALUnit;
+// 	}
+// if( profile_idc  ==  100  ||  profile_idc  ==  110  ||
+//     profile_idc  ==  122  ||  profile_idc  ==  144 )
+// {
+//     bit(6) reserved = ‘111111’b;
+//     unsigned int(2) chroma_format;
+//     bit(5) reserved = ‘11111’b;
+//     unsigned int(3) bit_depth_luma_minus8;
+//     bit(5) reserved = ‘11111’b;
+//     unsigned int(3) bit_depth_chroma_minus8;
+//     unsigned int(8) numOfSequenceParameterSetExt;
+//     for (i=0; i< numOfSequenceParameterSetExt; i++) {
+//      unsigned int(16) sequenceParameterSetExtLength;
+//      bit(8*sequenceParameterSetExtLength) sequenceParameterSetExtNALUnit;
+//     }
+//  }
+
+//  }
+// }
 // bits
 // 8   version ( always 0x01 )
 // 8   avc profile ( sps[0][1] )
@@ -254,12 +304,12 @@ func GetH264Resolution(sps []byte) (width uint32, height uint32) {
 func CreateH264AVCCExtradata(spss [][]byte, ppss [][]byte) []byte {
     extradata := make([]byte, 6, 256)
     for i, sps := range spss {
-        start, sc := FindStarCode(sps, 0)
+        start, sc := FindStartCode(sps, 0)
         spss[i] = sps[start+int(sc):]
     }
 
     for i, pps := range ppss {
-        start, sc := FindStarCode(pps, 0)
+        start, sc := FindStartCode(pps, 0)
         ppss[i] = pps[start+int(sc):]
     }
 
@@ -282,6 +332,20 @@ func CreateH264AVCCExtradata(spss [][]byte, ppss [][]byte) []byte {
         extradata = append(extradata, ppssize...)
         extradata = append(extradata, pps...)
     }
+    var h264sps SPS
+    h264sps.Decode(NewBitStream(spss[0][1:]))
+    if h264sps.Profile_idc == 100 ||
+        h264sps.Profile_idc == 110 ||
+        h264sps.Profile_idc == 122 ||
+        h264sps.Profile_idc == 144 {
+        tmp := make([]byte, 4)
+        tmp[0] = 0xFC | uint8(h264sps.Chroma_format_idc&0x03)
+        tmp[1] = 0xF8 | uint8(h264sps.Bit_depth_luma_minus8&0x07)
+        tmp[2] = 0xF8 | uint8(h264sps.Bit_depth_chroma_minus8&0x07)
+        tmp[3] = 0
+        extradata = append(extradata, tmp...)
+    }
+
     return extradata
 }
 
@@ -312,7 +376,7 @@ func CovertExtradata(extraData []byte) ([][]byte, [][]byte) {
 }
 
 func ConvertAnnexBToAVCC(annexb []byte) []byte {
-    start, sc := FindStarCode(annexb, 0)
+    start, sc := FindStartCode(annexb, 0)
     if sc == START_CODE_4 {
         binary.BigEndian.PutUint32(annexb[start:], uint32(len(annexb)-4))
         return annexb

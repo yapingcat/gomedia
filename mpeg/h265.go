@@ -2,7 +2,6 @@ package mpeg
 
 import (
     "bytes"
-    "fmt"
 )
 
 // nal_unit_header() {
@@ -548,8 +547,17 @@ func (pps *H265RawPPS) Decode(nalu []byte) {
     pps.Entropy_coding_sync_enabled_flag = bs.GetBit()
 }
 
+func GetH265Resolution(sps []byte) (width uint32, height uint32) {
+    start, sc := FindStartCode(sps, 0)
+    h265sps := H265RawSPS{}
+    h265sps.Decode(sps[start+int(sc):])
+    width = uint32(h265sps.Pic_width_in_luma_samples)
+    height = uint32(h265sps.Pic_height_in_luma_samples)
+    return
+}
+
 func GetVPSIdWithStartCode(vps []byte) uint8 {
-    start, sc := FindStarCode(vps, 0)
+    start, sc := FindStartCode(vps, 0)
     return GetVPSId(vps[start+int(sc):])
 }
 
@@ -559,8 +567,8 @@ func GetVPSId(vps []byte) uint8 {
     return rawvps.Vps_video_parameter_set_id
 }
 
-func GetSPSIdWithStartCode(sps []byte) uint64 {
-    start, sc := FindStarCode(sps, 0)
+func GetH265SPSIdWithStartCode(sps []byte) uint64 {
+    start, sc := FindStartCode(sps, 0)
     return GetH265SPSId(sps[start+int(sc):])
 }
 
@@ -570,8 +578,8 @@ func GetH265SPSId(sps []byte) uint64 {
     return rawsps.Sps_seq_parameter_set_id
 }
 
-func GetPPSIdWithStartCode(pps []byte) uint64 {
-    start, sc := FindStarCode(pps, 0)
+func GetH65PPSIdWithStartCode(pps []byte) uint64 {
+    start, sc := FindStartCode(pps, 0)
     return GetH265SPSId(pps[start+int(sc):])
 }
 
@@ -585,39 +593,39 @@ func GetH265PPSId(pps []byte) uint64 {
 ISO/IEC 14496-15:2017(E) 8.3.3.1.2 Syntax (p71)
 
 aligned(8) class HEVCDecoderConfigurationRecord {
-	unsigned int(8) configurationVersion = 1;
-	unsigned int(2) general_profile_space;
-	unsigned int(1) general_tier_flag;
-	unsigned int(5) general_profile_idc;
-	unsigned int(32) general_profile_compatibility_flags;
-	unsigned int(48) general_constraint_indicator_flags;
-	unsigned int(8) general_level_idc;
-	bit(4) reserved = '1111'b;
-	unsigned int(12) min_spatial_segmentation_idc;
-	bit(6) reserved = '111111'b;
-	unsigned int(2) parallelismType;
-	bit(6) reserved = '111111'b;
-	unsigned int(2) chromaFormat;
-	bit(5) reserved = '11111'b;
-	unsigned int(3) bitDepthLumaMinus8;
-	bit(5) reserved = '11111'b;
-	unsigned int(3) bitDepthChromaMinus8;
-	bit(16) avgFrameRate;
-	bit(2) constantFrameRate;
-	bit(3) numTemporalLayers;
-	bit(1) temporalIdNested;
-	unsigned int(2) lengthSizeMinusOne;
-	unsigned int(8) numOfArrays;
-	for (j=0; j < numOfArrays; j++) {
-		bit(1) array_completeness;
-		unsigned int(1) reserved = 0;
-		unsigned int(6) NAL_unit_type;
-		unsigned int(16) numNalus;
-		for (i=0; i< numNalus; i++) {
-			unsigned int(16) nalUnitLength;
-			bit(8*nalUnitLength) nalUnit;
-		}
-	}
+    unsigned int(8) configurationVersion = 1;
+    unsigned int(2) general_profile_space;
+    unsigned int(1) general_tier_flag;
+    unsigned int(5) general_profile_idc;
+    unsigned int(32) general_profile_compatibility_flags;
+    unsigned int(48) general_constraint_indicator_flags;
+    unsigned int(8) general_level_idc;
+    bit(4) reserved = '1111'b;
+    unsigned int(12) min_spatial_segmentation_idc;
+    bit(6) reserved = '111111'b;
+    unsigned int(2) parallelismType;
+    bit(6) reserved = '111111'b;
+    unsigned int(2) chromaFormat;
+    bit(5) reserved = '11111'b;
+    unsigned int(3) bitDepthLumaMinus8;
+    bit(5) reserved = '11111'b;
+    unsigned int(3) bitDepthChromaMinus8;
+    bit(16) avgFrameRate;
+    bit(2) constantFrameRate;
+    bit(3) numTemporalLayers;
+    bit(1) temporalIdNested;
+    unsigned int(2) lengthSizeMinusOne;
+    unsigned int(8) numOfArrays;
+    for (j=0; j < numOfArrays; j++) {
+        bit(1) array_completeness;
+        unsigned int(1) reserved = 0;
+        unsigned int(6) NAL_unit_type;
+        unsigned int(16) numNalus;
+        for (i=0; i< numNalus; i++) {
+            unsigned int(16) nalUnitLength;
+            bit(8*nalUnitLength) nalUnit;
+        }
+    }
 }
 */
 
@@ -655,6 +663,16 @@ type HEVCRecordConfiguration struct {
     Arrays                              []*HVCCNALUnitArray
 }
 
+func NewHEVCRecordConfiguration() *HEVCRecordConfiguration {
+    return &HEVCRecordConfiguration{
+        ConfigurationVersion:                1,
+        General_profile_compatibility_flags: 0xffffffff,
+        General_constraint_indicator_flags:  0xffffffffffffffff,
+        Min_spatial_segmentation_idc:        4097,
+        LengthSizeMinusOne:                  3,
+    }
+}
+
 func (hvcc *HEVCRecordConfiguration) Encode() []byte {
     bsw := NewBitStreamWriter(512)
     bsw.PutByte(hvcc.ConfigurationVersion)
@@ -667,6 +685,15 @@ func (hvcc *HEVCRecordConfiguration) Encode() []byte {
     bsw.PutUint8(0x0F, 4)
     bsw.PutUint16(hvcc.Min_spatial_segmentation_idc, 12)
     bsw.PutUint8(0x3F, 6)
+    //ffmpeg hvcc_write(AVIOContext *pb, HEVCDecoderConfigurationRecord *hvcc)
+    /*
+     * parallelismType indicates the type of parallelism that is used to meet
+     * the restrictions imposed by min_spatial_segmentation_idc when the value
+     * of min_spatial_segmentation_idc is greater than 0.
+     */
+    if hvcc.Min_spatial_segmentation_idc == 0 {
+        hvcc.ParallelismType = 0
+    }
     bsw.PutUint8(hvcc.ParallelismType, 2)
     bsw.PutUint8(0x3F, 6)
     bsw.PutUint8(hvcc.ChromaFormat, 2)
@@ -679,7 +706,7 @@ func (hvcc *HEVCRecordConfiguration) Encode() []byte {
     bsw.PutUint8(hvcc.NumTemporalLayers, 3)
     bsw.PutUint8(hvcc.TemporalIdNested, 1)
     bsw.PutUint8(hvcc.LengthSizeMinusOne, 2)
-    bsw.PutByte(hvcc.NumOfArrays)
+    bsw.PutByte(uint8(len(hvcc.Arrays)))
     for _, arrays := range hvcc.Arrays {
         bsw.PutUint8(arrays.Array_completeness, 1)
         bsw.PutUint8(0, 1)
@@ -729,14 +756,13 @@ func (hvcc *HEVCRecordConfiguration) Decode(hevc []byte) {
         for j := 0; j < int(hvcc.Arrays[i].NumNalus); j++ {
             hvcc.Arrays[i].NalUnits[j] = new(NalUnit)
             hvcc.Arrays[i].NalUnits[j].NalUnitLength = bs.Uint16(16)
-            fmt.Println(hvcc.Arrays[i].NalUnits[j].NalUnitLength)
             hvcc.Arrays[i].NalUnits[j].Nalu = bs.GetBytes(int(hvcc.Arrays[i].NalUnits[j].NalUnitLength))
         }
     }
 }
 
 func (hvcc *HEVCRecordConfiguration) UpdateSPS(sps []byte) {
-    start, sc := FindStarCode(sps, 0)
+    start, sc := FindStartCode(sps, 0)
     sps = sps[start+int(sc):]
     var rawsps H265RawSPS
     rawsps.Decode(sps)
@@ -750,6 +776,7 @@ func (hvcc *HEVCRecordConfiguration) UpdateSPS(sps []byte) {
             j := 0
             for ; j < len(arrays.NalUnits); j++ {
                 if spsid != GetH265SPSId(arrays.NalUnits[j].Nalu) {
+                    found = true
                     continue
                 }
                 //find the same sps nalu
@@ -791,6 +818,7 @@ func (hvcc *HEVCRecordConfiguration) UpdateSPS(sps []byte) {
         copy(nu.Nalu, sps)
         nua.NalUnits[0] = nu
         hvcc.Arrays = append(hvcc.Arrays, nua)
+        needUpdate = true
     }
     if needUpdate {
         hvcc.NumTemporalLayers = uint8(Max(int(hvcc.NumTemporalLayers), int(rawsps.Sps_max_sub_layers_minus1+1)))
@@ -804,7 +832,7 @@ func (hvcc *HEVCRecordConfiguration) UpdateSPS(sps []byte) {
 }
 
 func (hvcc *HEVCRecordConfiguration) UpdatePPS(pps []byte) {
-    start, sc := FindStarCode(pps, 0)
+    start, sc := FindStartCode(pps, 0)
     pps = pps[start+int(sc):]
     var rawpps H265RawPPS
     rawpps.Decode(pps)
@@ -818,6 +846,7 @@ func (hvcc *HEVCRecordConfiguration) UpdatePPS(pps []byte) {
             j := 0
             for ; j < len(arrays.NalUnits); j++ {
                 if ppsid != GetH265PPSId(arrays.NalUnits[j].Nalu) {
+                    found = true
                     continue
                 }
                 //find the same sps nalu
@@ -859,6 +888,7 @@ func (hvcc *HEVCRecordConfiguration) UpdatePPS(pps []byte) {
         copy(nu.Nalu, pps)
         nua.NalUnits[0] = nu
         hvcc.Arrays = append(hvcc.Arrays, nua)
+        needUpdate = true
     }
     if needUpdate {
         if rawpps.Entropy_coding_sync_enabled_flag == 1 && rawpps.Tiles_enabled_flag == 1 {
@@ -874,7 +904,7 @@ func (hvcc *HEVCRecordConfiguration) UpdatePPS(pps []byte) {
 }
 
 func (hvcc *HEVCRecordConfiguration) UpdateVPS(vps []byte) {
-    start, sc := FindStarCode(vps, 0)
+    start, sc := FindStartCode(vps, 0)
     vps = vps[start+int(sc):]
     var rawvps VPS
     rawvps.Decode(vps)
@@ -889,6 +919,7 @@ func (hvcc *HEVCRecordConfiguration) UpdateVPS(vps []byte) {
             j := 0
             for ; j < len(arrays.NalUnits); j++ {
                 if vpsid != GetVPSId(arrays.NalUnits[j].Nalu) {
+                    found = true
                     continue
                 }
                 //find the same sps nalu
@@ -930,6 +961,7 @@ func (hvcc *HEVCRecordConfiguration) UpdateVPS(vps []byte) {
         copy(nu.Nalu, vps)
         nua.NalUnits[0] = nu
         hvcc.Arrays = append(hvcc.Arrays, nua)
+        needUpdate = true
     }
     if needUpdate {
         hvcc.NumTemporalLayers = uint8(Max(int(hvcc.NumTemporalLayers), int(rawvps.Vps_max_layers_minus1+1)))

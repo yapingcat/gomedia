@@ -1,10 +1,10 @@
 package flv
 
 import (
-    "bytes"
-    "errors"
+	"bytes"
+	"errors"
 
-    "github.com/yapingcat/gomedia/mpeg"
+	"github.com/yapingcat/gomedia/mpeg"
 )
 
 func WriteAudioTag(data []byte, cid FLV_SOUND_FORMAT, isSequenceHeader bool) []byte {
@@ -63,7 +63,7 @@ func (muxer *AVCMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
     var updateSequence bool = false
     var vcl bool = false
     mpeg.SplitFrameWithStartCode(frames, func(nalu []byte) bool {
-        start, sc := mpeg.FindStarCode(nalu, 0)
+        start, sc := mpeg.FindStartCode(nalu, 0)
         naltype := mpeg.H264NaluTypeWithoutStartCode(nalu[start+int(sc):])
         bs := mpeg.NewBitStream(nalu[start+int(sc):])
         switch naltype {

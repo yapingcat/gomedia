@@ -179,6 +179,7 @@ func (f *FlvReader) demuxAudio(cid FLV_SOUND_FORMAT, packetType uint8, data []by
             }
             copy(f.asc, data)
             f.asc = f.asc[:len(data)]
+            return
         } else {
             audioFrame = mpeg.ConvertASCToADTS(f.asc, len(data)+7)
             audioFrame = append(audioFrame, data...)
