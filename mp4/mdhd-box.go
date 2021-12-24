@@ -7,7 +7,8 @@ import (
     "github.com/yapingcat/gomedia/mpeg"
 )
 
-// aligned(8) class MediaHeaderBox extends FullBox(‘mdhd’, version, 0) { if (version==1) {
+// aligned(8) class MediaHeaderBox extends FullBox(‘mdhd’, version, 0) {
+//  if (version==1) {
 // 	unsigned int(64)  creation_time;
 // 	unsigned int(64)  modification_time;
 // 	unsigned int(32)  timescale;

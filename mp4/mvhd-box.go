@@ -130,7 +130,7 @@ func (mvhd *MovieHeaderBox) Encode() (int, []byte) {
     offset += 2
     offset += 10
     for i, _ := range mvhd.Matrix {
-        mvhd.Matrix[i] = binary.BigEndian.Uint32(buf[offset:])
+        binary.BigEndian.PutUint32(buf[offset:], mvhd.Matrix[i])
         offset += 4
     }
     offset += 24

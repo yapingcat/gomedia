@@ -26,7 +26,7 @@ type ChunkOffsetBox struct {
 
 func NewChunkOffsetBox() *ChunkOffsetBox {
     return &ChunkOffsetBox{
-        box: NewFullBox([4]byte{'s', 't', 'c', 'o'}, 4),
+        box: NewFullBox([4]byte{'s', 't', 'c', 'o'}, 0),
     }
 }
 

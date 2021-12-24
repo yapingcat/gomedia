@@ -68,6 +68,7 @@ func (track *mp4track) makeStblTable() {
         cttsEntry := cttsEntry{sampleCount: 1, sampleOffset: uint32(sample.pts) - uint32(sample.dts)}
         if i == len(track.samplelist)-1 {
             stts.entrys = append(stts.entrys, sttsEntry)
+            stts.entryCount++
         } else {
             delta := track.samplelist[i+1].dts - sample.dts
             if len(stts.entrys) > 0 && delta == uint64(stts.entrys[len(stts.entrys)-1].sampleDelta) {
@@ -134,7 +135,9 @@ func (track *mp4track) makeStblTable() {
     track.stbltable.stsc = stsc
     track.stbltable.stco = stco
     track.stbltable.stsz = stsz
-    track.stbltable.ctts = ctts
+    if track.cid == MP4_CODEC_H264 || track.cid == MP4_CODEC_H265 {
+        track.stbltable.ctts = ctts
+    }
 }
 
 type extraData interface {
