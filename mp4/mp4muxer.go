@@ -119,7 +119,7 @@ func (track *mp4track) makeStblTable() {
         entryCount: 0,
     }
     for i, chunk := range movchunks {
-        if i == 0 || chunk.samplenum == movchunks[i-1].samplenum {
+        if i == 0 || chunk.samplenum != movchunks[i-1].samplenum {
             stsc.entrys[stsc.entryCount].firstChunk = chunk.chunknum + 1
             stsc.entrys[stsc.entryCount].sampleDescriptionIndex = 1
             stsc.entrys[stsc.entryCount].samplesPerChunk = chunk.samplenum
