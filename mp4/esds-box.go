@@ -44,7 +44,7 @@ func (base *BaseDescriptor) Encode() []byte {
     bsw.PutUint8(uint8(size>>14), 7)
     bsw.PutUint8(1, 1)
     bsw.PutUint8(uint8(size>>7), 7)
-    bsw.PutUint8(1, 0)
+    bsw.PutUint8(0, 1)
     bsw.PutUint8(uint8(size), 7)
     return bsw.Bits()[:5+int(base.sizeOfInstance)]
 }

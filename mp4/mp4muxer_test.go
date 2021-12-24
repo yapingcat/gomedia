@@ -130,3 +130,41 @@ func TestCreateMp4Muxer(t *testing.T) {
 		})
 	}
 }
+
+func TestMuxAAC(t *testing.T) {
+	f, err := os.Open("test.aac")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer f.Close()
+
+	mp4filename := "aac.mp4"
+	mp4file, err := os.OpenFile(mp4filename, os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer mp4file.Close()
+
+	aac, _ := ioutil.ReadAll(f)
+	var pts uint64 = 0
+	var dts uint64 = 0
+	var i int = 0
+	muxer := CreateMp4Muxer(newmymp4writer(mp4file))
+	tid := muxer.AddAudioTrack(MP4_CODEC_AAC, 2, 16, 44100)
+	mpeg.SplitAACFrame(aac, func(aac []byte) {
+
+		if i < 3 {
+			pts += 23
+			dts += 23
+			i++
+		} else {
+			pts += 24
+			dts += 24
+			i = 0
+		}
+		muxer.Write(tid, aac, pts, dts)
+	})
+	muxer.Writetrailer()
+}
