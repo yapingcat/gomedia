@@ -429,10 +429,12 @@ func (muxer *Movmuxer) writeAAC(track *mp4track, aacframes []byte) (n int, err e
         panic("must init aacExtraData first")
     }
     if aacextra.asc == nil || len(aacextra.asc) <= 0 {
+
         asc, err := mpeg.ConvertADTSToASC(aacframes)
         if err != nil {
             return 0, err
         }
+        aacextra.asc = make([]byte, len(asc))
         copy(aacextra.asc, asc)
     }
     n, err = muxer.writerHandler.Write(aacframes[7:])

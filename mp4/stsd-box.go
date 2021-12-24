@@ -91,7 +91,11 @@ func (entry *AudioSampleEntry) Decode(buf []byte) (offset int, err error) {
 }
 
 func (entry *AudioSampleEntry) Size() uint64 {
-    return entry.entry.Size() + 20
+    if entry.entry.box.Size > 0 {
+        return entry.entry.box.Size
+    } else {
+        return entry.entry.Size() + 20
+    }
 }
 
 func (entry *AudioSampleEntry) Encode() (int, []byte) {
