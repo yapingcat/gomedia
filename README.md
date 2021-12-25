@@ -16,10 +16,9 @@
   - encode H264/AAC/G711A/G711U
 ## mp4
   - encode H264/H265/AAC/G711A/G711U
-  - decode (on the way .....)
+  - decode 不写了，没动力了
 ## fmp4
-  - encode (on the way .....)
-  - decode (on the way .....)
+  不写了，没动力了
 
 
 
