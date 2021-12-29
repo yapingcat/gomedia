@@ -278,6 +278,7 @@ func (mux *TSMuxer) writePES(pes *pes_stream, pmt *table_pmt, data []byte, pts u
             pespkg.PES_header_data_length = 10
             pespkg.Pts = pts
             pespkg.Dts = dts
+            pespkg.Stream_id = uint8(findPESIDByStreamType(pes.streamtype))
             if idr_flag {
                 pespkg.Data_alignment_indicator = 1
             }
