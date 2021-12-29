@@ -1,5 +1,5 @@
 # gomedia
- mpeg-ts,mpeg-ps,flv,mp4 muxer/demuxe
+ mpeg-ts,mpeg-ps,flv,mp4 muxer/demuxer
  
 ## H264/H265/AAC
   - decode sps/pps/vps/slice header
