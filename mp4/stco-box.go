@@ -38,6 +38,31 @@ func (stco *ChunkOffsetBox) Size() uint64 {
     }
 }
 
+func (stco *ChunkOffsetBox) Decode(rh Reader) (offset int, err error) {
+    if _, err = stco.box.Decode(rh); err != nil {
+        return
+    }
+    tmp := make([]byte, 4)
+    if _, err = rh.ReadAtLeast(tmp); err != nil {
+        return
+    }
+    offset = 8
+    stco.stco = new(movstco)
+    stco.stco.entryCount = binary.BigEndian.Uint32(tmp)
+    stco.stco.chunkOffsetlist = make([]uint64, stco.stco.entryCount)
+    buf := make([]byte, stco.stco.entryCount*4)
+    if _, err = rh.ReadAtLeast(buf); err != nil {
+        return
+    }
+    idx := 0
+    for i := 0; i < int(stco.stco.entryCount); i++ {
+        stco.stco.chunkOffsetlist[i] = uint64(binary.BigEndian.Uint32(buf[idx:]))
+        idx += 4
+    }
+    offset += idx
+    return
+}
+
 func (stco *ChunkOffsetBox) Encode() (int, []byte) {
     stco.box.Box.Size = stco.Size()
     offset, buf := stco.box.Encode()
@@ -69,6 +94,31 @@ func (co64 *ChunkLargeOffsetBox) Size() uint64 {
     }
 }
 
+func (co64 *ChunkLargeOffsetBox) Decode(rh Reader) (offset int, err error) {
+    if _, err = co64.box.Decode(rh); err != nil {
+        return
+    }
+    tmp := make([]byte, 4)
+    if _, err = rh.ReadAtLeast(tmp); err != nil {
+        return
+    }
+    offset = 8
+    co64.stco = new(movstco)
+    co64.stco.entryCount = binary.BigEndian.Uint32(tmp)
+    co64.stco.chunkOffsetlist = make([]uint64, co64.stco.entryCount)
+    buf := make([]byte, co64.stco.entryCount*8)
+    if _, err = rh.ReadAtLeast(buf); err != nil {
+        return
+    }
+    idx := 0
+    for i := 0; i < int(co64.stco.entryCount); i++ {
+        co64.stco.chunkOffsetlist[i] = binary.BigEndian.Uint64(buf[idx:])
+        idx += 8
+    }
+    offset += idx
+    return
+}
+
 func (co64 *ChunkLargeOffsetBox) Encode() (int, []byte) {
     co64.box.Box.Size = co64.Size()
     offset, buf := co64.box.Encode()
@@ -95,5 +145,25 @@ func makeStco(stco *movstco) (boxdata []byte) {
         stcobox.stco = stco
         _, boxdata = stcobox.Encode()
     }
+    return
+}
+
+func decodeStcoBox(demuxer *MovDemuxer) (err error) {
+    stco := ChunkOffsetBox{box: new(FullBox)}
+    if _, err = stco.Decode(demuxer.readerHandler); err != nil {
+        return
+    }
+    track := demuxer.tracks[len(demuxer.tracks)-1]
+    track.stbltable.stco = stco.stco
+    return
+}
+
+func decodeCo64Box(demuxer *MovDemuxer) (err error) {
+    co64 := ChunkLargeOffsetBox{box: new(FullBox)}
+    if _, err = co64.Decode(demuxer.readerHandler); err != nil {
+        return
+    }
+    track := demuxer.tracks[len(demuxer.tracks)-1]
+    track.stbltable.stco = co64.stco
     return
 }

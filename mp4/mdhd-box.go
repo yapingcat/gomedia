@@ -67,10 +67,21 @@ func (mdhd *MediaHeaderBox) Size() uint64 {
     }
 }
 
-func (mdhd *MediaHeaderBox) Decode(buf []byte) (offset int, err error) {
-    if offset, err = mdhd.Box.Decode(buf); err != nil {
+func (mdhd *MediaHeaderBox) Decode(rh Reader) (offset int, err error) {
+    if _, err = mdhd.Box.Decode(rh); err != nil {
         return 0, err
     }
+    boxsize := 0
+    if mdhd.Box.Version == 1 {
+        boxsize = 32
+    } else {
+        boxsize = 20
+    }
+    buf := make([]byte, boxsize)
+    if _, err = rh.ReadAtLeast(buf); err != nil {
+        return 0, err
+    }
+    offset = 0
     if mdhd.Box.Version == 1 {
         mdhd.Creation_time = binary.BigEndian.Uint64(buf[offset:])
         offset += 8
@@ -96,6 +107,7 @@ func (mdhd *MediaHeaderBox) Decode(buf []byte) (offset int, err error) {
     mdhd.Language[1] = bs.Uint8(5)
     mdhd.Language[2] = bs.Uint8(5)
     mdhd.Pre_defined = 0
+    offset += 4
     return
 }
 
@@ -131,4 +143,14 @@ func makeMdhdBox() []byte {
     mdhd := NewMediaHeaderBox()
     _, boxdata := mdhd.Encode()
     return boxdata
+}
+
+func decodeMdhdBox(demuxer *MovDemuxer) (err error) {
+    mdhd := MediaHeaderBox{Box: new(FullBox)}
+    if _, err = mdhd.Decode(demuxer.readerHandler); err != nil {
+        return
+    }
+    track := demuxer.tracks[len(demuxer.tracks)-1]
+    track.timescale = mdhd.Timescale
+    return err
 }

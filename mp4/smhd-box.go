@@ -23,14 +23,16 @@ func (smhd *SoundMediaHeaderBox) Size() uint64 {
     return smhd.Box.Size() + 4
 }
 
-func (smhd *SoundMediaHeaderBox) Decode(buf []byte) (offset int, err error) {
-    if offset, err = smhd.Box.Decode(buf); err != nil {
+func (smhd *SoundMediaHeaderBox) Decode(rh Reader) (offset int, err error) {
+    if offset, err = smhd.Box.Decode(rh); err != nil {
         return 0, err
     }
-    _ = buf[offset+2]
-    smhd.Balance = int16(binary.BigEndian.Uint16(buf[offset:]))
-    offset += 2
-    return
+    buf := make([]byte, 4)
+    if _, err = rh.ReadAtLeast(buf); err != nil {
+        return
+    }
+    smhd.Balance = int16(binary.BigEndian.Uint16(buf[:]))
+    return 4, nil
 }
 
 func (smhd *SoundMediaHeaderBox) Encode() (int, []byte) {
@@ -44,4 +46,10 @@ func makeSmhdBox() []byte {
     smhd := NewSoundMediaHeaderBox()
     _, smhdbox := smhd.Encode()
     return smhdbox
+}
+
+func decodeSmhdBox(demuxer *MovDemuxer) (err error) {
+    smhd := SoundMediaHeaderBox{Box: new(FullBox)}
+    _, err = smhd.Decode(demuxer.readerHandler)
+    return
 }

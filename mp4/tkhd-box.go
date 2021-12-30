@@ -66,43 +66,54 @@ func (tkhd *TrackHeaderBox) Size() uint64 {
     }
 }
 
-func (tkhd *TrackHeaderBox) Decode(buf []byte) (offset int, err error) {
-    if offset, err = tkhd.Box.Decode(buf); err != nil {
+func (tkhd *TrackHeaderBox) Decode(rh Reader) (offset int, err error) {
+    if offset, err = tkhd.Box.Decode(rh); err != nil {
         return 0, err
     }
-    if tkhd.Box.Version == 1 {
-        tkhd.Creation_time = binary.BigEndian.Uint64(buf[offset:])
-        offset += 8
-        tkhd.Creation_time = binary.BigEndian.Uint64(buf[offset:])
-        offset += 8
-        tkhd.Track_ID = binary.BigEndian.Uint32(buf[offset:])
-        offset += 8
-        tkhd.Duration = binary.BigEndian.Uint64(buf[offset:])
-        offset += 8
+    boxsize := 0
+    if tkhd.Box.Version == 0 {
+        boxsize = 80
     } else {
-        tkhd.Creation_time = uint64(binary.BigEndian.Uint32(buf[offset:]))
-        offset += 4
-        tkhd.Creation_time = uint64(binary.BigEndian.Uint32(buf[offset:]))
-        offset += 4
-        tkhd.Track_ID = binary.BigEndian.Uint32(buf[offset:])
-        offset += 8
-        tkhd.Duration = uint64(binary.BigEndian.Uint32(buf[offset:]))
-        offset += 4
+        boxsize = 92
     }
-    offset += 8
-    tkhd.Layer = binary.BigEndian.Uint16(buf[offset:])
-    offset += 2
-    tkhd.Alternate_group = binary.BigEndian.Uint16(buf[offset:])
-    offset += 2
-    tkhd.Volume = binary.BigEndian.Uint16(buf[offset:])
-    offset += 4
+    buf := make([]byte, boxsize)
+    if _, err = rh.ReadAtLeast(buf); err != nil {
+        return 0, err
+    }
+    n := 0
+    if tkhd.Box.Version == 1 {
+        tkhd.Creation_time = binary.BigEndian.Uint64(buf[n:])
+        n += 8
+        tkhd.Creation_time = binary.BigEndian.Uint64(buf[n:])
+        n += 8
+        tkhd.Track_ID = binary.BigEndian.Uint32(buf[n:])
+        n += 8
+        tkhd.Duration = binary.BigEndian.Uint64(buf[n:])
+        n += 8
+    } else {
+        tkhd.Creation_time = uint64(binary.BigEndian.Uint32(buf[n:]))
+        n += 4
+        tkhd.Creation_time = uint64(binary.BigEndian.Uint32(buf[n:]))
+        n += 4
+        tkhd.Track_ID = binary.BigEndian.Uint32(buf[n:])
+        n += 8
+        tkhd.Duration = uint64(binary.BigEndian.Uint32(buf[n:]))
+        n += 4
+    }
+    n += 8
+    tkhd.Layer = binary.BigEndian.Uint16(buf[n:])
+    n += 2
+    tkhd.Alternate_group = binary.BigEndian.Uint16(buf[n:])
+    n += 2
+    tkhd.Volume = binary.BigEndian.Uint16(buf[n:])
+    n += 4
     for i := 0; i < 9; i++ {
-        tkhd.Matrix[i] = binary.BigEndian.Uint32(buf[offset:])
-        offset += 4
+        tkhd.Matrix[i] = binary.BigEndian.Uint32(buf[n:])
+        n += 4
     }
-    tkhd.Width = binary.BigEndian.Uint32(buf[offset:])
-    tkhd.Height = binary.BigEndian.Uint32(buf[offset+4:])
-    return offset + 8, nil
+    tkhd.Width = binary.BigEndian.Uint32(buf[n:])
+    tkhd.Height = binary.BigEndian.Uint32(buf[n+4:])
+    return n + 8, nil
 }
 
 func (tkhd *TrackHeaderBox) Encode() (int, []byte) {
@@ -164,4 +175,15 @@ func makeTkhdBox(track *mp4track) []byte {
     }
     _, tkhdbox := tkhd.Encode()
     return tkhdbox
+}
+
+func decodeTkhdBox(demuxer *MovDemuxer) (err error) {
+    tkhd := TrackHeaderBox{Box: new(FullBox)}
+    if _, err = tkhd.Decode(demuxer.readerHandler); err != nil {
+        return err
+    }
+    track := demuxer.tracks[len(demuxer.tracks)-1]
+    track.duration = uint32(tkhd.Duration)
+    track.trackId = tkhd.Track_ID
+    return
 }

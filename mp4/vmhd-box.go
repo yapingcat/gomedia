@@ -33,11 +33,15 @@ func (vmhd *VideoMediaHeaderBox) Size() uint64 {
     return vmhd.Box.Size() + 8
 }
 
-func (vmhd *VideoMediaHeaderBox) Decode(buf []byte) (offset int, err error) {
-    if offset, err = vmhd.Box.Decode(buf); err != nil {
+func (vmhd *VideoMediaHeaderBox) Decode(rh Reader) (offset int, err error) {
+    if _, err = vmhd.Box.Decode(rh); err != nil {
         return 0, err
     }
-    _ = buf[offset+8]
+    buf := make([]byte, 8)
+    if _, err = rh.ReadAtLeast(buf); err != nil {
+        return 0, err
+    }
+    offset = 0
     vmhd.Graphicsmode = binary.BigEndian.Uint16(buf[offset:])
     vmhd.Opcolor[0] = binary.BigEndian.Uint16(buf[offset+2:])
     vmhd.Opcolor[1] = binary.BigEndian.Uint16(buf[offset+4:])
@@ -64,4 +68,10 @@ func makeVmhdBox() []byte {
     vmhd := NewVideoMediaHeaderBox()
     _, vmhdbox := vmhd.Encode()
     return vmhdbox
+}
+
+func decodeVmhdBox(demuxer *MovDemuxer) (err error) {
+    vmhd := VideoMediaHeaderBox{Box: new(FullBox)}
+    _, err = vmhd.Decode(demuxer.readerHandler)
+    return
 }

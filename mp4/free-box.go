@@ -17,15 +17,14 @@ func (free *FreeBox) Size() uint64 {
     return 8 + uint64(len(free.Data))
 }
 
-func (free *FreeBox) Decode(buf []byte) (int, error) {
-    if offset, err := free.Box.Decode(buf); err != nil {
-        return 0, err
-    } else {
-        if uint64(offset) < free.Box.Size {
-            free.Data = append(free.Data, buf[offset:free.Box.Size]...)
+func (free *FreeBox) Decode(rh Reader) (int, error) {
+    if BasicBoxLen < free.Box.Size {
+        free.Data = make([]byte, free.Box.Size-BasicBoxLen)
+        if _, err := rh.ReadAtLeast(free.Data); err != nil {
+            return 0, err
         }
-        return int(free.Box.Size), nil
     }
+    return int(free.Box.Size - BasicBoxLen), nil
 }
 
 func (free *FreeBox) Encode() (int, []byte) {
@@ -33,4 +32,10 @@ func (free *FreeBox) Encode() (int, []byte) {
     offset, buf := free.Box.Encode()
     copy(buf[offset:], free.Data)
     return int(free.Box.Size), buf
+}
+
+func decodeFreeBox(demuxer *MovDemuxer) (err error) {
+    var free FreeBox
+    _, err = free.Decode(demuxer.readerHandler)
+    return
 }

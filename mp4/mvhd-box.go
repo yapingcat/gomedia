@@ -61,45 +61,56 @@ func (mvhd *MovieHeaderBox) Size() uint64 {
     }
 }
 
-func (mvhd *MovieHeaderBox) Decode(buf []byte) (offset int, err error) {
-    if offset, err = mvhd.Box.Decode(buf); err != nil {
+func (mvhd *MovieHeaderBox) Decode(rh Reader) (offset int, err error) {
+    if offset, err = mvhd.Box.Decode(rh); err != nil {
         return 0, err
     }
-    if mvhd.Box.Version == 1 {
-        mvhd.Creation_time = binary.BigEndian.Uint64(buf[offset:])
-        offset += 8
-        mvhd.Modification_time = binary.BigEndian.Uint64(buf[offset:])
-        offset += 8
-        mvhd.Timescale = binary.BigEndian.Uint32(buf[offset:])
-        offset += 4
-        mvhd.Duration = binary.BigEndian.Uint64(buf[offset:])
-        offset += 8
+    boxsize := 0
+    if mvhd.Box.Version == 0 {
+        boxsize = 96
     } else {
-        mvhd.Creation_time = uint64(binary.BigEndian.Uint32(buf[offset:]))
-        offset += 4
-        mvhd.Modification_time = uint64(binary.BigEndian.Uint32(buf[offset:]))
-        offset += 4
-        mvhd.Timescale = binary.BigEndian.Uint32(buf[offset:])
-        offset += 4
-        mvhd.Duration = uint64(binary.BigEndian.Uint32(buf[offset:]))
-        offset += 4
+        boxsize = 108
     }
-    mvhd.Rate = binary.BigEndian.Uint32(buf[offset:])
-    offset += 4
-    mvhd.Volume = binary.BigEndian.Uint16(buf[offset:])
-    offset += 10
+    buf := make([]byte, boxsize)
+    if _, err := rh.ReadAtLeast(buf); err != nil {
+        return 0, err
+    }
+    n := 0
+    if mvhd.Box.Version == 1 {
+        mvhd.Creation_time = binary.BigEndian.Uint64(buf[n:])
+        n += 8
+        mvhd.Modification_time = binary.BigEndian.Uint64(buf[n:])
+        n += 8
+        mvhd.Timescale = binary.BigEndian.Uint32(buf[n:])
+        n += 4
+        mvhd.Duration = binary.BigEndian.Uint64(buf[n:])
+        n += 8
+    } else {
+        mvhd.Creation_time = uint64(binary.BigEndian.Uint32(buf[n:]))
+        n += 4
+        mvhd.Modification_time = uint64(binary.BigEndian.Uint32(buf[n:]))
+        n += 4
+        mvhd.Timescale = binary.BigEndian.Uint32(buf[n:])
+        n += 4
+        mvhd.Duration = uint64(binary.BigEndian.Uint32(buf[n:]))
+        n += 4
+    }
+    mvhd.Rate = binary.BigEndian.Uint32(buf[n:])
+    n += 4
+    mvhd.Volume = binary.BigEndian.Uint16(buf[n:])
+    n += 10
 
     for i, _ := range mvhd.Matrix {
-        mvhd.Matrix[i] = binary.BigEndian.Uint32(buf[offset:])
-        offset += 4
+        mvhd.Matrix[i] = binary.BigEndian.Uint32(buf[n:])
+        n += 4
     }
 
     for i := 0; i < 6; i++ {
-        mvhd.Pre_defined[i] = binary.BigEndian.Uint32(buf[offset:])
-        offset += 4
+        mvhd.Pre_defined[i] = binary.BigEndian.Uint32(buf[n:])
+        n += 4
     }
-    mvhd.Next_track_ID = binary.BigEndian.Uint32(buf[offset:])
-    return offset + 4, nil
+    mvhd.Next_track_ID = binary.BigEndian.Uint32(buf[n:])
+    return n + 4 + offset, nil
 }
 
 func (mvhd *MovieHeaderBox) Encode() (int, []byte) {
@@ -144,4 +155,16 @@ func makeMvhdBox(trackid uint32, duration uint32) []byte {
     mvhd.Duration = uint64(duration)
     _, mvhdbox := mvhd.Encode()
     return mvhdbox
+}
+
+func decodeMvhd(demuxer *MovDemuxer) (err error) {
+    mvhd := MovieHeaderBox{Box: new(FullBox)}
+    if _, err = mvhd.Decode(demuxer.readerHandler); err != nil {
+        return
+    }
+    demuxer.mp4Info.Duration = uint32(mvhd.Duration)
+    demuxer.mp4Info.Timescale = mvhd.Timescale
+    demuxer.mp4Info.CreateTime = mvhd.Creation_time
+    demuxer.mp4Info.ModifyTime = mvhd.Modification_time
+    return
 }

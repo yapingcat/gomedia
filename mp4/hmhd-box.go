@@ -29,10 +29,15 @@ func (hmhd *HintMediaHeaderBox) Size() uint64 {
     return hmhd.Box.Size() + 16
 }
 
-func (hmhd *HintMediaHeaderBox) Decode(buf []byte) (offset int, err error) {
-    if offset, err = hmhd.Box.Decode(buf); err != nil {
+func (hmhd *HintMediaHeaderBox) Decode(rh Reader) (offset int, err error) {
+    if _, err = hmhd.Box.Decode(rh); err != nil {
         return 0, err
     }
+    buf := make([]byte, 16)
+    if _, err = rh.ReadAtLeast(buf); err != nil {
+        return 0, err
+    }
+    offset = 0
     hmhd.MaxPDUsize = binary.BigEndian.Uint16(buf[offset:])
     offset += 2
     hmhd.AvgPDUsize = binary.BigEndian.Uint16(buf[offset:])

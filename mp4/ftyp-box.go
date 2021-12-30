@@ -31,19 +31,18 @@ func (ftyp *FileTypeBox) Size() uint64 {
 	return uint64(8 + len(ftyp.Compatible_brands)*4 + 8)
 }
 
-func (ftyp *FileTypeBox) Decode(buf []byte) (int, error) {
-	if offset, err := ftyp.Box.Decode(buf); err != nil {
-		return 0, err
-	} else {
-		_ = buf[ftyp.Box.Size]
-		ftyp.Major_brand = binary.LittleEndian.Uint32(buf[offset:])
-		ftyp.Minor_version = binary.BigEndian.Uint32(buf[offset+4:])
-		offset += 8
-		for ; offset < int(ftyp.Box.Size); offset += 4 {
-			ftyp.Compatible_brands = append(ftyp.Compatible_brands, binary.LittleEndian.Uint32(buf[offset:]))
-		}
-		return offset, nil
+func (ftyp *FileTypeBox) decode(rh Reader, size uint32) (int, error) {
+	buf := make([]byte, size-BasicBoxLen)
+	if n, err := rh.ReadAtLeast(buf); err != nil {
+		return n, err
 	}
+	ftyp.Major_brand = binary.LittleEndian.Uint32(buf[0:])
+	ftyp.Minor_version = binary.BigEndian.Uint32(buf[4:])
+	n := 8
+	for ; BasicBoxLen+n < int(size); n += 4 {
+		ftyp.Compatible_brands = append(ftyp.Compatible_brands, binary.LittleEndian.Uint32(buf[n:]))
+	}
+	return n, nil
 }
 
 func (ftyp *FileTypeBox) Encode() (int, []byte) {
@@ -58,4 +57,15 @@ func (ftyp *FileTypeBox) Encode() (int, []byte) {
 		i++
 	}
 	return offset, buf
+}
+
+func decodeFtypBox(demuxer *MovDemuxer, size uint32) (err error) {
+	ftyp := FileTypeBox{}
+	if _, err = ftyp.decode(demuxer.readerHandler, size); err != nil {
+		return
+	}
+	demuxer.mp4Info.CompatibleBrands = ftyp.Compatible_brands
+	demuxer.mp4Info.MajorBrand = ftyp.Major_brand
+	demuxer.mp4Info.MinorVersion = ftyp.Minor_version
+	return
 }

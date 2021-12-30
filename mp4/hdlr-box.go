@@ -54,18 +54,23 @@ func (hdlr *HandlerBox) Size() uint64 {
     return hdlr.Box.Size() + 20 + uint64(len(hdlr.Name)+1)
 }
 
-func (hdlr *HandlerBox) Decode(buf []byte) (offset int, err error) {
-    if offset, err = hdlr.Box.Decode(buf); err != nil {
+func (hdlr *HandlerBox) Decode(rh Reader, size uint64) (offset int, err error) {
+    if _, err = hdlr.Box.Decode(rh); err != nil {
         return 0, err
     }
-    _ = buf[hdlr.Box.Box.Size]
+    buf := make([]byte, size-FullBoxLen)
+    if _, err = rh.ReadAtLeast(buf); err != nil {
+        return 0, err
+    }
+    offset = 0
     hdlr.Handler_type[0] = buf[offset]
     hdlr.Handler_type[1] = buf[offset+1]
     hdlr.Handler_type[2] = buf[offset+2]
     hdlr.Handler_type[3] = buf[offset+3]
     offset += 4
-    hdlr.Name = string(buf[offset:int(hdlr.Box.Box.Size)])
-    return int(hdlr.Box.Box.Size), nil
+    hdlr.Name = string(buf[offset : size-FullBoxLen])
+    offset = int(size - FullBoxLen)
+    return
 }
 
 func (hdlr *HandlerBox) Encode() (int, []byte) {
@@ -109,4 +114,10 @@ func makeHdlrBox(hdt HandlerType) []byte {
     }
     _, boxdata := hdlr.Encode()
     return boxdata
+}
+
+func decodeHdlrBox(demuxer *MovDemuxer, size uint64) (err error) {
+    hdlr := HandlerBox{Box: new(FullBox)}
+    _, err = hdlr.Decode(demuxer.readerHandler, size)
+    return
 }

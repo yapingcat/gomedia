@@ -1,6 +1,8 @@
 package mp4
 
-import "encoding/binary"
+import (
+    "encoding/binary"
+)
 
 // aligned(8) class SampleSizeBox extends FullBox(‘stsz’, version = 0, 0) {
 // 		unsigned int(32) sample_size;
@@ -33,6 +35,34 @@ func (stsz *SampleSizeBox) Size() uint64 {
     }
 }
 
+func (stsz *SampleSizeBox) Decode(rh Reader) (offset int, err error) {
+    if _, err = stsz.box.Decode(rh); err != nil {
+        return
+    }
+    tmp := make([]byte, 8)
+    if _, err = rh.ReadAtLeast(tmp); err != nil {
+        return
+    }
+    offset = 12
+    stsz.stsz = new(movstsz)
+    stsz.stsz.sampleSize = binary.BigEndian.Uint32(tmp[:])
+    stsz.stsz.sampleCount = binary.BigEndian.Uint32(tmp[4:])
+    if stsz.stsz.sampleSize == 0 {
+        buf := make([]byte, stsz.stsz.sampleCount*4)
+        if _, err = rh.ReadAtLeast(buf); err != nil {
+            return
+        }
+        idx := 0
+        stsz.stsz.entrySizelist = make([]uint32, stsz.stsz.sampleCount)
+        for i := 0; i < int(stsz.stsz.sampleCount); i++ {
+            stsz.stsz.entrySizelist[i] = binary.BigEndian.Uint32(buf[idx:])
+            idx += 4
+        }
+        offset += idx
+    }
+    return
+}
+
 func (stsz *SampleSizeBox) Encode() (int, []byte) {
     stsz.box.Box.Size = stsz.Size()
     offset, buf := stsz.box.Encode()
@@ -53,5 +83,15 @@ func makeStsz(stsz *movstsz) (boxdata []byte) {
     stszbox := NewSampleSizeBox()
     stszbox.stsz = stsz
     _, boxdata = stszbox.Encode()
+    return
+}
+
+func decodeStszBox(demuxer *MovDemuxer) (err error) {
+    stsz := SampleSizeBox{box: new(FullBox)}
+    if _, err = stsz.Decode(demuxer.readerHandler); err != nil {
+        return
+    }
+    track := demuxer.tracks[len(demuxer.tracks)-1]
+    track.stbltable.stsz = stsz.stsz
     return
 }

@@ -107,3 +107,24 @@ func makeSLDescriptor() []byte {
     sldes[5] = 0x02
     return sldes
 }
+
+func decodeESDescriptor(esd []byte) (vosData []byte) {
+    for len(esd) > 0 {
+        based := BaseDescriptor{}
+        based.Decode(esd)
+        switch based.tag {
+        case 0x03:
+            esd = esd[8:]
+        case 0x04:
+            esd = esd[18:]
+        case 0x05:
+            vosData = esd[5 : 5+based.sizeOfInstance]
+            return
+        case 0x06:
+            fallthrough
+        default:
+            esd = esd[5+based.sizeOfInstance:]
+        }
+    }
+    panic("no vosdata")
+}

@@ -5,6 +5,11 @@ import (
     "encoding/binary"
 )
 
+const (
+    BasicBoxLen = 8
+    FullBoxLen  = 12
+)
+
 var (
     MOOV BasicBox = BasicBox{Type: [4]byte{'m', 'o', 'o', 'v'}}
     TRAK BasicBox = BasicBox{Type: [4]byte{'t', 'r', 'a', 'k'}}
@@ -56,8 +61,11 @@ func NewBasicBox(boxtype [4]byte) *BasicBox {
     }
 }
 
-func (box *BasicBox) Decode(buf []byte) (int, error) {
-    _ = buf[7]
+func (box *BasicBox) Decode(rh Reader) (int, error) {
+    buf := make([]byte, 8)
+    if n, err := rh.ReadAtLeast(buf); err != nil {
+        return n, err
+    }
     nn := 0
     boxsize := binary.BigEndian.Uint32(buf)
     copy(box.Type[:], buf[4:8])
@@ -70,10 +78,14 @@ func (box *BasicBox) Decode(buf []byte) (int, error) {
         box.Size = uint64(boxsize)
     }
     if bytes.Equal(box.Type[:], []byte("uuid")) {
-        _ = buf[nn+16]
-        copy(box.UserType[:], buf[nn:])
+        uuid := make([]byte, 16)
+        if n, err := rh.ReadAtLeast(uuid); err != nil {
+            return n + nn, err
+        }
+        copy(box.UserType[:], uuid[:])
         nn += 16
     }
+
     return nn, nil
 }
 
@@ -121,14 +133,14 @@ func (box *FullBox) Size() uint64 {
     }
 }
 
-func (box *FullBox) Decode(buf []byte) (int, error) {
-    if declen, err := box.Box.Decode(buf); err != nil {
-        return 0, err
-    } else {
-        box.Version = buf[declen]
-        copy(box.Flags[:], buf[declen+1:declen+4])
-        return declen + 4, nil
+func (box *FullBox) Decode(rh Reader) (int, error) {
+    buf := make([]byte, 4)
+    if n, err := rh.ReadAtLeast(buf); err != nil {
+        return n, err
     }
+    box.Version = buf[0]
+    copy(box.Flags[:], buf[:])
+    return 4, nil
 }
 
 func (box *FullBox) Encode() (int, []byte) {
