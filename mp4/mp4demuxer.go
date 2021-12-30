@@ -286,10 +286,15 @@ func (demuxer *MovDemuxer) buildSampleList() {
         }
         iterator = 0
         for i := range chunks {
-            track.samplelist[iterator].offset = chunks[i].chunkoffset
-            iterator++
-            for j := 1; j < int(chunks[i].samplenum); j++ {
-                track.samplelist[iterator].offset = track.samplelist[iterator-1].offset + track.samplelist[iterator-1].size
+            for j := 0; j < int(chunks[i].samplenum); j++ {
+                if iterator >= len(track.samplelist) {
+                    break
+                }
+                if j == 0 {
+                    track.samplelist[iterator].offset = chunks[i].chunkoffset
+                } else {
+                    track.samplelist[iterator].offset = track.samplelist[iterator-1].offset + track.samplelist[iterator-1].size
+                }
                 iterator++
             }
         }
@@ -321,7 +326,6 @@ func (demuxer *MovDemuxer) buildSampleList() {
             }
         }
     }
-
 }
 
 func (demuxer *MovDemuxer) processH264(avcc []byte, extra *h264ExtraData) []byte {

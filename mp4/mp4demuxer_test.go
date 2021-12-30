@@ -37,9 +37,9 @@ func TestCreateMovDemuxer(t *testing.T) {
         return
     }
     defer f.Close()
-    vfile, err := os.OpenFile("v.h264", os.O_CREATE|os.O_RDWR, 0666)
+    vfile, _ := os.OpenFile("v.h264", os.O_CREATE|os.O_RDWR, 0666)
     defer vfile.Close()
-    afile, err := os.OpenFile("a.aac", os.O_CREATE|os.O_RDWR, 0666)
+    afile, _ := os.OpenFile("a.aac", os.O_CREATE|os.O_RDWR, 0666)
     defer afile.Close()
     demuxer := CreateMp4Demuxer(newmymp4reader(f))
     if infos, err := demuxer.ReadHead(); err != nil && err != io.EOF {
