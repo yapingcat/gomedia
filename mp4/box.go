@@ -22,6 +22,7 @@ var (
     HVCC BasicBox = BasicBox{Type: [4]byte{'h', 'v', 'c', 'C'}}
     ESDS FullBox  = FullBox{Box: NewBasicBox([4]byte{'e', 's', 'd', 's'}), Version: 0}
     DINF BasicBox = BasicBox{Type: [4]byte{'d', 'i', 'n', 'f'}}
+    EDTS BasicBox = BasicBox{Type: [4]byte{'e', 'd', 't', 's'}}
 )
 
 type BoxEncoder interface {

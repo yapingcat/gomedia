@@ -152,7 +152,9 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
             err = decodeHvccBox(demuxer, uint32(basebox.Size))
         case mov_tag([4]byte{'e', 's', 'd', 's'}):
             err = decodeEsdsBox(demuxer, uint32(basebox.Size))
-        //case mov_tag([4]byte{'e', 'd', 't', 's'}):
+        case mov_tag([4]byte{'e', 'd', 't', 's'}):
+        case mov_tag([4]byte{'e', 'l', 's', 't'}):
+            err = decodeElstBox(demuxer)
         //case mov_tag([4]byte{'m', 'v', 'e', 'x'}):
         default:
             //panic(1)
@@ -300,6 +302,13 @@ func (demuxer *MovDemuxer) buildSampleList() {
         }
         iterator = 0
         track.samplelist[iterator].dts = 0
+        if track.elst != nil {
+            for _, entry := range track.elst.entrys {
+                if entry.mediaTime == -1 {
+                    track.samplelist[iterator].dts = entry.segmentDuration
+                }
+            }
+        }
         iterator++
         for i := range stbl.stts.entrys {
             for j := 0; j < int(stbl.stts.entrys[i].sampleCount); j++ {

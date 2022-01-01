@@ -33,12 +33,14 @@ type mp4track struct {
     sampleBits  uint8
     chanelCount uint8
     samplelist  []sampleEntry
+    elst        *movelst
     extra       extraData
 }
 
 func newmp4track(cid MP4_CODEC_TYPE) *mp4track {
     track := &mp4track{
         cid:        cid,
+        timescale:  1000,
         stbltable:  nil,
         samplelist: make([]sampleEntry, 0),
     }

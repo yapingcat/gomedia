@@ -28,6 +28,13 @@ type stscEntry struct {
     sampleDescriptionIndex uint32
 }
 
+type elstEntry struct {
+    segmentDuration   uint64
+    mediaTime         int64
+    mediaRateInteger  int16
+    mediaRateFraction int16
+}
+
 type movstsc struct {
     entryCount uint32
     entrys     []stscEntry
@@ -42,6 +49,11 @@ type movstsz struct {
 type movstco struct {
     entryCount      uint32
     chunkOffsetlist []uint64
+}
+
+type movelst struct {
+    entryCount uint32
+    entrys     []elstEntry
 }
 
 type movstbl struct {
