@@ -23,6 +23,7 @@ var (
     ESDS FullBox  = FullBox{Box: NewBasicBox([4]byte{'e', 's', 'd', 's'}), Version: 0}
     DINF BasicBox = BasicBox{Type: [4]byte{'d', 'i', 'n', 'f'}}
     EDTS BasicBox = BasicBox{Type: [4]byte{'e', 'd', 't', 's'}}
+    MVEX BasicBox = BasicBox{Type: [4]byte{'m', 'v', 'e', 'x'}}
 )
 
 type BoxEncoder interface {

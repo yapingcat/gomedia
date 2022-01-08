@@ -1,0 +1,70 @@
+package mp4
+
+import "encoding/binary"
+
+// aligned(8) class TrackExtendsBox extends FullBox(‘trex’, 0, 0){
+// 	unsigned int(32) track_ID;
+// 	unsigned int(32) default_sample_description_index;
+// 	unsigned int(32) default_sample_duration;
+// 	unsigned int(32) default_sample_size;
+// 	unsigned int(32) default_sample_flags
+// }
+
+type TrackExtendsBox struct {
+	Box                           *FullBox
+	TrackID                       uint32
+	DefaultSampleDescriptionIndex uint32
+	DefaultSampleDuration         uint32
+	DefaultSampleSize             uint32
+	DefaultSampleFlags            uint32
+}
+
+func NewTrackExtendsBox(track uint32) *TrackExtendsBox {
+	return &TrackExtendsBox{
+		Box:     NewFullBox([4]byte{'t', 'r', 'e', 'x'}, 0),
+		TrackID: track,
+	}
+}
+
+func (trex *TrackExtendsBox) Size() uint64 {
+	return trex.Box.Size() + 20
+}
+
+func (trex *TrackExtendsBox) Decode(rh Reader) (offset int, err error) {
+	if offset, err = trex.Box.Decode(rh); err != nil {
+		return 0, err
+	}
+
+	buf := make([]byte, 20)
+	if _, err := rh.ReadAtLeast(buf); err != nil {
+		return 0, err
+	}
+	n := 0
+	trex.TrackID = binary.BigEndian.Uint32(buf[n:])
+	n += 4
+	trex.DefaultSampleDescriptionIndex = binary.BigEndian.Uint32(buf[n:])
+	n += 4
+	trex.DefaultSampleDuration = binary.BigEndian.Uint32(buf[n:])
+	n += 4
+	trex.DefaultSampleSize = binary.BigEndian.Uint32(buf[n:])
+	n += 4
+	trex.DefaultSampleFlags = binary.BigEndian.Uint32(buf[n:])
+	n += 4
+	return offset + 20, nil
+}
+
+func (trex *TrackExtendsBox) Encode() (int, []byte) {
+	trex.Box.Box.Size = trex.Size()
+	offset, boxdata := trex.Box.Encode()
+	binary.BigEndian.PutUint32(boxdata[offset:], trex.TrackID)
+	offset += 4
+	binary.BigEndian.PutUint32(boxdata[offset:], trex.DefaultSampleDescriptionIndex)
+	offset += 4
+	binary.BigEndian.PutUint32(boxdata[offset:], trex.DefaultSampleDuration)
+	offset += 4
+	binary.BigEndian.PutUint32(boxdata[offset:], trex.DefaultSampleSize)
+	offset += 4
+	binary.BigEndian.PutUint32(boxdata[offset:], trex.DefaultSampleFlags)
+	offset += 4
+	return offset, boxdata
+}
