@@ -55,16 +55,16 @@ func (trex *TrackExtendsBox) Decode(rh Reader) (offset int, err error) {
 
 func (trex *TrackExtendsBox) Encode() (int, []byte) {
 	trex.Box.Box.Size = trex.Size()
-	offset, boxdata := trex.Box.Encode()
-	binary.BigEndian.PutUint32(boxdata[offset:], trex.TrackID)
+	offset, buf := trex.Box.Encode()
+	binary.BigEndian.PutUint32(buf[offset:], trex.TrackID)
 	offset += 4
-	binary.BigEndian.PutUint32(boxdata[offset:], trex.DefaultSampleDescriptionIndex)
+	binary.BigEndian.PutUint32(buf[offset:], trex.DefaultSampleDescriptionIndex)
 	offset += 4
-	binary.BigEndian.PutUint32(boxdata[offset:], trex.DefaultSampleDuration)
+	binary.BigEndian.PutUint32(buf[offset:], trex.DefaultSampleDuration)
 	offset += 4
-	binary.BigEndian.PutUint32(boxdata[offset:], trex.DefaultSampleSize)
+	binary.BigEndian.PutUint32(buf[offset:], trex.DefaultSampleSize)
 	offset += 4
-	binary.BigEndian.PutUint32(boxdata[offset:], trex.DefaultSampleFlags)
+	binary.BigEndian.PutUint32(buf[offset:], trex.DefaultSampleFlags)
 	offset += 4
-	return offset, boxdata
+	return offset, buf
 }

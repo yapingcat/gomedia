@@ -113,7 +113,8 @@ func (tkhd *TrackHeaderBox) Decode(rh Reader) (offset int, err error) {
     }
     tkhd.Width = binary.BigEndian.Uint32(buf[n:])
     tkhd.Height = binary.BigEndian.Uint32(buf[n+4:])
-    return n + 8, nil
+    offset += n + 8
+    return
 }
 
 func (tkhd *TrackHeaderBox) Encode() (int, []byte) {

@@ -35,6 +35,13 @@ type elstEntry struct {
     mediaRateFraction int16
 }
 
+type trunEntry struct {
+    sampleDuration              uint32
+    sampleSize                  uint32
+    sampleFlags                 uint32
+    sampleCompositionTimeOffset uint32
+}
+
 type movstsc struct {
     entryCount uint32
     entrys     []stscEntry
@@ -54,6 +61,10 @@ type movstco struct {
 type movelst struct {
     entryCount uint32
     entrys     []elstEntry
+}
+
+type movtrun struct {
+    entrys []trunEntry
 }
 
 type movstbl struct {

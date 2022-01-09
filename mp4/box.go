@@ -24,6 +24,9 @@ var (
     DINF BasicBox = BasicBox{Type: [4]byte{'d', 'i', 'n', 'f'}}
     EDTS BasicBox = BasicBox{Type: [4]byte{'e', 'd', 't', 's'}}
     MVEX BasicBox = BasicBox{Type: [4]byte{'m', 'v', 'e', 'x'}}
+    MOOF BasicBox = BasicBox{Type: [4]byte{'m', 'o', 'o', 'f'}}
+    TRAF BasicBox = BasicBox{Type: [4]byte{'t', 'r', 'a', 'f'}}
+    MFRA BasicBox = BasicBox{Type: [4]byte{'m', 'f', 'r', 'a'}}
 )
 
 type BoxEncoder interface {
