@@ -74,3 +74,12 @@ type movstbl struct {
     stsz *movstsz
     stco *movstco
 }
+
+type fragEntry struct {
+    time       uint64
+    moofOffset uint64
+}
+
+type movtfra struct {
+    frags []fragEntry
+}
