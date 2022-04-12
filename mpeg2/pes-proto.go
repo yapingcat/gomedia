@@ -129,16 +129,12 @@ func (pkg *PesPacket) PrettyPrint(file *os.File) {
 }
 
 func (pkg *PesPacket) Decode(bs *mpeg.BitStream) error {
-    if bs.RemainBytes() < 6 {
+    if bs.RemainBytes() < 9 {
         return errNeedMore
     }
     bs.SkipBits(24)             //packet_start_code_prefix
     pkg.Stream_id = bs.Uint8(8) //stream_id
     pkg.PES_packet_length = bs.Uint16(16)
-    if pkg.PES_packet_length != 0 && bs.RemainBytes() < int(pkg.PES_packet_length) {
-        bs.UnRead(6)
-        return errNeedMore
-    }
     bs.SkipBits(2) //'10'
     pkg.PES_scrambling_control = bs.Uint8(2)
     pkg.PES_priority = bs.Uint8(1)
@@ -153,6 +149,10 @@ func (pkg *PesPacket) Decode(bs *mpeg.BitStream) error {
     pkg.PES_CRC_flag = bs.Uint8(1)
     pkg.PES_extension_flag = bs.Uint8(1)
     pkg.PES_header_data_length = bs.Uint8(8)
+    if bs.RemainBytes() < int(pkg.PES_header_data_length) {
+        bs.UnRead(9 * 8)
+        return errNeedMore
+    }
     bs.Markdot()
     if pkg.PTS_DTS_flags&0x02 == 0x02 {
         bs.SkipBits(4)
@@ -205,6 +205,11 @@ func (pkg *PesPacket) Decode(bs *mpeg.BitStream) error {
     }
     loc := bs.DistanceFromMarkDot()
     bs.SkipBits(int(pkg.PES_header_data_length)*8 - loc)
+    if int(pkg.PES_packet_length)-int(pkg.PES_header_data_length) > bs.RemainBytes() {
+        pkg.Pes_payload = bs.RemainData()
+        bs.UnRead((9 + int(pkg.PES_header_data_length)) * 8)
+        return errNeedMore
+    }
     if pkg.PES_packet_length == 0 ||
         bs.RemainBits() <= int(pkg.PES_packet_length-3-uint16(pkg.PES_header_data_length))*8 {
         pkg.Pes_payload = bs.RemainData()
@@ -213,6 +218,7 @@ func (pkg *PesPacket) Decode(bs *mpeg.BitStream) error {
         pkg.Pes_payload = bs.RemainData()[:pkg.PES_packet_length-3-uint16(pkg.PES_header_data_length)]
         bs.SkipBits(int(pkg.PES_packet_length-3-uint16(pkg.PES_header_data_length)) * 8)
     }
+
     return nil
 }
 

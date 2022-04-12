@@ -1,9 +1,9 @@
 package mpeg2
 
 import (
-	"errors"
+    "errors"
 
-	"github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/mpeg"
 )
 
 type pakcet_t struct {
@@ -103,13 +103,14 @@ func (demuxer *TSDemuxer) Input(data []byte) error {
                             stream.pes_pkg.Decode(bs)
                             pkg.Payload = stream.pes_pkg
                         } else {
+                            stream.pes_pkg.Pes_payload = bs.RemainData()
                             pkg.Payload = bs.RemainData()
                         }
                         stype := findPESIDByStreamType(stream.cid)
                         if stype == PES_STREAM_AUDIO {
-                            demuxer.doAudioPesPacket(bs, stream, pkg.Payload_unit_start_indicator)
+                            demuxer.doAudioPesPacket(stream, pkg.Payload_unit_start_indicator)
                         } else if stype == PES_STREAM_VIDEO {
-                            demuxer.doVideoPesPacket(bs, stream, pkg.Payload_unit_start_indicator)
+                            demuxer.doVideoPesPacket(stream, pkg.Payload_unit_start_indicator)
                         }
                     }
                 }
@@ -136,21 +137,17 @@ func (demuxer *TSDemuxer) Flush() {
     }
 }
 
-func (demuxer *TSDemuxer) doVideoPesPacket(bs *mpeg.BitStream, stream *tsstream, start uint8) {
+func (demuxer *TSDemuxer) doVideoPesPacket(stream *tsstream, start uint8) {
     if stream.cid != TS_STREAM_H264 && stream.cid != TS_STREAM_H265 {
         return
     }
-    if start == 1 {
-        stream.pkg.payload = append(stream.pkg.payload, stream.pes_pkg.Pes_payload...)
-    } else {
-        stream.pkg.payload = append(stream.pkg.payload, bs.RemainData()...)
-    }
+    stream.pkg.payload = append(stream.pkg.payload, stream.pes_pkg.Pes_payload...)
     stream.pkg.pts = stream.pes_pkg.Pts
     stream.pkg.dts = stream.pes_pkg.Dts
     demuxer.splitH26XFrame(stream)
 }
 
-func (demuxer *TSDemuxer) doAudioPesPacket(bs *mpeg.BitStream, stream *tsstream, start uint8) {
+func (demuxer *TSDemuxer) doAudioPesPacket(stream *tsstream, start uint8) {
     if stream.cid != TS_STREAM_AAC {
         return
     }
@@ -160,10 +157,8 @@ func (demuxer *TSDemuxer) doAudioPesPacket(bs *mpeg.BitStream, stream *tsstream,
             demuxer.OnFrame(stream.cid, stream.pkg.payload, stream.pkg.pts/90, stream.pkg.dts/90)
         }
         stream.pkg.payload = stream.pkg.payload[:0]
-        stream.pkg.payload = append(stream.pkg.payload, stream.pes_pkg.Pes_payload...)
-    } else {
-        stream.pkg.payload = append(stream.pkg.payload, bs.RemainData()...)
     }
+    stream.pkg.payload = append(stream.pkg.payload, stream.pes_pkg.Pes_payload...)
     stream.pkg.pts = stream.pes_pkg.Pts
     stream.pkg.dts = stream.pes_pkg.Dts
 }
