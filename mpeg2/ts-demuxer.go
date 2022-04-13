@@ -131,7 +131,7 @@ func (demuxer *TSDemuxer) Flush() {
                 continue
             }
             if demuxer.OnFrame != nil {
-                demuxer.OnFrame(stream.cid, stream.pkg.payload, stream.pkg.pts, stream.pkg.dts)
+                demuxer.OnFrame(stream.cid, stream.pkg.payload, stream.pkg.pts/90, stream.pkg.dts/90)
             }
         }
     }
