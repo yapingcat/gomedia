@@ -230,7 +230,7 @@ func (pkg *PesPacket) DecodeMpeg1(bs *mpeg.BitStream) error {
     pkg.Stream_id = bs.Uint8(8) //stream_id
     pkg.PES_packet_length = bs.Uint16(16)
     if pkg.PES_packet_length != 0 && bs.RemainBytes() < int(pkg.PES_packet_length) {
-        bs.UnRead(6)
+        bs.UnRead(6 * 8)
         return errNeedMore
     }
     bs.Markdot()

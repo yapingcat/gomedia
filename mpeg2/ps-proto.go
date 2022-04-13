@@ -133,7 +133,7 @@ func (ps_pkg_hdr *PSPackHeader) decodeMpeg2(bs *mpeg.BitStream) error {
     bs.SkipBits(5)
     ps_pkg_hdr.Pack_stuffing_length = bs.Uint8(3)
     if bs.RemainBytes() < int(ps_pkg_hdr.Pack_stuffing_length) {
-        bs.UnRead(10)
+        bs.UnRead(10 * 8)
         return errNeedMore
     }
     bs.SkipBits(int(ps_pkg_hdr.Pack_stuffing_length) * 8)
@@ -277,7 +277,7 @@ func (sh *System_header) Decode(bs *mpeg.BitStream) error {
     }
     sh.Header_length = bs.Uint16(16)
     if bs.RemainBytes() < int(sh.Header_length) {
-        bs.UnRead(6)
+        bs.UnRead(6 * 8)
         return errNeedMore
     }
     if sh.Header_length < 6 || (sh.Header_length-6)%3 != 0 {
@@ -423,7 +423,7 @@ func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) error {
     }
     psm.Program_stream_map_length = bs.Uint16(16)
     if bs.RemainBytes() < int(psm.Program_stream_map_length) {
-        bs.UnRead(6)
+        bs.UnRead(6 * 8)
         return errNeedMore
     }
     psm.Current_next_indicator = bs.Uint8(1)
@@ -432,7 +432,7 @@ func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) error {
     bs.SkipBits(8)
     psm.Program_stream_info_length = bs.Uint16(16)
     if bs.RemainBytes() < int(psm.Program_stream_info_length)+2 {
-        bs.UnRead(10)
+        bs.UnRead(10 * 8)
         return errNeedMore
     }
     bs.SkipBits(int(psm.Program_stream_info_length) * 8)
@@ -441,7 +441,7 @@ func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) error {
         return errParser
     }
     if bs.RemainBytes() < int(psm.Elementary_stream_map_length)+4 {
-        bs.UnRead(12 + int(psm.Program_stream_info_length))
+        bs.UnRead(12*8 + int(psm.Program_stream_info_length)*8)
         return errNeedMore
     }
 
@@ -481,7 +481,7 @@ func (psd *Program_stream_directory) Decode(bs *mpeg.BitStream) error {
     }
     psd.PES_packet_length = bs.Uint16(16)
     if bs.RemainBytes() < int(psd.PES_packet_length) {
-        bs.UnRead(6)
+        bs.UnRead(6 * 8)
         return errNeedMore
     }
     //TODO Program Stream directory
@@ -502,7 +502,7 @@ func (compes *CommonPesPacket) Decode(bs *mpeg.BitStream) error {
     compes.Stream_id = bs.Uint8(8)
     compes.PES_packet_length = bs.Uint16(16)
     if bs.RemainBytes() < int(compes.PES_packet_length) {
-        bs.UnRead(6)
+        bs.UnRead(6 * 8)
         return errNeedMore
     }
     bs.SkipBits(int(compes.PES_packet_length) * 8)
