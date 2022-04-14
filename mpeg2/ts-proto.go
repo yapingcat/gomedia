@@ -592,7 +592,7 @@ func (pmt *Pmt) Decode(bs *mpeg.BitStream) error {
         bs.SkipBits(4)
         tmp.ES_Info_Length = bs.Uint16(12)
         //TODO N loop descriptors
-        bs.SkipBits(int(tmp.ES_Info_Length))
+        bs.SkipBits(int(tmp.ES_Info_Length) * 8)
         pmt.Streams = append(pmt.Streams, tmp)
         i += 5 + int(tmp.ES_Info_Length)
     }

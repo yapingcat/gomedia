@@ -295,6 +295,7 @@ func (sh *System_header) Decode(bs *mpeg.BitStream) error {
     sh.Video_bound = bs.Uint8(5)
     sh.Packet_rate_restriction_flag = bs.Uint8(1)
     bs.SkipBits(7)
+    sh.Streams = sh.Streams[:0]
     least := sh.Header_length - 6
     for least > 0 && bs.NextBits(1) == 0x01 {
         es := new(Elementary_Stream)
@@ -446,6 +447,7 @@ func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) error {
     }
 
     i := 0
+    psm.Stream_map = psm.Stream_map[:0]
     for i < int(psm.Elementary_stream_map_length) {
         elem := new(Elementary_stream_elem)
         elem.Stream_type = bs.Uint8(8)
