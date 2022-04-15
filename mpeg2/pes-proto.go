@@ -205,7 +205,7 @@ func (pkg *PesPacket) Decode(bs *mpeg.BitStream) error {
     }
     loc := bs.DistanceFromMarkDot()
     bs.SkipBits(int(pkg.PES_header_data_length)*8 - loc)
-    if int(pkg.PES_packet_length)-int(pkg.PES_header_data_length) > bs.RemainBytes() {
+    if int(pkg.PES_packet_length)-int(pkg.PES_header_data_length)-3 > bs.RemainBytes() {
         pkg.Pes_payload = bs.RemainData()
         bs.UnRead((9 + int(pkg.PES_header_data_length)) * 8)
         return errNeedMore
