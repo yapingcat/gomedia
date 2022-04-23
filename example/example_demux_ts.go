@@ -15,7 +15,7 @@ func main() {
     rfd, _ := os.Open(tsfile)
     buf, _ := ioutil.ReadAll(rfd)
     fmt.Printf("read %d size\n", len(buf))
-    fd, err := os.OpenFile("1.h264", os.O_CREATE|os.O_RDWR, 0666)
+    fd, err := os.OpenFile("1.h265", os.O_CREATE|os.O_RDWR, 0666)
     if err != nil {
         fmt.Println(err)
         return
@@ -26,11 +26,12 @@ func main() {
         fmt.Println(err)
         return
     }
-    fd3, err := os.OpenFile("5.log", os.O_CREATE|os.O_RDWR, 0666)
+    fd3, err := os.OpenFile("55.log", os.O_CREATE|os.O_RDWR, 0666)
+    foundAudio := false
     demuxer := mpeg2.NewTSDemuxer()
     demuxer.OnFrame = func(cid mpeg2.TS_STREAM_TYPE, frame []byte, pts uint64, dts uint64) {
-        if cid == mpeg2.TS_STREAM_H264 {
-            if mpeg.H264NaluType(frame) == 9 {
+        if cid == mpeg2.TS_STREAM_H265 {
+            if mpeg.H265NaluType(frame) == mpeg.H265_NAL_AUD {
                 return
             }
             //fmt.Println(len(frame))
@@ -39,6 +40,10 @@ func main() {
                 fmt.Println(err)
             }
         } else if cid == mpeg2.TS_STREAM_AAC {
+            if !foundAudio {
+                fmt.Println("Get AAC")
+                foundAudio = true
+            }
             n, err := fd2.Write(frame)
             if err != nil || n != len(frame) {
                 fmt.Println(err)

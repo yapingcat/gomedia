@@ -4,8 +4,6 @@ import (
     "fmt"
     "io/ioutil"
     "os"
-    "runtime/pprof"
-    "time"
 
     "github.com/yapingcat/gomedia/mpeg"
     "github.com/yapingcat/gomedia/mpeg2"
@@ -32,16 +30,6 @@ func main() {
         tsf.Write(pkg)
         //os.Stdin.Read(make([]byte, 1))
     }
-
-    cpuout, err := os.OpenFile("cpu.out", os.O_RDWR|os.O_CREATE, 0666)
-    pprof.StartCPUProfile(cpuout)
-
-    go func() {
-        timeout := time.NewTicker(time.Second * 30)
-        c := timeout.C
-        <-c
-        pprof.StopCPUProfile()
-    }()
 
     pid := muxer.AddStream(mpeg2.TS_STREAM_H264)
     h264, _ := ioutil.ReadAll(f)
