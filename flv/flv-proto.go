@@ -1,5 +1,7 @@
 package flv
 
+import "github.com/yapingcat/gomedia/mpeg"
+
 type FLVSAMPLEINDEX int
 
 const (
@@ -49,3 +51,16 @@ const (
     FLV_G711U FLV_SOUND_FORMAT = 8
     FLV_AAC   FLV_SOUND_FORMAT = 10
 )
+
+func (format FLV_SOUND_FORMAT) ToMpegCodecId() mpeg.CodecID {
+    switch {
+    case format == FLV_G711A:
+        return mpeg.CODECID_AUDIO_G711A
+    case format == FLV_G711U:
+        return mpeg.CODECID_AUDIO_G711U
+    case format == FLV_AAC:
+        return mpeg.CODECID_AUDIO_AAC
+    default:
+        panic("unsupport sound format")
+    }
+}

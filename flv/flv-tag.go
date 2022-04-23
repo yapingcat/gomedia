@@ -95,7 +95,7 @@ type VideoTag struct {
 }
 
 func (vtag VideoTag) Encode() (tag []byte) {
-    if vtag.CodecId == 7 {
+    if vtag.CodecId == uint8(FLV_AVC) || vtag.CodecId == uint8(FLV_HEVC) {
         tag = make([]byte, 5)
         tag[1] = vtag.AVCPacketType
         PutUint24(tag[2:], uint32(vtag.CompositionTime))
@@ -113,7 +113,7 @@ func (vtag *VideoTag) Decode(data []byte) error {
     }
     vtag.FrameType = data[0] >> 4
     vtag.CodecId = data[0] & 0x0F
-    if vtag.CodecId == 7 {
+    if vtag.CodecId == uint8(FLV_AVC) || vtag.CodecId == uint8(FLV_HEVC) {
         if len(data) < 5 {
             return errors.New("tag len < 5 bytes")
         }

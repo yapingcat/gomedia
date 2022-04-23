@@ -1,10 +1,11 @@
 package flv
 
 import (
-	"bytes"
-	"errors"
+    "bytes"
+    "errors"
+    "fmt"
 
-	"github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/mpeg"
 )
 
 func WriteAudioTag(data []byte, cid FLV_SOUND_FORMAT, isSequenceHeader bool) []byte {
@@ -27,17 +28,14 @@ func WriteAudioTag(data []byte, cid FLV_SOUND_FORMAT, isSequenceHeader bool) []b
     return tagData
 }
 
-func WriteVideoTag(data []byte, cid FLV_VIDEO_CODEC_ID, cts int32, isSequenceHeader bool) []byte {
+func WriteVideoTag(data []byte, isKey bool, cid FLV_VIDEO_CODEC_ID, cts int32, isSequenceHeader bool) []byte {
     var vtag VideoTag
     vtag.CodecId = uint8(cid)
     vtag.CompositionTime = cts
-    if cid == FLV_AVC {
-        nalType := mpeg.H264NaluTypeWithoutStartCode(data[4:])
-        if nalType == mpeg.H264_NAL_I_SLICE {
-            vtag.FrameType = uint8(KEY_FRAME)
-        } else {
-            vtag.FrameType = uint8(INTER_FRAME)
-        }
+    if isKey {
+        vtag.FrameType = uint8(KEY_FRAME)
+    } else {
+        vtag.FrameType = uint8(INTER_FRAME)
     }
     if isSequenceHeader {
         vtag.AVCPacketType = uint8(AVC_SEQUENCE_HEADER)
@@ -57,49 +55,56 @@ type AVCMuxer struct {
     spsset map[uint64][]byte
     ppsset map[uint64][]byte
     cache  []byte
+    first  bool
+}
+
+func NewAVCMuxer() *AVCMuxer {
+    return &AVCMuxer{
+        spsset: make(map[uint64][]byte),
+        ppsset: make(map[uint64][]byte),
+        cache:  make([]byte, 0, 1024),
+        first:  true,
+    }
 }
 
 func (muxer *AVCMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
-    var updateSequence bool = false
     var vcl bool = false
+    var isKey bool = false
     mpeg.SplitFrameWithStartCode(frames, func(nalu []byte) bool {
-        start, sc := mpeg.FindStartCode(nalu, 0)
-        naltype := mpeg.H264NaluTypeWithoutStartCode(nalu[start+int(sc):])
-        bs := mpeg.NewBitStream(nalu[start+int(sc):])
+        naltype := mpeg.H264NaluType(nalu)
         switch naltype {
         case mpeg.H264_NAL_SPS:
-            var sps mpeg.SPS
-            sps.Decode(bs)
-            s, found := muxer.spsset[sps.Seq_parameter_set_id]
+            spsid := mpeg.GetSPSIdWithStartCode(nalu)
+            s, found := muxer.spsset[spsid]
             if !found || !bytes.Equal(s, nalu) {
                 naluCopy := make([]byte, len(nalu))
                 copy(naluCopy, nalu)
-                muxer.spsset[sps.Seq_parameter_set_id] = naluCopy
-                updateSequence = true
+                muxer.spsset[spsid] = naluCopy
+                muxer.cache = append(muxer.cache, mpeg.ConvertAnnexBToAVCC(nalu)...)
             }
-            muxer.cache = append(muxer.cache, mpeg.ConvertAnnexBToAVCC(nalu)...)
         case mpeg.H264_NAL_PPS:
-            var pps mpeg.PPS
-            pps.Decode(bs)
-            muxer.ppsset[pps.Pic_parameter_set_id] = nalu
-            s, found := muxer.ppsset[pps.Pic_parameter_set_id]
+            ppsid := mpeg.GetPPSIdWithStartCode(nalu)
+            muxer.ppsset[ppsid] = nalu
+            s, found := muxer.ppsset[ppsid]
             if !found || !bytes.Equal(s, nalu) {
                 naluCopy := make([]byte, len(nalu))
                 copy(naluCopy, nalu)
-                muxer.ppsset[pps.Pic_parameter_set_id] = naluCopy
-                updateSequence = true
+                muxer.ppsset[ppsid] = naluCopy
+                muxer.cache = append(muxer.cache, mpeg.ConvertAnnexBToAVCC(nalu)...)
             }
-            muxer.cache = append(muxer.cache, mpeg.ConvertAnnexBToAVCC(nalu)...)
         default:
             if naltype <= mpeg.H264_NAL_I_SLICE {
                 vcl = true
+                if naltype == mpeg.H264_NAL_I_SLICE {
+                    isKey = true
+                }
             }
             muxer.cache = append(muxer.cache, mpeg.ConvertAnnexBToAVCC(nalu)...)
         }
         return true
     })
     var tags [][]byte
-    if updateSequence && len(muxer.ppsset) > 0 && len(muxer.spsset) > 0 {
+    if muxer.first && len(muxer.ppsset) > 0 && len(muxer.spsset) > 0 {
         spss := make([][]byte, len(muxer.spsset))
         idx := 0
         for _, sps := range muxer.spsset {
@@ -113,34 +118,85 @@ func (muxer *AVCMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
             idx++
         }
         extraData := mpeg.CreateH264AVCCExtradata(spss, ppss)
-        tags = append(tags, WriteVideoTag(extraData, FLV_AVC, 0, true))
+        tags = append(tags, WriteVideoTag(extraData, true, FLV_AVC, 0, true))
+        muxer.first = false
     }
+
     if vcl {
-        tags = append(tags, WriteVideoTag(muxer.cache, FLV_AVC, int32(pts-dts), false))
+        tags = append(tags, WriteVideoTag(muxer.cache, isKey, FLV_AVC, int32(pts-dts), false))
         muxer.cache = muxer.cache[:0]
     }
     return tags
 }
 
 type HevcMuxer struct {
+    hvcc  *mpeg.HEVCRecordConfiguration
+    cache []byte
+    first bool
+}
+
+func NewHevcMuxer() *HevcMuxer {
+    return &HevcMuxer{
+        hvcc:  mpeg.NewHEVCRecordConfiguration(),
+        cache: make([]byte, 0, 1024),
+        first: true,
+    }
+}
+
+func (muxer *HevcMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
+    var vcl bool = false
+    var isKey bool = false
+    mpeg.SplitFrameWithStartCode(frames, func(nalu []byte) bool {
+        naltype := mpeg.H265NaluType(nalu)
+        switch naltype {
+        case mpeg.H265_NAL_SPS:
+            muxer.hvcc.UpdateSPS(nalu)
+            muxer.cache = append(muxer.cache, mpeg.ConvertAnnexBToAVCC(nalu)...)
+        case mpeg.H265_NAL_PPS:
+            muxer.hvcc.UpdatePPS(nalu)
+            muxer.cache = append(muxer.cache, mpeg.ConvertAnnexBToAVCC(nalu)...)
+        case mpeg.H265_NAL_VPS:
+            muxer.hvcc.UpdateVPS(nalu)
+            muxer.cache = append(muxer.cache, mpeg.ConvertAnnexBToAVCC(nalu)...)
+        default:
+            if naltype >= 16 && naltype <= 21 {
+                isKey = true
+            }
+            vcl = mpeg.IsH265VCLNaluType(naltype)
+            fmt.Printf("is vcl %v\n", vcl)
+            muxer.cache = append(muxer.cache, mpeg.ConvertAnnexBToAVCC(nalu)...)
+        }
+        return true
+    })
+    var tags [][]byte
+    if muxer.first && len(muxer.hvcc.Arrays) > 0 {
+        fmt.Println("is sequence")
+        extraData := muxer.hvcc.Encode()
+        tags = append(tags, WriteVideoTag(extraData, true, FLV_HEVC, 0, true))
+        muxer.first = false
+    }
+    if vcl {
+        tags = append(tags, WriteVideoTag(muxer.cache, isKey, FLV_HEVC, int32(pts-dts), false))
+        muxer.cache = muxer.cache[:0]
+    }
+    return tags
 }
 
 func CreateVideoMuxer(cid FLV_VIDEO_CODEC_ID) AVTagMuxer {
     if cid == FLV_AVC {
-        return &AVCMuxer{
-            spsset: make(map[uint64][]byte),
-            ppsset: make(map[uint64][]byte),
-            cache:  make([]byte, 0, 1024),
-        }
+        return NewAVCMuxer()
     } else if cid == FLV_HEVC {
-        //TODO FLV Support H265
-        return nil
+        return NewHevcMuxer()
     }
     return nil
 }
 
 type AACMuxer struct {
     updateSequence bool
+}
+
+func NewAACMuxer() *AACMuxer {
+    return &AACMuxer{updateSequence: true}
 }
 
 func (muxer *AACMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
@@ -161,6 +217,10 @@ func (muxer *AACMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
 type G711AMuxer struct {
 }
 
+func NewG711AMuxer() *G711AMuxer {
+    return &G711AMuxer{}
+}
+
 func (muxer *G711AMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
     tags := make([][]byte, 1)
     tags[0] = WriteAudioTag(frames, FLV_G711A, true)
@@ -168,6 +228,10 @@ func (muxer *G711AMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
 }
 
 type G711UMuxer struct {
+}
+
+func NewG711UMuxer() *G711UMuxer {
+    return &G711UMuxer{}
 }
 
 func (muxer *G711UMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
