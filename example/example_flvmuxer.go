@@ -11,7 +11,7 @@ import (
 func main() {
 	flvfilereader, _ := os.Open(os.Args[1])
 	defer flvfilereader.Close()
-	fr := flv.CreateFlvReader(flvfilereader)
+	fr := flv.CreateFlvReader()
 	newflv, _ := os.OpenFile(os.Args[1]+"4.flv", os.O_CREATE|os.O_RDWR, 0666)
 	defer newflv.Close()
 	fw := flv.CreateFlvWriter(newflv)
@@ -21,7 +21,18 @@ func main() {
 			fw.WriteAAC(b, pts, dts)
 		} else if ci == mpeg.CODECID_VIDEO_H264 {
 			fw.WriteH264(b, pts, dts)
+		} else if ci == mpeg.CODECID_VIDEO_H265 {
+			fw.WriteH265(b, pts, dts)
 		}
 	}
-	fmt.Println(fr.LoopRead())
+
+	cache := make([]byte, 4096)
+	for {
+		n, err := flvfilereader.Read(cache)
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
+		fr.Input(cache[0:n])
+	}
 }

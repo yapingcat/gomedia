@@ -11,7 +11,8 @@ import (
 func main() {
 
 	flvfilereader, _ := os.Open(os.Args[1])
-	fr := flv.CreateFlvReader(flvfilereader)
+	defer flvfilereader.Close()
+	fr := flv.CreateFlvReader()
 	firstAudio := true
 	var audiof *os.File
 	firstVideo := true
@@ -29,7 +30,23 @@ func main() {
 				firstVideo = false
 			}
 			videof.Write(b)
+		} else if ci == mpeg.CODECID_VIDEO_H265 {
+			if firstVideo {
+				videof, _ = os.OpenFile("video.h265", os.O_CREATE|os.O_RDWR, 0666)
+				firstVideo = false
+			}
+			videof.Write(b)
 		}
 	}
-	fmt.Println(fr.LoopRead())
+
+	cache := make([]byte, 4096)
+	for {
+		n, err := flvfilereader.Read(cache)
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
+		fr.Input(cache[0:n])
+	}
+
 }
