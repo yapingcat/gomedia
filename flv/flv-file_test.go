@@ -25,10 +25,20 @@ func TestFlvReader_Input(t *testing.T) {
 		}
 		fd, _ := os.Open("source.200kbps.768x320.flv")
 		defer fd.Close()
-		content, _ := ioutil.ReadAll(fd)
-		if err := f.Input(content); err != nil {
-			t.Errorf("FlvReader.Input() error = %v", err)
+		cache := make([]byte, 4096)
+		for {
+			n, err := fd.Read(cache)
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
+			f.Input(cache[0:n])
 		}
+
+		// content, _ := ioutil.ReadAll(fd)
+		// if err := f.Input(content); err != nil {
+		// 	t.Errorf("FlvReader.Input() error = %v", err)
+		// }
 	})
 }
 

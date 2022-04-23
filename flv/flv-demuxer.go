@@ -197,7 +197,8 @@ func (demuxer *AACTagDemuxer) Decode(data []byte) error {
     atag.Decode(data[0:2])
     data = data[2:]
     if atag.AACPacketType == AAC_SEQUENCE_HEADER {
-        demuxer.asc = data
+        demuxer.asc = make([]byte, len(data))
+        copy(demuxer.asc, data)
     } else {
         adts := mpeg.ConvertASCToADTS(demuxer.asc, len(data)+7)
         adts = append(adts, data...)
