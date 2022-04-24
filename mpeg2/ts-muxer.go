@@ -3,7 +3,7 @@ package mpeg2
 import (
     "errors"
 
-    "github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/codec"
 )
 
 type pes_stream struct {
@@ -116,22 +116,22 @@ func (mux *TSMuxer) Write(pid uint16, data []byte, pts uint64, dts uint64) error
     var withaud bool = false
 
     if whichstream.streamtype == TS_STREAM_H264 || whichstream.streamtype == TS_STREAM_H265 {
-        mpeg.SplitFrame(data, func(nalu []byte) bool {
+        codec.SplitFrame(data, func(nalu []byte) bool {
             if whichstream.streamtype == TS_STREAM_H264 {
-                nalu_type := mpeg.H264NaluTypeWithoutStartCode(nalu)
-                if nalu_type == mpeg.H264_NAL_AUD {
+                nalu_type := codec.H264NaluTypeWithoutStartCode(nalu)
+                if nalu_type == codec.H264_NAL_AUD {
                     withaud = true
                     return false
-                } else if mpeg.IsH264VCLNaluType(nalu_type) {
+                } else if codec.IsH264VCLNaluType(nalu_type) {
                     return false
                 }
                 return true
             } else {
-                nalu_type := mpeg.H265NaluTypeWithoutStartCode(nalu)
-                if nalu_type == mpeg.H265_NAL_AUD {
+                nalu_type := codec.H265NaluTypeWithoutStartCode(nalu)
+                if nalu_type == codec.H265_NAL_AUD {
                     withaud = true
                     return false
-                } else if mpeg.IsH265VCLNaluType(nalu_type) {
+                } else if codec.IsH265VCLNaluType(nalu_type) {
                     return false
                 }
                 return true
@@ -174,9 +174,9 @@ func (mux *TSMuxer) Write(pid uint16, data []byte, pts uint64, dts uint64) error
     flag := false
     switch whichstream.streamtype {
     case TS_STREAM_H264:
-        flag = mpeg.IsH264IDRFrame(data)
+        flag = codec.IsH264IDRFrame(data)
     case TS_STREAM_H265:
-        flag = mpeg.IsH265IDRFrame(data)
+        flag = codec.IsH265IDRFrame(data)
     }
 
     mux.writePES(whichstream, whichpmt, data, pts*90, dts*90, flag, withaud)
@@ -191,7 +191,7 @@ func (mux *TSMuxer) writePat(pat *Pat) {
     tshdr.Continuity_counter = mux.pat.cc
     mux.pat.cc++
     mux.pat.cc = (mux.pat.cc + 1) % 16
-    bsw := mpeg.NewBitStreamWriter(TS_PAKCET_SIZE)
+    bsw := codec.NewBitStreamWriter(TS_PAKCET_SIZE)
     tshdr.EncodeHeader(bsw)
     bsw.PutByte(0x00) //pointer
     pat.Encode(bsw)
@@ -208,7 +208,7 @@ func (mux *TSMuxer) writePmt(pmt *Pmt, t_pmt *table_pmt) {
     tshdr.Adaptation_field_control = 0x01
     tshdr.Continuity_counter = t_pmt.cc
     t_pmt.cc = (t_pmt.cc + 1) % 16
-    bsw := mpeg.NewBitStreamWriter(TS_PAKCET_SIZE)
+    bsw := codec.NewBitStreamWriter(TS_PAKCET_SIZE)
     tshdr.EncodeHeader(bsw)
     bsw.PutByte(0x00) //pointer
     pmt.Encode(bsw)
@@ -220,7 +220,7 @@ func (mux *TSMuxer) writePmt(pmt *Pmt, t_pmt *table_pmt) {
 
 func (mux *TSMuxer) writePES(pes *pes_stream, pmt *table_pmt, data []byte, pts uint64, dts uint64, idr_flag bool, withaud bool) {
     var firstPesPacket bool = true
-    bsw := mpeg.NewBitStreamWriter(TS_PAKCET_SIZE)
+    bsw := codec.NewBitStreamWriter(TS_PAKCET_SIZE)
     for {
         bsw.Reset()
         var tshdr TSPacket

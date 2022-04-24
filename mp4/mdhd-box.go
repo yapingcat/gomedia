@@ -4,7 +4,7 @@ import (
     "encoding/binary"
     "time"
 
-    "github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/codec"
 )
 
 // aligned(8) class MediaHeaderBox extends FullBox(‘mdhd’, version, 0) {
@@ -101,7 +101,7 @@ func (mdhd *MediaHeaderBox) Decode(rh Reader) (offset int, err error) {
         mdhd.Duration = uint64(binary.BigEndian.Uint32(buf[offset:]))
         offset += 4
     }
-    bs := mpeg.NewBitStream(buf[offset:])
+    bs := codec.NewBitStream(buf[offset:])
     mdhd.Pad = bs.GetBit()
     mdhd.Language[0] = bs.Uint8(5)
     mdhd.Language[1] = bs.Uint8(5)

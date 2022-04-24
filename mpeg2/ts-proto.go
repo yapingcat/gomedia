@@ -6,7 +6,7 @@ import (
     "fmt"
     "os"
 
-    "github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/codec"
 )
 
 //PID
@@ -88,7 +88,7 @@ func (pkg *TSPacket) PrettyPrint(file *os.File) {
     file.WriteString(fmt.Sprintf("Continuity_counter:%d\n", pkg.Continuity_counter))
 }
 
-func (pkg *TSPacket) EncodeHeader(bsw *mpeg.BitStreamWriter) {
+func (pkg *TSPacket) EncodeHeader(bsw *codec.BitStreamWriter) {
     bsw.PutByte(0x47)
     bsw.PutUint8(pkg.Transport_error_indicator, 1)
     bsw.PutUint8(pkg.Payload_unit_start_indicator, 1)
@@ -102,7 +102,7 @@ func (pkg *TSPacket) EncodeHeader(bsw *mpeg.BitStreamWriter) {
     }
 }
 
-func (pkg *TSPacket) DecodeHeader(bs *mpeg.BitStream) error {
+func (pkg *TSPacket) DecodeHeader(bs *codec.BitStream) error {
     sync_byte := bs.Uint8(8)
     if sync_byte != 0x47 {
         return errors.New("ts packet must start with 0x47")
@@ -257,7 +257,7 @@ func (adaptation *Adaptation_field) PrettyPrint(file *os.File) {
     }
 }
 
-func (adaptation *Adaptation_field) Encode(bsw *mpeg.BitStreamWriter) {
+func (adaptation *Adaptation_field) Encode(bsw *codec.BitStreamWriter) {
     loc := bsw.ByteOffset()
     bsw.PutUint8(adaptation.Adaptation_field_length, 8)
     if adaptation.SingleStuffingByte {
@@ -296,7 +296,7 @@ func (adaptation *Adaptation_field) Encode(bsw *mpeg.BitStreamWriter) {
     bsw.SetByte(adaptation.Adaptation_field_length, loc)
 }
 
-func (adaptation *Adaptation_field) Decode(bs *mpeg.BitStream) error {
+func (adaptation *Adaptation_field) Decode(bs *codec.BitStream) error {
     if bs.RemainBytes() < 1 {
         return errors.New("len of data < 1 byte")
     }
@@ -414,7 +414,7 @@ func (pat *Pat) PrettyPrint(file *os.File) {
     }
 }
 
-func (pat *Pat) Encode(bsw *mpeg.BitStreamWriter) {
+func (pat *Pat) Encode(bsw *codec.BitStreamWriter) {
     bsw.PutUint8(0x00, 8)
     loc := bsw.ByteOffset()
     bsw.PutUint8(pat.Section_syntax_indicator, 1)
@@ -437,13 +437,13 @@ func (pat *Pat) Encode(bsw *mpeg.BitStreamWriter) {
     //|Section_syntax_indicator|'0'|reserved|Section_length|
     pat.Section_length = uint16(length)/8 + 4
     bsw.SetUint16(pat.Section_length&0x0FFF|(uint16(pat.Section_syntax_indicator)<<15)|0x3000, loc)
-    crc := mpeg.CalcCrc32(0xffffffff, bsw.Bits()[bsw.ByteOffset()-int(pat.Section_length-4)-3:bsw.ByteOffset()])
+    crc := codec.CalcCrc32(0xffffffff, bsw.Bits()[bsw.ByteOffset()-int(pat.Section_length-4)-3:bsw.ByteOffset()])
     tmpcrc := make([]byte, 4)
     binary.LittleEndian.PutUint32(tmpcrc, crc)
     bsw.PutBytes(tmpcrc)
 }
 
-func (pat *Pat) Decode(bs *mpeg.BitStream) error {
+func (pat *Pat) Decode(bs *codec.BitStream) error {
     pat.Table_id = bs.Uint8(8)
 
     if pat.Table_id != uint8(TS_TID_PAS) {
@@ -523,7 +523,7 @@ func (pmt *Pmt) PrettyPrint(file *os.File) {
     }
 }
 
-func (pmt *Pmt) Encode(bsw *mpeg.BitStreamWriter) {
+func (pmt *Pmt) Encode(bsw *codec.BitStreamWriter) {
     bsw.PutUint8(pmt.Table_id, 8)
     loc := bsw.ByteOffset()
     bsw.PutUint8(pmt.Section_syntax_indicator, 1)
@@ -553,13 +553,13 @@ func (pmt *Pmt) Encode(bsw *mpeg.BitStreamWriter) {
     length := bsw.DistanceFromMarkDot()
     pmt.Section_length = uint16(length)/8 + 4
     bsw.SetUint16(pmt.Section_length&0x0FFF|(uint16(pmt.Section_syntax_indicator)<<15)|0x3000, loc)
-    crc := mpeg.CalcCrc32(0xffffffff, bsw.Bits()[bsw.ByteOffset()-int(pmt.Section_length-4)-3:bsw.ByteOffset()])
+    crc := codec.CalcCrc32(0xffffffff, bsw.Bits()[bsw.ByteOffset()-int(pmt.Section_length-4)-3:bsw.ByteOffset()])
     tmpcrc := make([]byte, 4)
     binary.LittleEndian.PutUint32(tmpcrc, crc)
     bsw.PutBytes(tmpcrc)
 }
 
-func (pmt *Pmt) Decode(bs *mpeg.BitStream) error {
+func (pmt *Pmt) Decode(bs *codec.BitStream) error {
     pmt.Table_id = bs.Uint8(8)
     if pmt.Table_id != uint8(TS_TID_PMS) {
         return errors.New("table id is Not TS_TID_PAS")

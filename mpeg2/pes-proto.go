@@ -4,7 +4,7 @@ import (
     "fmt"
     "os"
 
-    "github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/codec"
 )
 
 var H264_AUD_NALU []byte = []byte{0x00, 0x00, 0x00, 0x01, 0x09, 0xF0} //ffmpeg mpegtsenc.c mpegts_write_packet_internal
@@ -128,7 +128,7 @@ func (pkg *PesPacket) PrettyPrint(file *os.File) {
     file.WriteString("\n")
 }
 
-func (pkg *PesPacket) Decode(bs *mpeg.BitStream) error {
+func (pkg *PesPacket) Decode(bs *codec.BitStream) error {
     if bs.RemainBytes() < 9 {
         return errNeedMore
     }
@@ -222,7 +222,7 @@ func (pkg *PesPacket) Decode(bs *mpeg.BitStream) error {
     return nil
 }
 
-func (pkg *PesPacket) DecodeMpeg1(bs *mpeg.BitStream) error {
+func (pkg *PesPacket) DecodeMpeg1(bs *codec.BitStream) error {
     if bs.RemainBytes() < 6 {
         return errNeedMore
     }
@@ -282,7 +282,7 @@ func (pkg *PesPacket) DecodeMpeg1(bs *mpeg.BitStream) error {
     return nil
 }
 
-func (pkg *PesPacket) Encode(bsw *mpeg.BitStreamWriter) {
+func (pkg *PesPacket) Encode(bsw *codec.BitStreamWriter) {
     bsw.PutBytes([]byte{0x00, 0x00, 0x01})
     bsw.PutByte(pkg.Stream_id)
     bsw.PutUint16(pkg.PES_packet_length, 16)

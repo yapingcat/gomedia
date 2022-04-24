@@ -1,6 +1,6 @@
 package mpeg2
 
-import "github.com/yapingcat/gomedia/mpeg"
+import "github.com/yapingcat/gomedia/codec"
 
 type PSMuxer struct {
     system     *System_header
@@ -59,14 +59,14 @@ func (muxer *PSMuxer) Write(sid uint8, frame []byte, pts uint64, dts uint64) err
     var first bool = true
     var vcl bool = false
     if stream.Stream_type == uint8(PS_STREAM_H264) || stream.Stream_type == uint8(PS_STREAM_H265) {
-        mpeg.SplitFrame(frame, func(nalu []byte) bool {
+        codec.SplitFrame(frame, func(nalu []byte) bool {
             if stream.Stream_type == uint8(PS_STREAM_H264) {
-                nalu_type := mpeg.H264NaluTypeWithoutStartCode(nalu)
-                if nalu_type == mpeg.H264_NAL_AUD {
+                nalu_type := codec.H264NaluTypeWithoutStartCode(nalu)
+                if nalu_type == codec.H264_NAL_AUD {
                     withaud = true
                     return false
-                } else if mpeg.IsH264VCLNaluType(nalu_type) {
-                    if nalu_type == mpeg.H264_NAL_I_SLICE {
+                } else if codec.IsH264VCLNaluType(nalu_type) {
+                    if nalu_type == codec.H264_NAL_I_SLICE {
                         idr_flag = true
                     }
                     vcl = true
@@ -74,12 +74,12 @@ func (muxer *PSMuxer) Write(sid uint8, frame []byte, pts uint64, dts uint64) err
                 }
                 return true
             } else {
-                nalu_type := mpeg.H265NaluTypeWithoutStartCode(nalu)
-                if nalu_type == mpeg.H265_NAL_AUD {
+                nalu_type := codec.H265NaluTypeWithoutStartCode(nalu)
+                if nalu_type == codec.H265_NAL_AUD {
                     withaud = true
                     return false
-                } else if mpeg.IsH265VCLNaluType(nalu_type) {
-                    if nalu_type >= mpeg.H265_NAL_SLICE_BLA_W_LP && nalu_type <= mpeg.H265_NAL_SLICE_CRA {
+                } else if codec.IsH265VCLNaluType(nalu_type) {
+                    if nalu_type >= codec.H265_NAL_SLICE_BLA_W_LP && nalu_type <= codec.H265_NAL_SLICE_CRA {
                         idr_flag = true
                     }
                     vcl = true
@@ -92,7 +92,7 @@ func (muxer *PSMuxer) Write(sid uint8, frame []byte, pts uint64, dts uint64) err
 
     dts = dts * 90
     pts = pts * 90
-    bsw := mpeg.NewBitStreamWriter(1024)
+    bsw := codec.NewBitStreamWriter(1024)
     var pack PSPackHeader
     pack.System_clock_reference_base = dts - 3600
     pack.System_clock_reference_extension = 0

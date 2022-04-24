@@ -1,2 +1,4 @@
-github.com/yapingcat/gomedia/mpeg v0.0.0-20211223030151-f9d27414937c h1:I7M3i6j99escjHIY6yuumxlGc119qJdyTE543YuJ/hM=
-github.com/yapingcat/gomedia/mpeg v0.0.0-20211223030151-f9d27414937c/go.mod h1:neT7Rmoi+yHT390+q+/73SC+nbR7MJCnCy1R9BcQCnE=
+github.com/yapingcat/gomedia/codec v0.0.0-20220424104503-efa359334caf h1:4Uen+0jLzecw7hnQpUNSJlv+3A3yFXxVv2VCQRA2oNc=
+github.com/yapingcat/gomedia/codec v0.0.0-20220424104503-efa359334caf/go.mod h1:obSECV6X3NPUsLL0olA7DurvQHKMq7J3iBTNQ4bL/vQ=
+github.com/yapingcat/gomedia/mpeg v0.0.0-20211224133417-4097bb542f85 h1:TyVwUxVkUB+dWMylF0UpJSiRAtOE5YgSg3i0IIZxhso=
+github.com/yapingcat/gomedia/mpeg v0.0.0-20211224133417-4097bb542f85/go.mod h1:neT7Rmoi+yHT390+q+/73SC+nbR7MJCnCy1R9BcQCnE=

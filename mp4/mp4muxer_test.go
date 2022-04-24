@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/yapingcat/gomedia/mpeg"
+	"github.com/yapingcat/gomedia/codec"
 )
 
 type mymp4writer struct {
@@ -106,9 +106,9 @@ func TestCreateMp4Muxer(t *testing.T) {
 			muxer := CreateMp4Muxer(tt.args.wh)
 			tid := muxer.AddVideoTrack(MP4_CODEC_H265)
 			cache := make([]byte, 0)
-			mpeg.SplitFrameWithStartCode(buf, func(nalu []byte) bool {
-				ntype := mpeg.H265NaluType(nalu)
-				if !mpeg.IsH265VCLNaluType(ntype) {
+			codec.SplitFrameWithStartCode(buf, func(nalu []byte) bool {
+				ntype := codec.H265NaluType(nalu)
+				if !codec.IsH265VCLNaluType(ntype) {
 					cache = append(cache, nalu...)
 					return true
 				}
@@ -149,22 +149,26 @@ func TestMuxAAC(t *testing.T) {
 
 	aac, _ := ioutil.ReadAll(f)
 	var pts uint64 = 0
-	var dts uint64 = 0
-	var i int = 0
+	//var dts uint64 = 0
+	//var i int = 0
+	samples := uint64(0)
 	muxer := CreateMp4Muxer(newmymp4writer(mp4file))
-	tid := muxer.AddAudioTrack(MP4_CODEC_AAC, 2, 16, 44100)
-	mpeg.SplitAACFrame(aac, func(aac []byte) {
 
-		if i < 3 {
-			pts += 23
-			dts += 23
-			i++
-		} else {
-			pts += 24
-			dts += 24
-			i = 0
-		}
-		muxer.Write(tid, aac, pts, dts)
+	tid := muxer.AddAudioTrack(MP4_CODEC_AAC, 2, 16, 44100)
+	codec.SplitAACFrame(aac, func(aac []byte) {
+		samples += 1024
+		pts = samples * 1000 / 44100
+		// if i < 3 {
+		// 	pts += 23
+		// 	dts += 23
+		// 	i++
+		// } else {
+		// 	pts += 24
+		// 	dts += 24
+		// 	i = 0
+		// }
+		muxer.Write(tid, aac, pts, pts)
+		//fmt.Println(pts)
 	})
 	muxer.Writetrailer()
 }

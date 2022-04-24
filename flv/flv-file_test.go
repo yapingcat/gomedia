@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/yapingcat/gomedia/mpeg"
+	"github.com/yapingcat/gomedia/codec"
 )
 
 func TestFlvReader_Input(t *testing.T) {
@@ -16,10 +16,10 @@ func TestFlvReader_Input(t *testing.T) {
 		audioFile, _ := os.OpenFile("a.aac", os.O_CREATE|os.O_RDWR, 0666)
 		defer audioFile.Close()
 		f := CreateFlvReader()
-		f.OnFrame = func(cid mpeg.CodecID, frame []byte, pts, dts uint32) {
-			if cid == mpeg.CODECID_VIDEO_H264 {
+		f.OnFrame = func(cid codec.CodecID, frame []byte, pts, dts uint32) {
+			if cid == codec.CODECID_VIDEO_H264 {
 				videoFile.Write(frame)
-			} else if cid == mpeg.CODECID_AUDIO_AAC {
+			} else if cid == codec.CODECID_AUDIO_AAC {
 				audioFile.Write(frame)
 			}
 		}
@@ -50,12 +50,12 @@ func TestFlvWriter_Write(t *testing.T) {
 		wf := CreateFlvWriter(newflv)
 		wf.WriteFlvHeader()
 		rf := CreateFlvReader()
-		rf.OnFrame = func(cid mpeg.CodecID, frame []byte, pts, dts uint32) {
-			if cid == mpeg.CODECID_VIDEO_H264 {
+		rf.OnFrame = func(cid codec.CodecID, frame []byte, pts, dts uint32) {
+			if cid == codec.CODECID_VIDEO_H264 {
 				if err := wf.WriteH264(frame, pts, dts); err != nil {
 					fmt.Println(err)
 				}
-			} else if cid == mpeg.CODECID_AUDIO_AAC {
+			} else if cid == codec.CODECID_AUDIO_AAC {
 				if err := wf.WriteAAC(frame, pts, dts); err != nil {
 					fmt.Println(err)
 				}
@@ -86,7 +86,7 @@ func TestFlvWriter_WriteHevc(t *testing.T) {
 		}
 		defer rawh265.Close()
 		buf, _ := ioutil.ReadAll(rawh265)
-		mpeg.SplitFrameWithStartCode(buf, func(nalu []byte) bool {
+		codec.SplitFrameWithStartCode(buf, func(nalu []byte) bool {
 			fmt.Printf("%x %x %x %x %x\n", nalu[0], nalu[1], nalu[2], nalu[3], nalu[4])
 			fmt.Printf("nalu size %d\n", len(nalu))
 			if err := wf.WriteH265(nalu, pts, dts); err != nil {
@@ -105,8 +105,8 @@ func TestFlvReadH265(t *testing.T) {
 		videoFile, _ := os.OpenFile("v2.h265", os.O_CREATE|os.O_RDWR, 0666)
 		defer videoFile.Close()
 		f := CreateFlvReader()
-		f.OnFrame = func(cid mpeg.CodecID, frame []byte, pts, dts uint32) {
-			if cid == mpeg.CODECID_VIDEO_H265 {
+		f.OnFrame = func(cid codec.CodecID, frame []byte, pts, dts uint32) {
+			if cid == codec.CODECID_VIDEO_H265 {
 				videoFile.Write(frame)
 			}
 		}

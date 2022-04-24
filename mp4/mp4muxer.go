@@ -4,7 +4,7 @@ import (
     "encoding/binary"
     "errors"
 
-    "github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/codec"
 )
 
 type sampleEntry struct {
@@ -153,20 +153,20 @@ type h264ExtraData struct {
 }
 
 func (extra *h264ExtraData) export() []byte {
-    return mpeg.CreateH264AVCCExtradata(extra.spss, extra.ppss)
+    return codec.CreateH264AVCCExtradata(extra.spss, extra.ppss)
 }
 
 func (extra *h264ExtraData) load(data []byte) {
-    extra.spss, extra.ppss = mpeg.CovertExtradata(data)
+    extra.spss, extra.ppss = codec.CovertExtradata(data)
 }
 
 type h265ExtraData struct {
-    hvccExtra *mpeg.HEVCRecordConfiguration
+    hvccExtra *codec.HEVCRecordConfiguration
 }
 
 func newh265ExtraData() *h265ExtraData {
     return &h265ExtraData{
-        hvccExtra: mpeg.NewHEVCRecordConfiguration(),
+        hvccExtra: codec.NewHEVCRecordConfiguration(),
     }
 }
 
@@ -357,13 +357,13 @@ func (muxer *Movmuxer) writeH264(track *mp4track, h264 []byte) (n int, err error
     if !ok {
         panic("must init h264ExtraData first")
     }
-    mpeg.SplitFrameWithStartCode(h264, func(nalu []byte) bool {
-        nalu_type := mpeg.H264NaluType(nalu)
+    codec.SplitFrameWithStartCode(h264, func(nalu []byte) bool {
+        nalu_type := codec.H264NaluType(nalu)
         switch nalu_type {
-        case mpeg.H264_NAL_SPS:
-            spsid := mpeg.GetSPSIdWithStartCode(nalu)
+        case codec.H264_NAL_SPS:
+            spsid := codec.GetSPSIdWithStartCode(nalu)
             for _, sps := range h264extra.spss {
-                if spsid == mpeg.GetSPSIdWithStartCode(sps) {
+                if spsid == codec.GetSPSIdWithStartCode(sps) {
                     return true
                 }
             }
@@ -371,14 +371,14 @@ func (muxer *Movmuxer) writeH264(track *mp4track, h264 []byte) (n int, err error
             copy(tmp, nalu)
             h264extra.spss = append(h264extra.spss, tmp)
             if muxer.width == 0 || muxer.height == 0 {
-                muxer.width, muxer.height = mpeg.GetH264Resolution(h264extra.spss[0])
+                muxer.width, muxer.height = codec.GetH264Resolution(h264extra.spss[0])
                 track.width = muxer.width
                 track.height = muxer.height
             }
-        case mpeg.H264_NAL_PPS:
-            ppsid := mpeg.GetPPSIdWithStartCode(nalu)
+        case codec.H264_NAL_PPS:
+            ppsid := codec.GetPPSIdWithStartCode(nalu)
             for _, pps := range h264extra.ppss {
-                if ppsid == mpeg.GetPPSIdWithStartCode(pps) {
+                if ppsid == codec.GetPPSIdWithStartCode(pps) {
                     return true
                 }
             }
@@ -386,7 +386,7 @@ func (muxer *Movmuxer) writeH264(track *mp4track, h264 []byte) (n int, err error
             copy(tmp, nalu)
             h264extra.ppss = append(h264extra.ppss, tmp)
         }
-        avcc := mpeg.ConvertAnnexBToAVCC(nalu)
+        avcc := codec.ConvertAnnexBToAVCC(nalu)
         nn := 0
         if nn, err = muxer.writerHandler.Write(avcc); err != nil {
             return false
@@ -402,22 +402,22 @@ func (muxer *Movmuxer) writeH265(track *mp4track, h265 []byte) (n int, err error
     if !ok {
         panic("must init h265ExtraData first")
     }
-    mpeg.SplitFrameWithStartCode(h265, func(nalu []byte) bool {
-        nalu_type := mpeg.H265NaluType(nalu)
+    codec.SplitFrameWithStartCode(h265, func(nalu []byte) bool {
+        nalu_type := codec.H265NaluType(nalu)
         switch nalu_type {
-        case mpeg.H265_NAL_SPS:
+        case codec.H265_NAL_SPS:
             h265extra.hvccExtra.UpdateSPS(nalu)
             if muxer.width == 0 || muxer.height == 0 {
-                muxer.width, muxer.height = mpeg.GetH265Resolution(nalu)
+                muxer.width, muxer.height = codec.GetH265Resolution(nalu)
                 track.width = muxer.width
                 track.height = muxer.height
             }
-        case mpeg.H265_NAL_PPS:
+        case codec.H265_NAL_PPS:
             h265extra.hvccExtra.UpdatePPS(nalu)
-        case mpeg.H265_NAL_VPS:
+        case codec.H265_NAL_VPS:
             h265extra.hvccExtra.UpdateVPS(nalu)
         }
-        hvcc := mpeg.ConvertAnnexBToAVCC(nalu)
+        hvcc := codec.ConvertAnnexBToAVCC(nalu)
         nn := 0
         if nn, err = muxer.writerHandler.Write(hvcc); err != nil {
             return false
@@ -435,7 +435,7 @@ func (muxer *Movmuxer) writeAAC(track *mp4track, aacframes []byte) (n int, err e
     }
     if aacextra.asc == nil || len(aacextra.asc) <= 0 {
 
-        asc, err := mpeg.ConvertADTSToASC(aacframes)
+        asc, err := codec.ConvertADTSToASC(aacframes)
         if err != nil {
             return 0, err
         }

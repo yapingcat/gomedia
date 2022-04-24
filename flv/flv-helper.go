@@ -1,7 +1,7 @@
 package flv
 
 import (
-    "github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/codec"
 )
 
 func PutUint24(b []byte, v uint32) {
@@ -19,24 +19,24 @@ func GetUint24(b []byte) (v uint32) {
     return v
 }
 
-func CovertFlvVideoCodecId2MpegCodecId(cid FLV_VIDEO_CODEC_ID) mpeg.CodecID {
+func CovertFlvVideoCodecId2MpegCodecId(cid FLV_VIDEO_CODEC_ID) codec.CodecID {
     if cid == FLV_AVC {
-        return mpeg.CODECID_VIDEO_H264
+        return codec.CODECID_VIDEO_H264
     } else if cid == FLV_HEVC {
-        return mpeg.CODECID_VIDEO_H265
+        return codec.CODECID_VIDEO_H265
     }
-    return mpeg.CODECID_UNRECOGNIZED
+    return codec.CODECID_UNRECOGNIZED
 }
 
-func CovertFlvAudioCodecId2MpegCodecId(cid FLV_SOUND_FORMAT) mpeg.CodecID {
+func CovertFlvAudioCodecId2MpegCodecId(cid FLV_SOUND_FORMAT) codec.CodecID {
     if cid == FLV_AAC {
-        return mpeg.CODECID_AUDIO_AAC
+        return codec.CODECID_AUDIO_AAC
     } else if cid == FLV_G711A {
-        return mpeg.CODECID_AUDIO_G711A
+        return codec.CODECID_AUDIO_G711A
     } else if cid == FLV_G711U {
-        return mpeg.CODECID_AUDIO_G711U
+        return codec.CODECID_AUDIO_G711U
     }
-    return mpeg.CODECID_UNRECOGNIZED
+    return codec.CODECID_UNRECOGNIZED
 }
 
 func GetTagLenByAudioCodec(cid FLV_SOUND_FORMAT) int {

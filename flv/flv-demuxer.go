@@ -5,10 +5,10 @@ import (
     "errors"
     "fmt"
 
-    "github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/codec"
 )
 
-type OnVideoFrameCallBack func(codecid mpeg.CodecID, frame []byte, cts int)
+type OnVideoFrameCallBack func(codecid codec.CodecID, frame []byte, cts int)
 type VideoTagDemuxer interface {
     Decode(data []byte) error
     OnFrame(onframe OnVideoFrameCallBack)
@@ -42,15 +42,15 @@ func (demuxer *AVCTagDemuxer) Decode(data []byte) error {
     vtag.Decode(data[0:5])
     data = data[5:]
     if vtag.AVCPacketType == AVC_SEQUENCE_HEADER {
-        tmpspss, tmpppss := mpeg.CovertExtradata(data)
+        tmpspss, tmpppss := codec.CovertExtradata(data)
         for _, sps := range tmpspss {
-            spsid := mpeg.GetSPSId(sps)
+            spsid := codec.GetSPSId(sps)
             tmpsps := make([]byte, len(sps))
             copy(tmpsps, sps)
             demuxer.spss[spsid] = tmpsps
         }
         for _, pps := range tmpppss {
-            ppsid := mpeg.GetPPSId(pps)
+            ppsid := codec.GetPPSId(pps)
             tmppps := make([]byte, len(pps))
             copy(tmppps, pps)
             demuxer.spss[ppsid] = tmppps
@@ -62,13 +62,13 @@ func (demuxer *AVCTagDemuxer) Decode(data []byte) error {
         tmpdata := data
         for len(tmpdata) > 0 {
             naluSize := binary.BigEndian.Uint32(tmpdata)
-            mpeg.CovertAVCCToAnnexB(tmpdata)
-            naluType := mpeg.H264NaluType(tmpdata)
-            if naluType == mpeg.H264_NAL_I_SLICE {
+            codec.CovertAVCCToAnnexB(tmpdata)
+            naluType := codec.H264NaluType(tmpdata)
+            if naluType == codec.H264_NAL_I_SLICE {
                 idr = true
-            } else if naluType == mpeg.H264_NAL_SPS {
+            } else if naluType == codec.H264_NAL_SPS {
                 hassps = true
-            } else if naluType == mpeg.H264_NAL_PPS {
+            } else if naluType == codec.H264_NAL_PPS {
                 haspps = true
             }
             tmpdata = tmpdata[4+naluSize:]
@@ -84,11 +84,11 @@ func (demuxer *AVCTagDemuxer) Decode(data []byte) error {
             }
             nalus = append(nalus, data...)
             if demuxer.onframe != nil {
-                demuxer.onframe(mpeg.CODECID_VIDEO_H264, nalus, int(vtag.CompositionTime))
+                demuxer.onframe(codec.CODECID_VIDEO_H264, nalus, int(vtag.CompositionTime))
             }
         } else {
             if demuxer.onframe != nil {
-                demuxer.onframe(mpeg.CODECID_VIDEO_H264, data, int(vtag.CompositionTime))
+                demuxer.onframe(codec.CODECID_VIDEO_H264, data, int(vtag.CompositionTime))
             }
         }
     }
@@ -123,7 +123,7 @@ func (demuxer *HevcTagDemuxer) Decode(data []byte) error {
     fmt.Println(vtag.AVCPacketType)
     data = data[5:]
     if vtag.AVCPacketType == AVC_SEQUENCE_HEADER {
-        hvcc := mpeg.NewHEVCRecordConfiguration()
+        hvcc := codec.NewHEVCRecordConfiguration()
         fmt.Printf("sequence %d\n", len(data))
         hvcc.Decode(data)
         demuxer.SpsPpsVps = hvcc.ToNalus()
@@ -135,15 +135,15 @@ func (demuxer *HevcTagDemuxer) Decode(data []byte) error {
         tmpdata := data
         for len(tmpdata) > 0 {
             naluSize := binary.BigEndian.Uint32(tmpdata)
-            mpeg.CovertAVCCToAnnexB(tmpdata)
-            naluType := mpeg.H265NaluType(tmpdata)
+            codec.CovertAVCCToAnnexB(tmpdata)
+            naluType := codec.H265NaluType(tmpdata)
             if naluType >= 16 && naluType <= 21 {
                 idr = true
-            } else if naluType == mpeg.H265_NAL_SPS {
+            } else if naluType == codec.H265_NAL_SPS {
                 hassps = true
-            } else if naluType == mpeg.H265_NAL_PPS {
+            } else if naluType == codec.H265_NAL_PPS {
                 haspps = true
-            } else if naluType == mpeg.H265_NAL_VPS {
+            } else if naluType == codec.H265_NAL_VPS {
                 hasvps = true
             }
             tmpdata = tmpdata[4+naluSize:]
@@ -153,18 +153,18 @@ func (demuxer *HevcTagDemuxer) Decode(data []byte) error {
             var nalus []byte = make([]byte, 0, 2048)
             nalus = append(demuxer.SpsPpsVps, data...)
             if demuxer.onframe != nil {
-                demuxer.onframe(mpeg.CODECID_VIDEO_H265, nalus, int(vtag.CompositionTime))
+                demuxer.onframe(codec.CODECID_VIDEO_H265, nalus, int(vtag.CompositionTime))
             }
         } else {
             if demuxer.onframe != nil {
-                demuxer.onframe(mpeg.CODECID_VIDEO_H265, data, int(vtag.CompositionTime))
+                demuxer.onframe(codec.CODECID_VIDEO_H265, data, int(vtag.CompositionTime))
             }
         }
     }
     return nil
 }
 
-type OnAudioFrameCallBack func(codecid mpeg.CodecID, frame []byte)
+type OnAudioFrameCallBack func(codecid codec.CodecID, frame []byte)
 
 type AudioTagDemuxer interface {
     Decode(data []byte) error
@@ -200,10 +200,10 @@ func (demuxer *AACTagDemuxer) Decode(data []byte) error {
         demuxer.asc = make([]byte, len(data))
         copy(demuxer.asc, data)
     } else {
-        adts := mpeg.ConvertASCToADTS(demuxer.asc, len(data)+7)
+        adts := codec.ConvertASCToADTS(demuxer.asc, len(data)+7)
         adts = append(adts, data...)
         if demuxer.onframe != nil {
-            demuxer.onframe(mpeg.CODECID_AUDIO_AAC, adts)
+            demuxer.onframe(codec.CODECID_AUDIO_AAC, adts)
         }
     }
     return nil

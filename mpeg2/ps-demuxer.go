@@ -1,7 +1,7 @@
 package mpeg2
 
 import (
-	"github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/codec"
 )
 
 type psstream struct {
@@ -43,12 +43,12 @@ func NewPSDemuxer() *PSDemuxer {
 }
 
 func (psdemuxer *PSDemuxer) Input(data []byte) error {
-    var bs *mpeg.BitStream
+    var bs *codec.BitStream
     if len(psdemuxer.cache) > 0 {
         psdemuxer.cache = append(psdemuxer.cache, data...)
-        bs = mpeg.NewBitStream(psdemuxer.cache)
+        bs = codec.NewBitStream(psdemuxer.cache)
     } else {
-        bs = mpeg.NewBitStream(data)
+        bs = codec.NewBitStream(data)
     }
 
     saveReseved := func() {
@@ -180,12 +180,12 @@ func (psdemuxer *PSDemuxer) guessCodecid(stream *psstream) {
     } else if stream.sid&0xE0 == uint8(PES_STREAM_VIDEO) {
         h264score := 0
         h265score := 0
-        mpeg.SplitFrame(stream.streamBuf, func(nalu []byte) bool {
-            h264nalutype := mpeg.H264NaluTypeWithoutStartCode(nalu)
-            h265nalutype := mpeg.H265NaluTypeWithoutStartCode(nalu)
-            if h264nalutype == mpeg.H264_NAL_PPS ||
-                h264nalutype == mpeg.H264_NAL_SPS ||
-                h264nalutype == mpeg.H264_NAL_I_SLICE {
+        codec.SplitFrame(stream.streamBuf, func(nalu []byte) bool {
+            h264nalutype := codec.H264NaluTypeWithoutStartCode(nalu)
+            h265nalutype := codec.H265NaluTypeWithoutStartCode(nalu)
+            if h264nalutype == codec.H264_NAL_PPS ||
+                h264nalutype == codec.H264_NAL_SPS ||
+                h264nalutype == codec.H264_NAL_I_SLICE {
                 h264score += 2
             } else if h264nalutype < 5 {
                 h264score += 1
@@ -193,12 +193,12 @@ func (psdemuxer *PSDemuxer) guessCodecid(stream *psstream) {
                 h264score -= 1
             }
 
-            if h265nalutype == mpeg.H265_NAL_PPS ||
-                h265nalutype == mpeg.H265_NAL_SPS ||
-                h265nalutype == mpeg.H265_NAL_VPS ||
-                (h265nalutype >= mpeg.H265_NAL_SLICE_BLA_W_LP && h265nalutype <= mpeg.H265_NAL_SLICE_CRA) {
+            if h265nalutype == codec.H265_NAL_PPS ||
+                h265nalutype == codec.H265_NAL_SPS ||
+                h265nalutype == codec.H265_NAL_VPS ||
+                (h265nalutype >= codec.H265_NAL_SLICE_BLA_W_LP && h265nalutype <= codec.H265_NAL_SLICE_CRA) {
                 h265score += 2
-            } else if h265nalutype >= mpeg.H265_NAL_Slice_TRAIL_N && h265nalutype <= mpeg.H265_NAL_SLICE_RASL_R {
+            } else if h265nalutype >= codec.H265_NAL_Slice_TRAIL_N && h265nalutype <= codec.H265_NAL_SLICE_RASL_R {
                 h265score += 1
             } else if h265nalutype > 40 {
                 h265score -= 1
@@ -249,22 +249,22 @@ func (psdemuxer *PSDemuxer) demuxH26x(stream *psstream, pes *PesPacket) error {
         stream.dts = pes.Dts
     }
     stream.streamBuf = append(stream.streamBuf, pes.Pes_payload...)
-    start, sc := mpeg.FindStartCode(stream.streamBuf, 0)
+    start, sc := codec.FindStartCode(stream.streamBuf, 0)
     for start >= 0 {
-        end, sc2 := mpeg.FindStartCode(stream.streamBuf, start+int(sc))
+        end, sc2 := codec.FindStartCode(stream.streamBuf, start+int(sc))
         if end < 0 {
             break
         }
         if stream.cid == PS_STREAM_H264 {
-            naluType := mpeg.H264NaluType(stream.streamBuf[start:])
-            if naluType != mpeg.H264_NAL_AUD {
+            naluType := codec.H264NaluType(stream.streamBuf[start:])
+            if naluType != codec.H264_NAL_AUD {
                 if psdemuxer.OnFrame != nil {
                     psdemuxer.OnFrame(stream.streamBuf[start:end], stream.cid, stream.pts/90, stream.dts/90)
                 }
             }
         } else if stream.cid == PS_STREAM_H265 {
-            naluType := mpeg.H265NaluType(stream.streamBuf[start:])
-            if naluType != mpeg.H265_NAL_AUD {
+            naluType := codec.H265NaluType(stream.streamBuf[start:])
+            if naluType != codec.H265_NAL_AUD {
                 if psdemuxer.OnFrame != nil {
                     psdemuxer.OnFrame(stream.streamBuf[start:end], stream.cid, stream.pts/90, stream.dts/90)
                 }

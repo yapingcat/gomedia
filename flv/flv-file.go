@@ -3,9 +3,10 @@ package flv
 import (
     "encoding/binary"
     "errors"
+    "fmt"
     "io"
 
-    "github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/codec"
 )
 
 //  FLV File
@@ -72,7 +73,7 @@ type FlvReader struct {
     videoDemuxer VideoTagDemuxer
     audioDemuxer AudioTagDemuxer
     flvTag       FlvTag
-    OnFrame      func(cid mpeg.CodecID, frame []byte, pts uint32, dts uint32)
+    OnFrame      func(cid codec.CodecID, frame []byte, pts uint32, dts uint32)
 }
 
 func CreateFlvReader() *FlvReader {
@@ -89,6 +90,7 @@ func CreateFlvReader() *FlvReader {
 func (f *FlvReader) Input(data []byte) (err error) {
     var buf []byte
     if len(f.cache) > 0 {
+        fmt.Println("cache > 0")
         f.cache = append(f.cache, data...)
         buf = f.cache
     } else {
@@ -155,8 +157,10 @@ func (f *FlvReader) Input(data []byte) (err error) {
             f.state = FLV_PARSER_TAG_SIZE
         case FLV_PARSER_AUDIO_TAG:
             if f.flvTag.DataSize > uint32(len(buf)) {
+                fmt.Println("audio go to end")
                 goto end
             }
+            fmt.Println("decode audio tag")
             f.audioDemuxer.Decode(buf[:f.flvTag.DataSize])
             buf = buf[f.flvTag.DataSize:]
             f.state = FLV_PARSER_TAG_SIZE
@@ -178,7 +182,9 @@ end:
     }
 
     if len(f.cache) > 0 {
+        fmt.Println("cache 2 > 0")
         if len(buf) > 0 {
+            fmt.Println("f.cache = buf")
             f.cache = buf
         } else {
             f.cache = f.cache[:0]
@@ -201,7 +207,7 @@ func (f *FlvReader) createVideoTagDemuxer(cid FLV_VIDEO_CODEC_ID) error {
     default:
         return errors.New("unsupport video codec id")
     }
-    f.videoDemuxer.OnFrame(func(codecid mpeg.CodecID, frame []byte, cts int) {
+    f.videoDemuxer.OnFrame(func(codecid codec.CodecID, frame []byte, cts int) {
         dts := uint32(f.flvTag.TimestampExtended)<<24 | f.flvTag.Timestamp
         pts := dts + uint32(cts)
         f.OnFrame(codecid, frame, pts, dts)
@@ -218,7 +224,7 @@ func (f *FlvReader) createAudioTagDemuxer(formats FLV_SOUND_FORMAT) error {
     default:
         return errors.New("unsupport audio codec id")
     }
-    f.audioDemuxer.OnFrame(func(codecid mpeg.CodecID, frame []byte) {
+    f.audioDemuxer.OnFrame(func(codecid codec.CodecID, frame []byte) {
         dts := uint32(f.flvTag.TimestampExtended)<<24 | f.flvTag.Timestamp
         pts := dts
         f.OnFrame(codecid, frame, pts, dts)

@@ -3,7 +3,7 @@ package mpeg2
 import (
     "errors"
 
-    "github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/codec"
 )
 
 type pakcet_t struct {
@@ -48,7 +48,7 @@ func NewTSDemuxer() *TSDemuxer {
 
 func (demuxer *TSDemuxer) Input(data []byte) error {
     for len(data) >= TS_PAKCET_SIZE {
-        bs := mpeg.NewBitStream(data[0:TS_PAKCET_SIZE])
+        bs := codec.NewBitStream(data[0:TS_PAKCET_SIZE])
         var pkg TSPacket
         if err := pkg.DecodeHeader(bs); err != nil {
             return err
@@ -121,6 +121,9 @@ func (demuxer *TSDemuxer) Input(data []byte) error {
         }
         data = data[TS_PAKCET_SIZE:]
     }
+    if len(data) > 0 {
+        return errNeedMore
+    }
     return nil
 }
 
@@ -165,15 +168,15 @@ func (demuxer *TSDemuxer) doAudioPesPacket(stream *tsstream, start uint8) {
 
 func (demuxer *TSDemuxer) splitH26XFrame(stream *tsstream) {
     data := stream.pkg.payload
-    start, _ := mpeg.FindStartCode(data, 0)
+    start, _ := codec.FindStartCode(data, 0)
     datalen := len(data)
     for start < datalen {
-        end, _ := mpeg.FindStartCode(data, start+3)
+        end, _ := codec.FindStartCode(data, start+3)
         if end < 0 {
             break
         }
-        if (stream.cid == TS_STREAM_H264 && mpeg.H264NaluTypeWithoutStartCode(data[start:end]) == mpeg.H264_NAL_AUD) ||
-            (stream.cid == TS_STREAM_H265 && mpeg.H265NaluTypeWithoutStartCode(data[start:end]) == mpeg.H265_NAL_AUD) {
+        if (stream.cid == TS_STREAM_H264 && codec.H264NaluTypeWithoutStartCode(data[start:end]) == codec.H264_NAL_AUD) ||
+            (stream.cid == TS_STREAM_H265 && codec.H265NaluTypeWithoutStartCode(data[start:end]) == codec.H265_NAL_AUD) {
             start = end
             continue
         }

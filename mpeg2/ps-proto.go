@@ -5,7 +5,7 @@ import (
     "fmt"
     "os"
 
-    "github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/codec"
 )
 
 type Error interface {
@@ -93,7 +93,7 @@ func (ps_pkg_hdr *PSPackHeader) PrettyPrint(file *os.File) {
     file.WriteString(fmt.Sprintf("Pack_stuffing_length:%d\n", ps_pkg_hdr.Pack_stuffing_length))
 }
 
-func (ps_pkg_hdr *PSPackHeader) Decode(bs *mpeg.BitStream) error {
+func (ps_pkg_hdr *PSPackHeader) Decode(bs *codec.BitStream) error {
     if bs.RemainBytes() < 5 {
         return errNeedMore
     }
@@ -117,7 +117,7 @@ func (ps_pkg_hdr *PSPackHeader) Decode(bs *mpeg.BitStream) error {
     }
 }
 
-func (ps_pkg_hdr *PSPackHeader) decodeMpeg2(bs *mpeg.BitStream) error {
+func (ps_pkg_hdr *PSPackHeader) decodeMpeg2(bs *codec.BitStream) error {
     bs.SkipBits(2)
     ps_pkg_hdr.System_clock_reference_base = bs.GetBits(3)
     bs.SkipBits(1)
@@ -140,7 +140,7 @@ func (ps_pkg_hdr *PSPackHeader) decodeMpeg2(bs *mpeg.BitStream) error {
     return nil
 }
 
-func (ps_pkg_hdr *PSPackHeader) decodeMpeg1(bs *mpeg.BitStream) error {
+func (ps_pkg_hdr *PSPackHeader) decodeMpeg1(bs *codec.BitStream) error {
     bs.SkipBits(4)
     ps_pkg_hdr.System_clock_reference_base = bs.GetBits(3)
     bs.SkipBits(1)
@@ -156,7 +156,7 @@ func (ps_pkg_hdr *PSPackHeader) decodeMpeg1(bs *mpeg.BitStream) error {
     return nil
 }
 
-func (ps_pkg_hdr *PSPackHeader) Encode(bsw *mpeg.BitStreamWriter) {
+func (ps_pkg_hdr *PSPackHeader) Encode(bsw *codec.BitStreamWriter) {
     bsw.PutBytes([]byte{0x00, 0x00, 0x01, 0xBA})
     bsw.PutUint8(1, 2)
     bsw.PutUint64(ps_pkg_hdr.System_clock_reference_base>>30, 3)
@@ -241,7 +241,7 @@ func (sh *System_header) PrettyPrint(file *os.File) {
     }
 }
 
-func (sh *System_header) Encode(bsw *mpeg.BitStreamWriter) {
+func (sh *System_header) Encode(bsw *codec.BitStreamWriter) {
     bsw.PutBytes([]byte{0x00, 0x00, 0x01, 0xBB})
     loc := bsw.ByteOffset()
     bsw.PutUint16(0, 16)
@@ -268,7 +268,7 @@ func (sh *System_header) Encode(bsw *mpeg.BitStreamWriter) {
     bsw.SetUint16(uint16(length), loc)
 }
 
-func (sh *System_header) Decode(bs *mpeg.BitStream) error {
+func (sh *System_header) Decode(bs *codec.BitStream) error {
     if bs.RemainBytes() < 12 {
         return errNeedMore
     }
@@ -385,7 +385,7 @@ func (psm *Program_stream_map) PrettyPrint(file *os.File) {
     }
 }
 
-func (psm *Program_stream_map) Encode(bsw *mpeg.BitStreamWriter) {
+func (psm *Program_stream_map) Encode(bsw *codec.BitStreamWriter) {
     bsw.PutBytes([]byte{0x00, 0x00, 0x01, 0xBC})
     loc := bsw.ByteOffset()
     bsw.PutUint16(psm.Program_stream_map_length, 16)
@@ -405,13 +405,13 @@ func (psm *Program_stream_map) Encode(bsw *mpeg.BitStreamWriter) {
     }
     length := bsw.DistanceFromMarkDot()/8 + 4
     bsw.SetUint16(uint16(length), loc)
-    crc := mpeg.CalcCrc32(0xffffffff, bsw.Bits()[bsw.ByteOffset()-int(length-4)-4:bsw.ByteOffset()])
+    crc := codec.CalcCrc32(0xffffffff, bsw.Bits()[bsw.ByteOffset()-int(length-4)-4:bsw.ByteOffset()])
     tmpcrc := make([]byte, 4)
     binary.LittleEndian.PutUint32(tmpcrc, crc)
     bsw.PutBytes(tmpcrc)
 }
 
-func (psm *Program_stream_map) Decode(bs *mpeg.BitStream) error {
+func (psm *Program_stream_map) Decode(bs *codec.BitStream) error {
     if bs.RemainBytes() < 16 {
         return errNeedMore
     }
@@ -474,7 +474,7 @@ type Program_stream_directory struct {
     PES_packet_length uint16
 }
 
-func (psd *Program_stream_directory) Decode(bs *mpeg.BitStream) error {
+func (psd *Program_stream_directory) Decode(bs *codec.BitStream) error {
     if bs.RemainBytes() < 6 {
         return errNeedMore
     }
@@ -496,7 +496,7 @@ type CommonPesPacket struct {
     PES_packet_length uint16
 }
 
-func (compes *CommonPesPacket) Decode(bs *mpeg.BitStream) error {
+func (compes *CommonPesPacket) Decode(bs *codec.BitStream) error {
     if bs.RemainBytes() < 6 {
         return errNeedMore
     }

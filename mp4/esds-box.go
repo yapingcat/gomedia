@@ -3,7 +3,7 @@ package mp4
 import (
     "encoding/binary"
 
-    "github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/codec"
 )
 
 // abstract aligned(8) expandable(228-1) class BaseDescriptor : bit(8) tag=0 {
@@ -25,7 +25,7 @@ type BaseDescriptor struct {
 }
 
 func (base *BaseDescriptor) Decode(data []byte) {
-    bs := mpeg.NewBitStream(data)
+    bs := codec.NewBitStream(data)
     base.tag = bs.Uint8(8)
     nextbit := uint8(1)
     for nextbit == 1 {
@@ -35,7 +35,7 @@ func (base *BaseDescriptor) Decode(data []byte) {
 }
 
 func (base *BaseDescriptor) Encode() []byte {
-    bsw := mpeg.NewBitStreamWriter(5 + int(base.sizeOfInstance))
+    bsw := codec.NewBitStreamWriter(5 + int(base.sizeOfInstance))
     bsw.PutByte(base.tag)
     size := base.sizeOfInstance
     bsw.PutUint8(1, 1)

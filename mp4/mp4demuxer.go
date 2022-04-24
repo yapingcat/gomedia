@@ -5,7 +5,7 @@ import (
     "errors"
     "io"
 
-    "github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/codec"
 )
 
 type AVPacket struct {
@@ -253,7 +253,7 @@ func (demuxer *MovDemuxer) ReadPacket() (*AVPacket, error) {
             if !ok {
                 panic("must init aacExtraData first")
             }
-            aacframe := mpeg.ConvertASCToADTS(aacExtra.asc, len(sample)+7)
+            aacframe := codec.ConvertASCToADTS(aacExtra.asc, len(sample)+7)
             aacframe = append(aacframe, sample...)
             avpkg.Data = aacframe
         } else {
@@ -344,17 +344,17 @@ func (demuxer *MovDemuxer) processH264(avcc []byte, extra *h264ExtraData) []byte
     h264 := avcc
     for len(h264) > 0 {
         nalusize := binary.BigEndian.Uint32(h264)
-        mpeg.CovertAVCCToAnnexB(h264)
-        nalType := mpeg.H264NaluType(h264)
+        codec.CovertAVCCToAnnexB(h264)
+        nalType := codec.H264NaluType(h264)
         switch {
-        case nalType == mpeg.H264_NAL_PPS:
+        case nalType == codec.H264_NAL_PPS:
             fallthrough
-        case nalType == mpeg.H264_NAL_SPS:
+        case nalType == codec.H264_NAL_SPS:
             spspps = true
-        case nalType == mpeg.H264_NAL_I_SLICE:
+        case nalType == codec.H264_NAL_I_SLICE:
             idr = true
             fallthrough
-        case nalType >= mpeg.H264_NAL_P_SLICE && nalType <= mpeg.H264_NAL_SLICE_C:
+        case nalType >= codec.H264_NAL_P_SLICE && nalType <= codec.H264_NAL_SLICE_C:
             vcl = true
         }
         h264 = h264[4+nalusize:]
@@ -402,19 +402,19 @@ func (demuxer *MovDemuxer) processH265(hvcc []byte, extra *h265ExtraData) []byte
     h265 := hvcc
     for len(hvcc) > 0 {
         nalusize := binary.BigEndian.Uint32(h265)
-        mpeg.CovertAVCCToAnnexB(h265)
-        nalType := mpeg.H265NaluType(h265)
+        codec.CovertAVCCToAnnexB(h265)
+        nalType := codec.H265NaluType(h265)
         switch {
-        case nalType == mpeg.H265_NAL_VPS:
+        case nalType == codec.H265_NAL_VPS:
             fallthrough
-        case nalType == mpeg.H265_NAL_PPS:
+        case nalType == codec.H265_NAL_PPS:
             fallthrough
-        case nalType == mpeg.H265_NAL_SPS:
+        case nalType == codec.H265_NAL_SPS:
             spsppsvps = true
-        case nalType >= mpeg.H265_NAL_SLICE_BLA_W_LP && nalType <= mpeg.H265_NAL_SLICE_CRA:
+        case nalType >= codec.H265_NAL_SLICE_BLA_W_LP && nalType <= codec.H265_NAL_SLICE_CRA:
             idr = true
             fallthrough
-        case nalType >= mpeg.H265_NAL_Slice_TRAIL_N && nalType <= mpeg.H265_NAL_SLICE_RASL_R:
+        case nalType >= codec.H265_NAL_Slice_TRAIL_N && nalType <= codec.H265_NAL_SLICE_RASL_R:
             vcl = true
         }
         h265 = h265[4+nalusize:]
