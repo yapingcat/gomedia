@@ -5,7 +5,7 @@ import (
     "io/ioutil"
     "os"
 
-    "github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/codec"
     "github.com/yapingcat/gomedia/mpeg2"
 )
 
@@ -35,9 +35,9 @@ func main() {
     h264, _ := ioutil.ReadAll(f)
     var pts uint64 = 0
     var dts uint64 = 0
-    mpeg.SplitFrameWithStartCode(h264, func(nalu []byte) bool {
+    codec.SplitFrameWithStartCode(h264, func(nalu []byte) bool {
         //fmt.Println("wtite nalu")
-        if mpeg.H264NaluType(nalu) <= mpeg.H264_NAL_I_SLICE {
+        if codec.H264NaluType(nalu) <= codec.H264_NAL_I_SLICE {
             pts += 40
             dts += 40
             fmt.Println(dts)

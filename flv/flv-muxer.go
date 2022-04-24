@@ -3,7 +3,6 @@ package flv
 import (
     "bytes"
     "errors"
-    "fmt"
 
     "github.com/yapingcat/gomedia/codec"
 )
@@ -163,14 +162,12 @@ func (muxer *HevcMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
                 isKey = true
             }
             vcl = codec.IsH265VCLNaluType(naltype)
-            fmt.Printf("is vcl %v\n", vcl)
             muxer.cache = append(muxer.cache, codec.ConvertAnnexBToAVCC(nalu)...)
         }
         return true
     })
     var tags [][]byte
     if muxer.first && len(muxer.hvcc.Arrays) > 0 {
-        fmt.Println("is sequence")
         extraData := muxer.hvcc.Encode()
         tags = append(tags, WriteVideoTag(extraData, true, FLV_HEVC, 0, true))
         muxer.first = false

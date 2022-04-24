@@ -5,7 +5,7 @@ import (
     "io/ioutil"
     "os"
 
-    "github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/codec"
     "github.com/yapingcat/gomedia/mpeg2"
 )
 
@@ -34,7 +34,7 @@ func main() {
     var pts uint64 = 0
     var dts uint64 = 0
     var i int = 0
-    mpeg.SplitAACFrame(aac, func(aac []byte) {
+    codec.SplitAACFrame(aac, func(aac []byte) {
 
         if i < 3 {
             pts += 23

@@ -332,7 +332,6 @@ func (adaptation *Adaptation_field) Decode(bs *codec.BitStream) error {
     }
     if adaptation.Transport_private_data_flag == 1 {
         adaptation.Transport_private_data_length = bs.Uint8(8)
-        fmt.Printf("Transport_private_data_length=%d\n", adaptation.Transport_private_data_length)
         bs.SkipBits(8 * int(adaptation.Transport_private_data_length))
     }
     if adaptation.Adaptation_field_extension_flag == 1 {

@@ -5,7 +5,7 @@ import (
     "io/ioutil"
     "os"
 
-    "github.com/yapingcat/gomedia/mpeg"
+    "github.com/yapingcat/gomedia/codec"
     "github.com/yapingcat/gomedia/mpeg2"
 )
 
@@ -38,7 +38,7 @@ func main() {
     demuxer := mpeg2.NewPSDemuxer()
     demuxer.OnFrame = func(frame []byte, cid mpeg2.PS_STREAM_TYPE, pts uint64, dts uint64) {
         if cid == mpeg2.PS_STREAM_H264 {
-            if mpeg.H264NaluType(frame) == 9 {
+            if codec.H264NaluType(frame) == 9 {
                 return
             }
             //fmt.Printf("write h264 frame:%d\n", len(frame))

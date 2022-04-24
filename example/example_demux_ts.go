@@ -1,12 +1,12 @@
 package main
 
 import (
-    "fmt"
-    "io/ioutil"
-    "os"
+	"fmt"
+	"io/ioutil"
+	"os"
 
-    "github.com/yapingcat/gomedia/mpeg"
-    "github.com/yapingcat/gomedia/mpeg2"
+	"github.com/yapingcat/gomedia/codec"
+	"github.com/yapingcat/gomedia/mpeg2"
 )
 
 func main() {
@@ -31,7 +31,7 @@ func main() {
     demuxer := mpeg2.NewTSDemuxer()
     demuxer.OnFrame = func(cid mpeg2.TS_STREAM_TYPE, frame []byte, pts uint64, dts uint64) {
         if cid == mpeg2.TS_STREAM_H265 {
-            if mpeg.H265NaluType(frame) == mpeg.H265_NAL_AUD {
+            if codec.H265NaluType(frame) == codec.H265_NAL_AUD {
                 return
             }
             //fmt.Println(len(frame))

@@ -119,8 +119,6 @@ func (demuxer *HevcTagDemuxer) Decode(data []byte) error {
 
     vtag := VideoTag{}
     vtag.Decode(data[0:5])
-    fmt.Println(vtag.CodecId)
-    fmt.Println(vtag.AVCPacketType)
     data = data[5:]
     if vtag.AVCPacketType == AVC_SEQUENCE_HEADER {
         hvcc := codec.NewHEVCRecordConfiguration()

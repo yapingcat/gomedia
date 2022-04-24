@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/yapingcat/gomedia/flv"
-	"github.com/yapingcat/gomedia/mpeg"
+	"github.com/yapingcat/gomedia/codec"
 )
 
 func main() {
@@ -16,12 +16,12 @@ func main() {
 	defer newflv.Close()
 	fw := flv.CreateFlvWriter(newflv)
 	fw.WriteFlvHeader()
-	fr.OnFrame = func(ci mpeg.CodecID, b []byte, pts uint32, dts uint32) {
-		if ci == mpeg.CODECID_AUDIO_AAC {
+	fr.OnFrame = func(ci codec.CodecID, b []byte, pts uint32, dts uint32) {
+		if ci == codec.CODECID_AUDIO_AAC {
 			fw.WriteAAC(b, pts, dts)
-		} else if ci == mpeg.CODECID_VIDEO_H264 {
+		} else if ci == codec.CODECID_VIDEO_H264 {
 			fw.WriteH264(b, pts, dts)
-		} else if ci == mpeg.CODECID_VIDEO_H265 {
+		} else if ci == codec.CODECID_VIDEO_H265 {
 			fw.WriteH265(b, pts, dts)
 		}
 	}

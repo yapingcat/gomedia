@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/yapingcat/gomedia/codec"
 	"github.com/yapingcat/gomedia/flv"
 	"github.com/yapingcat/gomedia/mp4"
-	"github.com/yapingcat/gomedia/mpeg"
 )
 
 type mymp4writer struct {
@@ -47,14 +47,14 @@ func main() {
 	defer flvfilereader.Close()
 	fr := flv.CreateFlvReader()
 
-	fr.OnFrame = func(ci mpeg.CodecID, b []byte, pts, dts uint32) {
-		if ci == mpeg.CODECID_AUDIO_AAC {
+	fr.OnFrame = func(ci codec.CodecID, b []byte, pts, dts uint32) {
+		if ci == codec.CODECID_AUDIO_AAC {
 			err := muxer.Write(atid, b, uint64(pts), uint64(dts))
 			if err != nil {
 				fmt.Println()
 			}
 
-		} else if ci == mpeg.CODECID_VIDEO_H264 {
+		} else if ci == codec.CODECID_VIDEO_H264 {
 			err := muxer.Write(vtid, b, uint64(pts), uint64(dts))
 			if err != nil {
 				fmt.Println()

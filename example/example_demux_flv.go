@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/yapingcat/gomedia/codec"
 	"github.com/yapingcat/gomedia/flv"
-	"github.com/yapingcat/gomedia/mpeg"
 )
 
 func main() {
@@ -17,20 +17,20 @@ func main() {
 	var audiof *os.File
 	firstVideo := true
 	var videof *os.File
-	fr.OnFrame = func(ci mpeg.CodecID, b []byte, u1, u2 uint32) {
-		if ci == mpeg.CODECID_AUDIO_AAC {
+	fr.OnFrame = func(ci codec.CodecID, b []byte, u1, u2 uint32) {
+		if ci == codec.CODECID_AUDIO_AAC {
 			if firstAudio {
 				audiof, _ = os.OpenFile("audio.aac", os.O_CREATE|os.O_RDWR, 0666)
 				firstAudio = false
 			}
 			audiof.Write(b)
-		} else if ci == mpeg.CODECID_VIDEO_H264 {
+		} else if ci == codec.CODECID_VIDEO_H264 {
 			if firstVideo {
 				videof, _ = os.OpenFile("video.h264", os.O_CREATE|os.O_RDWR, 0666)
 				firstVideo = false
 			}
 			videof.Write(b)
-		} else if ci == mpeg.CODECID_VIDEO_H265 {
+		} else if ci == codec.CODECID_VIDEO_H265 {
 			if firstVideo {
 				videof, _ = os.OpenFile("video.h265", os.O_CREATE|os.O_RDWR, 0666)
 				firstVideo = false
