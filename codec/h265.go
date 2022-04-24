@@ -901,7 +901,6 @@ func (hvcc *HEVCRecordConfiguration) UpdatePPS(pps []byte) {
             hvcc.ParallelismType = 1
         }
     }
-    return
 }
 
 func (hvcc *HEVCRecordConfiguration) UpdateVPS(vps []byte) {
