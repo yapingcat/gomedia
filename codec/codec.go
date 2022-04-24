@@ -1,4 +1,4 @@
-package mpeg
+package codec
 
 type CodecID int
 
