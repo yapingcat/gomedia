@@ -53,7 +53,7 @@ func (demuxer *AVCTagDemuxer) Decode(data []byte) error {
             ppsid := codec.GetPPSId(pps)
             tmppps := make([]byte, len(pps))
             copy(tmppps, pps)
-            demuxer.spss[ppsid] = tmppps
+            demuxer.ppss[ppsid] = tmppps
         }
     } else {
         var hassps bool
