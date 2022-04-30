@@ -126,7 +126,7 @@ import (
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 // :                  Opus Padding (Optional)...                   |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-// 
+//
 
 //
 //  A VBR Code 3 Packet
@@ -156,6 +156,15 @@ import (
 // :                  Opus Padding (Optional)...                   |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
+var (
+	/// 10ms,20ms,40ms,60ms, samplerate 48000
+	//  sample num per millisecond
+	//  48000 / 1000ms * 10 = 480 ...
+	SLKOpusSampleSize    [4]int = [4]int{480, 960, 1920, 2880}
+	HybridOpusSampleSize [4]int = [4]int{480, 960}
+	CELTOpusSampleSize   [4]int = [4]int{120, 210, 480, 960}
+)
+
 //ffmpeg opus.h OpusPacket
 type OpusPacket struct {
 	Code       int
@@ -165,6 +174,19 @@ type OpusPacket struct {
 	FrameCount int
 	FrameLen   []uint16
 	Frame      []byte
+}
+
+func (packet *OpusPacket) Duration() int {
+	switch {
+	case packet.Config >= 0 && packet.Config < 12:
+		return packet.FrameCount * SLKOpusSampleSize[packet.Config%4]
+	case packet.Config >= 12 && packet.Config < 16:
+		return packet.FrameCount * HybridOpusSampleSize[packet.Config%2]
+	case packet.Config >= 16 && packet.Config < 32:
+		return packet.FrameCount * CELTOpusSampleSize[packet.Config%4]
+	default:
+		panic("unkown opus config")
+	}
 }
 
 func DecodeOpusPacket(packet []byte) *OpusPacket {
