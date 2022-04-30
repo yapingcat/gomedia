@@ -165,6 +165,35 @@ var (
 	CELTOpusSampleSize   [4]int = [4]int{120, 210, 480, 960}
 )
 
+func OpusPacketDuration(packet []byte) uint64 {
+	config := int(packet[0] >> 3)
+	code := packet[0] & 0x03
+	frameCount := 0
+	var duration uint64
+	if code == 0 {
+		frameCount = 1
+	} else if code == 1 || code == 2 {
+		frameCount = 2
+	} else if code == 3 {
+		frameCount = int(packet[1] & 0x1F)
+	} else {
+		panic("code must <= 3")
+	}
+
+	switch {
+	case config >= 0 && config < 12:
+		duration = uint64(frameCount * SLKOpusSampleSize[config%4])
+	case config >= 12 && config < 16:
+		duration = uint64(frameCount * HybridOpusSampleSize[config%2])
+	case config >= 16 && config < 32:
+		duration = uint64(frameCount * CELTOpusSampleSize[config%4])
+	default:
+		panic("unkown opus config")
+	}
+
+	return duration
+}
+
 //ffmpeg opus.h OpusPacket
 type OpusPacket struct {
 	Code       int
@@ -174,19 +203,7 @@ type OpusPacket struct {
 	FrameCount int
 	FrameLen   []uint16
 	Frame      []byte
-}
-
-func (packet *OpusPacket) Duration() int {
-	switch {
-	case packet.Config >= 0 && packet.Config < 12:
-		return packet.FrameCount * SLKOpusSampleSize[packet.Config%4]
-	case packet.Config >= 12 && packet.Config < 16:
-		return packet.FrameCount * HybridOpusSampleSize[packet.Config%2]
-	case packet.Config >= 16 && packet.Config < 32:
-		return packet.FrameCount * CELTOpusSampleSize[packet.Config%4]
-	default:
-		panic("unkown opus config")
-	}
+	Duration   uint64
 }
 
 func DecodeOpusPacket(packet []byte) *OpusPacket {
@@ -254,6 +271,7 @@ func DecodeOpusPacket(packet []byte) *OpusPacket {
 	default:
 		panic("Error C must <= 3")
 	}
+	OpusPacketDuration(packet)
 	return pkt
 }
 
