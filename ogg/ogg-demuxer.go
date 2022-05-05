@@ -18,9 +18,8 @@ type Demuxer struct {
     currentStream *oggStream
     streams       map[uint32]*oggStream
     headCache     []byte
-    OnMetaData    func(mateData interface{})
     OnPage        func(page *oggPage)
-    OnPacket      func(streamId uint32, packet []byte, lost int)
+    OnPacket      func(streamId uint32, granule uint64, packet []byte, lost int)
     OnFrame       func(streamId uint32, cid codec.CodecID, frame []byte, pts uint64, dts uint64, lost int)
     state         DemuxState
 }
@@ -80,7 +79,7 @@ func (demuxer *Demuxer) Input(buf []byte) (err error) {
                 if stream.currentPage.pageSeq+1 != page.pageSeq {
                     stream.lost = 1
                     if demuxer.OnPacket != nil {
-                        demuxer.OnPacket(stream.streamId, stream.cache, 1)
+                        demuxer.OnPacket(stream.streamId, stream.currentPage.granulePos, stream.cache, 1)
                     }
                     demuxer.readPacket(stream, stream.cache)
                     stream.cache = stream.cache[:0]
@@ -140,7 +139,7 @@ func (demuxer *Demuxer) Input(buf []byte) (err error) {
                     if page.seqmentTable[idx] < 255 {
                         stream.cache = append(stream.cache, tmp[:appendLen]...)
                         if demuxer.OnPacket != nil {
-                            demuxer.OnPacket(stream.streamId, stream.cache, 0)
+                            demuxer.OnPacket(stream.streamId, stream.currentPage.granulePos, stream.cache, 0)
                         }
                         page.packets = append(page.packets, stream.cache)
                         stream.cache = stream.cache[:0]
@@ -156,7 +155,7 @@ func (demuxer *Demuxer) Input(buf []byte) (err error) {
                 if page.seqmentTable[idx] < 255 {
                     packet := tmp[start : start+packetLen]
                     if demuxer.OnPacket != nil {
-                        demuxer.OnPacket(stream.streamId, packet, 0)
+                        demuxer.OnPacket(stream.streamId, stream.currentPage.granulePos, packet, 0)
                     }
                     page.packets = append(page.packets, packet)
                     start = start + packetLen
@@ -214,6 +213,14 @@ func (demuxer *Demuxer) readPacket(stream *oggStream, packet []byte) error {
             }
         }
     case codec.CODECID_VIDEO_VP8:
+        if stream.currentPage.isFirstPage || stream.currentPage.granulePos == 0 {
+            stream.parser.header(stream, packet)
+        } else {
+            frame, pts, dts := stream.parser.packet(stream, packet)
+            if demuxer.OnFrame != nil {
+                demuxer.OnFrame(stream.streamId, stream.cid, frame, pts, dts, stream.lost)
+            }
+        }
     default:
         return errors.New("unsupport  codec id ")
     }
