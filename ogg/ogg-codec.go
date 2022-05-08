@@ -55,6 +55,7 @@ type oggParser interface {
     header(stream *oggStream, packet []byte)
     packet(stream *oggStream, packet []byte) (frame []byte, pts uint64, dts uint64)
     gptopts(granulePos uint64) uint64
+    extraData() []byte
 }
 
 func createParser(cid codec.CodecID) oggParser {
@@ -74,9 +75,10 @@ func createParser(cid codec.CodecID) oggParser {
 }
 
 type opusDemuxer struct {
-    ctx     codec.OpusContext
-    lastpts uint64
-    granule uint64
+    extradata []byte
+    ctx       codec.OpusContext
+    lastpts   uint64
+    granule   uint64
 }
 
 // opus ID head
@@ -99,17 +101,16 @@ type opusDemuxer struct {
 
 func (opus *opusDemuxer) header(stream *oggStream, packet []byte) {
     if bytes.Equal([]byte("OpusHead"), packet[0:8]) {
+        opus.extradata = make([]byte, len(packet))
+        copy(opus.extradata, packet)
         opus.ctx.ParseExtranData(packet)
-    } else if bytes.Equal([]byte("OpusHead"), packet[0:8]) {
+    } else if bytes.Equal([]byte("OpusTags"), packet[0:8]) {
         return
     }
 
 }
 
 func (opus *opusDemuxer) packet(stream *oggStream, packet []byte) (frame []byte, pts uint64, dts uint64) {
-    if bytes.Equal([]byte("OpusTags"), packet[0:4]) {
-        return
-    }
 
     if stream.lost == 1 {
         return packet, opus.lastpts, opus.lastpts
@@ -144,6 +145,10 @@ func (opus *opusDemuxer) gptopts(granulePos uint64) uint64 {
     return 0
 }
 
+func (opus *opusDemuxer) extraData() []byte {
+    return opus.extradata
+}
+
 //ffmpeg oggparsevp8.c
 type vp8Demuxer struct {
     pktIdx            uint64
@@ -153,6 +158,7 @@ type vp8Demuxer struct {
     height            uint16
     sampleAspectratio uint32
     frameRate         uint32
+    extradata         []byte
 }
 
 func (vp8 *vp8Demuxer) header(stream *oggStream, packet []byte) {
@@ -177,6 +183,8 @@ func (vp8 *vp8Demuxer) header(stream *oggStream, packet []byte) {
         num = binary.BigEndian.Uint32(packet[18:])
         den = binary.BigEndian.Uint32(packet[22:])
         vp8.frameRate = num / den
+        vp8.extradata = make([]byte, len(packet))
+        copy(vp8.extradata, packet)
     case 0x02:
         if packet[6] != 0x20 {
             return
@@ -217,4 +225,8 @@ func (vp8 *vp8Demuxer) gptopts(granulePos uint64) uint64 {
     }
     pts := (granulePos >> 32) - invcnt
     return pts
+}
+
+func (vp8 *vp8Demuxer) extraData() []byte {
+    return vp8.extradata
 }

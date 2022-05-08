@@ -14,6 +14,23 @@ const (
     DEMUX_PAGE_PAYLOAD
 )
 
+type VideoParam struct {
+    CodecId     codec.CodecID
+    Width       uint32
+    Height      uint32
+    FrameRate   uint32
+    Aspectratio uint32
+    ExtraData   []byte
+}
+
+type AudioParam struct {
+    CodecId        codec.CodecID
+    SampleRate     uint32
+    ChannelCount   uint32
+    InitialPadding uint32
+    ExtraData      []byte
+}
+
 type Demuxer struct {
     currentStream *oggStream
     streams       map[uint32]*oggStream
@@ -22,6 +39,8 @@ type Demuxer struct {
     OnPacket      func(streamId uint32, granule uint64, packet []byte, lost int)
     OnFrame       func(streamId uint32, cid codec.CodecID, frame []byte, pts uint64, dts uint64, lost int)
     state         DemuxState
+    vparam        *VideoParam
+    aparam        *AudioParam
 }
 
 func NewDemuxer() *Demuxer {
@@ -181,6 +200,14 @@ func (demuxer *Demuxer) Input(buf []byte) (err error) {
     }
 }
 
+func (demuxer *Demuxer) GetVideoParam() *VideoParam {
+    return demuxer.vparam
+}
+
+func (demuxer *Demuxer) GetAudioParam() *AudioParam {
+    return demuxer.aparam
+}
+
 func (demuxer *Demuxer) findCodec(stream *oggStream, packet []byte) {
     for _, ogg_codec := range codecs {
         if bytes.Equal(ogg_codec.magic(), packet[0:ogg_codec.magicSize()]) {
@@ -206,6 +233,16 @@ func (demuxer *Demuxer) readPacket(stream *oggStream, packet []byte) error {
     case codec.CODECID_AUDIO_OPUS:
         if stream.currentPage.isFirstPage || stream.currentPage.granulePos == 0 {
             stream.parser.header(stream, packet)
+            if demuxer.aparam == nil {
+                opus, _ := stream.parser.(*opusDemuxer)
+                demuxer.aparam = &AudioParam{
+                    CodecId:        codec.CODECID_AUDIO_OPUS,
+                    SampleRate:     uint32(opus.ctx.SampleRate),
+                    ChannelCount:   uint32(opus.ctx.ChannelCount),
+                    InitialPadding: uint32(opus.ctx.Preskip),
+                    ExtraData:      opus.extradata,
+                }
+            }
         } else {
             frame, pts, dts := stream.parser.packet(stream, packet)
             if demuxer.OnFrame != nil {
@@ -215,6 +252,17 @@ func (demuxer *Demuxer) readPacket(stream *oggStream, packet []byte) error {
     case codec.CODECID_VIDEO_VP8:
         if stream.currentPage.isFirstPage || stream.currentPage.granulePos == 0 {
             stream.parser.header(stream, packet)
+            if demuxer.vparam == nil {
+                vp8, _ := stream.parser.(*vp8Demuxer)
+                demuxer.vparam = &VideoParam{
+                    CodecId:     codec.CODECID_VIDEO_VP8,
+                    Width:       uint32(vp8.width),
+                    Height:      uint32(vp8.height),
+                    FrameRate:   vp8.frameRate,
+                    Aspectratio: vp8.sampleAspectratio,
+                    ExtraData:   vp8.extradata,
+                }
+            }
         } else {
             frame, pts, dts := stream.parser.packet(stream, packet)
             if demuxer.OnFrame != nil {
