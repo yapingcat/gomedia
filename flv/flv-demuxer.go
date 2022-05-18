@@ -20,7 +20,7 @@ type AVCTagDemuxer struct {
     onframe OnVideoFrameCallBack
 }
 
-func newAVCTagDemuxer() *AVCTagDemuxer {
+func NewAVCTagDemuxer() *AVCTagDemuxer {
     return &AVCTagDemuxer{
         spss:    make(map[uint64][]byte),
         ppss:    make(map[uint64][]byte),
@@ -100,7 +100,7 @@ type HevcTagDemuxer struct {
     onframe   OnVideoFrameCallBack
 }
 
-func newHevcTagDemuxer() *HevcTagDemuxer {
+func NewHevcTagDemuxer() *HevcTagDemuxer {
     return &HevcTagDemuxer{
         SpsPpsVps: make([]byte, 0),
         onframe:   nil,
@@ -174,7 +174,7 @@ type AACTagDemuxer struct {
     onframe OnAudioFrameCallBack
 }
 
-func newAACTagDemuxer() *AACTagDemuxer {
+func NewAACTagDemuxer() *AACTagDemuxer {
     return &AACTagDemuxer{
         asc:     make([]byte, 0, 2),
         onframe: nil,
@@ -212,7 +212,7 @@ type G711Demuxer struct {
     onframe OnAudioFrameCallBack
 }
 
-func newG711Demuxer(format FLV_SOUND_FORMAT) *G711Demuxer {
+func NewG711Demuxer(format FLV_SOUND_FORMAT) *G711Demuxer {
     return &G711Demuxer{
         format:  format,
         onframe: nil,

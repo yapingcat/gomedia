@@ -195,9 +195,9 @@ end:
 func (f *FlvReader) createVideoTagDemuxer(cid FLV_VIDEO_CODEC_ID) error {
     switch cid {
     case FLV_AVC:
-        f.videoDemuxer = newAVCTagDemuxer()
+        f.videoDemuxer = NewAVCTagDemuxer()
     case FLV_HEVC:
-        f.videoDemuxer = newHevcTagDemuxer()
+        f.videoDemuxer = NewHevcTagDemuxer()
     default:
         return errors.New("unsupport video codec id")
     }
@@ -212,9 +212,9 @@ func (f *FlvReader) createVideoTagDemuxer(cid FLV_VIDEO_CODEC_ID) error {
 func (f *FlvReader) createAudioTagDemuxer(formats FLV_SOUND_FORMAT) error {
     switch formats {
     case FLV_G711A, FLV_G711U:
-        f.audioDemuxer = newG711Demuxer(formats)
+        f.audioDemuxer = NewG711Demuxer(formats)
     case FLV_AAC:
-        f.audioDemuxer = newAACTagDemuxer()
+        f.audioDemuxer = NewAACTagDemuxer()
     default:
         return errors.New("unsupport audio codec id")
     }
