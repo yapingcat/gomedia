@@ -39,6 +39,28 @@ func CovertFlvAudioCodecId2MpegCodecId(cid FLV_SOUND_FORMAT) codec.CodecID {
     return codec.CODECID_UNRECOGNIZED
 }
 
+func CovertCodecId2FlvVideoCodecId(cid codec.CodecID) FLV_VIDEO_CODEC_ID {
+    if cid == codec.CODECID_VIDEO_H264 {
+        return FLV_AVC
+    } else if cid == codec.CODECID_VIDEO_H265 {
+        return FLV_HEVC
+    } else {
+        panic("unsupport flv video codec")
+    }
+}
+
+func CovertCodecId2SoundFromat(cid codec.CodecID) FLV_SOUND_FORMAT {
+    if cid == codec.CODECID_AUDIO_AAC {
+        return FLV_AAC
+    } else if cid == codec.CODECID_AUDIO_G711A {
+        return FLV_G711A
+    } else if cid == codec.CODECID_AUDIO_G711U {
+        return FLV_G711U
+    } else {
+        panic("unsupport flv audio codec")
+    }
+}
+
 func GetTagLenByAudioCodec(cid FLV_SOUND_FORMAT) int {
     if cid == FLV_AAC {
         return 2
