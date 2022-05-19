@@ -238,3 +238,27 @@ func (demuxer *G711Demuxer) Decode(data []byte) error {
     }
     return nil
 }
+
+func CreateAudioTagDemuxer(formats FLV_SOUND_FORMAT) (demuxer AudioTagDemuxer) {
+    switch formats {
+    case FLV_G711A, FLV_G711U:
+        demuxer = NewG711Demuxer(formats)
+    case FLV_AAC:
+        demuxer = NewAACTagDemuxer()
+    default:
+        panic("unsupport audio codec id")
+    }
+    return
+}
+
+func CreateFlvVideoTagHandle(cid FLV_VIDEO_CODEC_ID) (demuxer VideoTagDemuxer) {
+    switch cid {
+    case FLV_AVC:
+        demuxer = NewAVCTagDemuxer()
+    case FLV_HEVC:
+        demuxer = NewHevcTagDemuxer()
+    default:
+        panic("unsupport audio codec id")
+    }
+    return
+}
