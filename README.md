@@ -24,6 +24,11 @@
 
 ## ogg
   - decode OPUS/VP8
+  
+## rtmp
+  - support client/server
+  - support play/publish
+  - support h264/h265/aac/g711a/g711u
 
 ## fmp4
   on the way...
