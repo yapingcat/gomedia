@@ -26,7 +26,7 @@ func publish(fileName string, cli *rtmp.RtmpClient) {
             cli.WriteAudio(cid, frame, pts, dts)
         }
     }
-    fd, _ := os.Open("source.200kbps.768x320.flv")
+    fd, _ := os.Open(fileName)
     defer fd.Close()
     cache := make([]byte, 4096)
     for {
