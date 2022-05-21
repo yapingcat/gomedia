@@ -197,7 +197,7 @@ func (c StatusCode) Description() StatusLevel {
     return ""
 }
 
-type OutputCB func([]byte)
+type OutputCB func([]byte) error
 type OnFrame func(cid codec.CodecID, pts, dts uint32, frame []byte)
 type OnStatus func(code, level, describe string)
 type OnError func(cmd RtmpConnectCmd, code, describe string)

@@ -2,7 +2,6 @@ package rtmp
 
 import (
     "encoding/binary"
-    "fmt"
     "math"
 )
 
@@ -194,7 +193,6 @@ func decodeAmf0(data []byte) (items []amf0Item, objs []amfObject) {
         default:
             item := amf0Item{}
             l := item.decode(data)
-            fmt.Println(l)
             data = data[l:]
             items = append(items, item)
         }

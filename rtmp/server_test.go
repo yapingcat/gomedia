@@ -33,8 +33,9 @@ func TestRtmpServerHandle_Play(t *testing.T) {
                 }
             })
 
-            handle.SetOutput(func(b []byte) {
-                conn.Write(b)
+            handle.SetOutput(func(b []byte) error {
+                _, err := conn.Write(b)
+                return err
             })
 
             go func() {
@@ -97,8 +98,9 @@ func TestRtmpServerHandle_Pub(t *testing.T) {
                 return NETSTREAM_PUBLISH_START
             })
 
-            handle.SetOutput(func(b []byte) {
-                conn.Write(b)
+            handle.SetOutput(func(b []byte) error {
+                _, err := conn.Write(b)
+                return err
             })
 
             handle.OnFrame(func(cid codec.CodecID, pts, dts uint32, frame []byte) {

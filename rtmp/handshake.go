@@ -5,7 +5,6 @@ import (
     "crypto/hmac"
     "crypto/sha256"
     "encoding/binary"
-    "fmt"
     "math/rand"
     "time"
 )
@@ -267,7 +266,6 @@ func (chs *clientHandShake) start() {
     } else {
         c0c1 = makeComplexC0()
         c0c1 = append(c0c1, makeComplexC1(chs.schema)...)
-        fmt.Println("make complex handshake", len(c0c1))
     }
     chs.output(c0c1)
 }
@@ -358,7 +356,6 @@ func (shs *serverHandShake) input(data []byte) (readBytes int) {
             }
             var s0s1s2 []byte
             shs.checkC1(shs.cache)
-            fmt.Println("handshake type:", shs.simpleHs, "schema:", shs.schema)
             if shs.simpleHs {
                 s0s1s2 = makeS0()
                 s0s1s2 = append(s0s1s2, makeS1()...)
@@ -401,7 +398,6 @@ func (shs *serverHandShake) checkC1(c1 []byte) {
         shs.simpleHs = true
         return
     }
-    fmt.Println("check digest")
     digest := getDigest(c1, HANDSHAKE_COMPLEX_SCHEMA0)
     ctx := hmac.New(sha256.New, fpKey[:30])
     offset := getOffset(c1, HANDSHAKE_COMPLEX_SCHEMA0)

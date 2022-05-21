@@ -60,8 +60,9 @@ func TestRtmpClient_Play(t *testing.T) {
             }
         })
 
-        cli.SetOutput(func(data []byte) {
-            c.Write(data)
+        cli.SetOutput(func(data []byte) error {
+            _, err := c.Write(data)
+            return err
         })
 
         cli.Start("rtmp://49.235.110.177:1935/live/test")
@@ -133,8 +134,9 @@ func TestRtmpClient_Pub(t *testing.T) {
             }
         }()
 
-        cli.SetOutput(func(data []byte) {
-            c.Write(data)
+        cli.SetOutput(func(data []byte) error {
+            _, err := c.Write(data)
+            return err
         })
 
         cli.Start("rtmp://49.235.110.177:1935/live/test")

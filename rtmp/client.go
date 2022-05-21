@@ -3,7 +3,6 @@ package rtmp
 import (
     "encoding/binary"
     "errors"
-    "fmt"
     "strings"
 
     "github.com/yapingcat/gomedia/codec"
@@ -158,7 +157,9 @@ func (cli *RtmpClient) Input(data []byte) error {
             cli.state = ReadChunk
             cmd := makeConnect(cli.app, cli.tcurl)
             bufs := cli.cmdChan.writeData(cmd, Command_AMF0, 0, 0)
-            cli.output(bufs)
+            if err := cli.output(bufs); err != nil {
+                return err
+            }
             cli.lastMethod = CONNECT
         }
     case ReadChunk:
@@ -177,7 +178,17 @@ func (cli *RtmpClient) Input(data []byte) error {
     return nil
 }
 
-func (cli *RtmpClient) WriteAudio(cid codec.CodecID, frame []byte, pts, dts uint32) {
+func (cli *RtmpClient) WriteFrame(cid codec.CodecID, frame []byte, pts, dts uint32) error {
+    if cid == codec.CODECID_AUDIO_AAC || cid == codec.CODECID_AUDIO_G711A || cid == codec.CODECID_AUDIO_G711U {
+        return cli.WriteAudio(cid, frame, pts, dts)
+    } else if cid == codec.CODECID_VIDEO_H264 || cid == codec.CODECID_VIDEO_H265 {
+        return cli.WriteVideo(cid, frame, pts, dts)
+    } else {
+        return errors.New("unsupport codec id")
+    }
+}
+
+func (cli *RtmpClient) WriteAudio(cid codec.CodecID, frame []byte, pts, dts uint32) error {
     if cli.audioMuxer == nil {
         cli.audioMuxer = flv.CreateAudioMuxer(flv.CovertCodecId2SoundFromat(cid))
     }
@@ -189,12 +200,15 @@ func (cli *RtmpClient) WriteAudio(cid codec.CodecID, frame []byte, pts, dts uint
     for _, tag := range tags {
         pkt := cli.audioChan.writeData(tag, AUDIO, cli.streamId, dts)
         if len(pkt) > 0 {
-            cli.output(pkt)
+            if err := cli.output(pkt); err != nil {
+                return err
+            }
         }
     }
+    return nil
 }
 
-func (cli *RtmpClient) WriteVideo(cid codec.CodecID, frame []byte, pts, dts uint32) {
+func (cli *RtmpClient) WriteVideo(cid codec.CodecID, frame []byte, pts, dts uint32) error {
     if cli.videoMuxer == nil {
         cli.videoMuxer = flv.CreateVideoMuxer(flv.CovertCodecId2FlvVideoCodecId(cid))
     }
@@ -206,9 +220,12 @@ func (cli *RtmpClient) WriteVideo(cid codec.CodecID, frame []byte, pts, dts uint
     for _, tag := range tags {
         pkt := cli.videoChan.writeData(tag, VIDEO, cli.streamId, dts)
         if len(pkt) > 0 {
-            cli.output(pkt)
+            if err := cli.output(pkt); err != nil {
+                return err
+            }
         }
     }
+    return nil
 }
 
 func (cli *RtmpClient) changeState(newState RtmpState) {
@@ -227,7 +244,6 @@ func (cli *RtmpClient) handleMessage(msg *rtmpMessage) error {
             return errors.New("bytes of \"set chunk size\"  < 4")
         }
         size := binary.BigEndian.Uint32(msg.msg)
-        fmt.Printf("set chunk size %d\n", size)
         cli.reader.chunkSize = size
     case ABORT_MESSAGE:
         //TODO
@@ -237,7 +253,7 @@ func (cli *RtmpClient) handleMessage(msg *rtmpMessage) error {
         }
         cli.wndAckSize = binary.BigEndian.Uint32(msg.msg)
     case USER_CONTROL:
-        cli.handleUserEvent(msg.msg)
+        return cli.handleUserEvent(msg.msg)
     case WND_ACK_SIZE:
         //TODO
     case SET_PEER_BW:
@@ -247,7 +263,7 @@ func (cli *RtmpClient) handleMessage(msg *rtmpMessage) error {
     case VIDEO:
         return cli.handleVideoMessage(msg)
     case Command_AMF0:
-        cli.handleCommandRes(msg.msg)
+        return cli.handleCommandRes(msg.msg)
     case Command_AMF3:
     case Metadata_AMF0:
     case Metadata_AMF3:
@@ -260,7 +276,7 @@ func (cli *RtmpClient) handleMessage(msg *rtmpMessage) error {
     return nil
 }
 
-func (cli *RtmpClient) handleUserEvent(data []byte) {
+func (cli *RtmpClient) handleUserEvent(data []byte) error {
     event := decodeUserControlMsg(data)
     switch event.code {
     case StreamBegin:
@@ -273,22 +289,24 @@ func (cli *RtmpClient) handleUserEvent(data []byte) {
     default:
         panic("unkown event")
     }
+    return nil
 }
 
-func (cli *RtmpClient) handleCommandRes(data []byte) {
+func (cli *RtmpClient) handleCommandRes(data []byte) error {
     item := amf0Item{}
     l := item.decode(data)
     data = data[l:]
     cmd := string(item.value.([]byte))
     switch cmd {
     case "_result":
-        cli.handleResult(data)
+        return cli.handleResult(data)
     case "_error":
-        cli.handleError(data)
+        return cli.handleError(data)
     case "onStatus":
-        cli.handleStatus(data)
+        return cli.handleStatus(data)
     default:
     }
+    return nil
 }
 
 func (cli *RtmpClient) handleVideoMessage(msg *rtmpMessage) error {
@@ -315,29 +333,30 @@ func (cli *RtmpClient) handleAudioMessage(msg *rtmpMessage) error {
     return cli.audioDemuxer.Decode(msg.msg)
 }
 
-func (cli *RtmpClient) handleResult(data []byte) {
+func (cli *RtmpClient) handleResult(data []byte) error {
     switch cli.lastMethod {
 
     case CONNECT:
         cli.lastMethod = CREATE_STREAM
-        cli.handleConnectResponse(data)
+        return cli.handleConnectResponse(data)
 
     case CREATE_STREAM:
         cli.lastMethod = GET_STREAM_LENGTH
-        cli.handleCreateStreamResponse(data)
+        return cli.handleCreateStreamResponse(data)
 
     case GET_STREAM_LENGTH:
         //TODO
     }
+    return nil
 }
 
-func (cli *RtmpClient) handleConnectResponse(data []byte) {
+func (cli *RtmpClient) handleConnectResponse(data []byte) error {
     if !cli.isPublish {
         ack := makeAcknowledgementSize(cli.wndAckSize)
         bufs := cli.userCtrlChan.writeData(ack, WND_ACK_SIZE, 0, 0)
         cmd := makeCreateStream(cli.streamName, 2)
         bufs = append(bufs, cli.cmdChan.writeData(cmd, Command_AMF0, 0, 0)...)
-        cli.output(bufs)
+        return cli.output(bufs)
     } else {
         buf := makeSetChunkSize(cli.writeChunkSize)
         bufs := cli.userCtrlChan.writeData(buf, SET_CHUNK_SIZE, 0, 0)
@@ -350,11 +369,11 @@ func (cli *RtmpClient) handleConnectResponse(data []byte) {
         bufs = append(bufs, cli.cmdChan.writeData(buf, Command_AMF0, 0, 0)...)
         buf = makeCreateStream(cli.streamName, 2)
         bufs = append(bufs, cli.cmdChan.writeData(buf, Command_AMF0, 0, 0)...)
-        cli.output(bufs)
+        return cli.output(bufs)
     }
 }
 
-func (cli *RtmpClient) handleCreateStreamResponse(data []byte) {
+func (cli *RtmpClient) handleCreateStreamResponse(data []byte) error {
 
     items, _ := decodeAmf0(data)
     if len(items) > 0 {
@@ -367,15 +386,15 @@ func (cli *RtmpClient) handleCreateStreamResponse(data []byte) {
         bufs := cli.cmdChan.writeData(cmd, Command_AMF0, cli.streamId, 0)
         req := makePlay(int(cli.tid), cli.streamName, -1, -1, true)
         bufs = append(bufs, cli.sourceChan.writeData(req, Command_AMF0, cli.streamId, 0)...)
-        cli.output(bufs)
+        return cli.output(bufs)
     } else {
         data := makePublish(cli.streamName, PUBLISHING_LIVE)
         bufs := cli.cmdChan.writeData(data, Command_AMF0, cli.streamId, 0)
-        cli.output(bufs)
+        return cli.output(bufs)
     }
 }
 
-func (cli *RtmpClient) handleError(data []byte) {
+func (cli *RtmpClient) handleError(data []byte) error {
     code := ""
     describe := ""
     _, objs := decodeAmf0(data)
@@ -391,9 +410,10 @@ func (cli *RtmpClient) handleError(data []byte) {
             }
         }
     }
+    return nil
 }
 
-func (cli *RtmpClient) handleStatus(data []byte) {
+func (cli *RtmpClient) handleStatus(data []byte) error {
     code := ""
     level := ""
     describe := ""
@@ -428,5 +448,5 @@ func (cli *RtmpClient) handleStatus(data []byte) {
             cli.changeState(STATE_RTMP_PLAY_FAILED)
         }
     }
-
+    return nil
 }
