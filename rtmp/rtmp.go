@@ -200,7 +200,7 @@ func (c StatusCode) Description() StatusLevel {
 type OutputCB func([]byte) error
 type OnFrame func(cid codec.CodecID, pts, dts uint32, frame []byte)
 type OnStatus func(code, level, describe string)
-type OnError func(cmd RtmpConnectCmd, code, describe string)
+type OnError func(code, describe string)
 type OnReleaseStream func(app, streamName string)
 type OnPlay func(app, streamName string, start, duration float64, reset bool) StatusCode
 type OnPublish func(app, streamName string) StatusCode

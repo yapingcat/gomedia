@@ -406,9 +406,14 @@ func (cli *RtmpClient) handleError(data []byte) error {
                 describe = string(item.value.value.([]byte))
             }
             if cli.onerror != nil {
-                cli.onerror(cli.lastMethod, code, describe)
+                cli.onerror(code, describe)
             }
         }
+    }
+    if cli.isPublish {
+        cli.changeState(STATE_RTMP_PUBLISH_FAILED)
+    } else {
+        cli.changeState(STATE_RTMP_PLAY_FAILED)
     }
     return nil
 }

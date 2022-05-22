@@ -22,8 +22,8 @@ func TestRtmpClient_Play(t *testing.T) {
         cli := NewRtmpClient(WithComplexHandshake(),
             WithComplexHandshakeSchema(HANDSHAKE_COMPLEX_SCHEMA1))
 
-        cli.OnError(func(cmd RtmpConnectCmd, code, describe string) {
-            fmt.Printf("rtmp error cmd:%d,code:%s , describe:%s\n", cmd, code, describe)
+        cli.OnError(func(code, describe string) {
+            fmt.Printf("rtmp error code:%s,describe:%s\n", code, describe)
         })
 
         cli.OnStatus(func(code, level, describe string) {
