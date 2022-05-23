@@ -266,7 +266,6 @@ func newChunkStreamReader(chunkSize uint32) *chunkStreamReader {
 }
 
 func (reader *chunkStreamReader) readRtmpMessage(data []byte, onMsg func(*rtmpMessage) error) error {
-
     for len(data) > 0 {
         switch reader.state {
         case S_BASIC_HEAD:
@@ -334,27 +333,32 @@ func (reader *chunkStreamReader) readRtmpMessage(data []byte, onMsg func(*rtmpMe
             reader.state = S_PAYLOAD
         case S_PAYLOAD:
             needLen := 0
-            if int(reader.current.pkt.msgHdr.msgLen)-len(reader.current.message) <= int(reader.chunkSize) {
+            if int(reader.current.pkt.msgHdr.msgLen)-len(reader.current.message) < int(reader.chunkSize) {
                 needLen = int(reader.current.pkt.msgHdr.msgLen) - len(reader.current.message)
             } else {
                 needLen = int(reader.chunkSize)
             }
-
-            if len(data) >= needLen {
-                reader.current.message = append(reader.current.message, data[:needLen]...)
-                data = data[needLen:]
-                reader.state = S_BASIC_HEAD
-            } else {
-                reader.current.message = append(reader.current.message, data...)
-                data = data[:0]
+            if len(reader.current.pkt.data) < needLen {
+                addlen := needLen - len(reader.current.pkt.data)
+                if len(data) >= addlen {
+                    reader.current.message = append(reader.current.message, reader.current.pkt.data...)
+                    reader.current.message = append(reader.current.message, data[:addlen]...)
+                    data = data[addlen:]
+                    reader.current.pkt.data = reader.current.pkt.data[:0]
+                    reader.state = S_BASIC_HEAD
+                } else {
+                    reader.current.pkt.data = append(reader.current.pkt.data, data...)
+                    data = data[:0]
+                    continue
+                }
             }
+
             if int(reader.current.pkt.msgHdr.msgLen) <= len(reader.current.message) {
                 if reader.current.pkt.basic.fmt == 0 {
                     reader.current.timestamp = reader.current.pkt.msgHdr.timestamp
                 } else {
                     reader.current.timestamp += reader.current.pkt.msgHdr.timestamp
                 }
-
                 msg := &rtmpMessage{
                     timestamp: reader.current.timestamp,
                     msg:       make([]byte, int(reader.current.pkt.msgHdr.msgLen)),

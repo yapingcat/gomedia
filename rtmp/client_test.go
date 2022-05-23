@@ -12,7 +12,6 @@ import (
 )
 
 func TestRtmpClient_Play(t *testing.T) {
-
     t.Run("play", func(t *testing.T) {
         c, err := net.Dial("tcp4", "49.235.110.177:1935")
         if err != nil {
@@ -92,8 +91,8 @@ func TestRtmpClient_Pub(t *testing.T) {
             WithComplexHandshakeSchema(HANDSHAKE_COMPLEX_SCHEMA1),
             WithEnablePublish())
 
-        cli.OnError(func(cmd RtmpConnectCmd, code, describe string) {
-            fmt.Printf("rtmp error cmd:%d,code:%s , describe:%s\n", cmd, code, describe)
+        cli.OnError(func(code, describe string) {
+            fmt.Printf("rtmp code:%s , describe:%s\n", code, describe)
         })
 
         isReady := make(chan struct{})

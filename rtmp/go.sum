@@ -7,3 +7,5 @@ github.com/yapingcat/gomedia/flv v0.0.0-20220519092123-cafda7a7a525 h1:UEebgZqT0
 github.com/yapingcat/gomedia/flv v0.0.0-20220519092123-cafda7a7a525/go.mod h1:GxYDfT+TgpyXzQOBW59E94LbXC2Xn/qkv7xm2Wa5iwU=
 github.com/yapingcat/gomedia/flv v0.0.0-20220519142142-f49fa2bb8a07 h1:IvxEreAP7qFGqyEMVn7F3sX+FcObFh7URIwq2xsv58s=
 github.com/yapingcat/gomedia/flv v0.0.0-20220519142142-f49fa2bb8a07/go.mod h1:GxYDfT+TgpyXzQOBW59E94LbXC2Xn/qkv7xm2Wa5iwU=
+github.com/yapingcat/gomedia/mpeg v0.0.0-20220423150039-7eb532c3cae5 h1:iiA8Cbby/qgtjFI9FcFqEs3s/HaqgTl6TW/sMESnMCI=
+github.com/yapingcat/gomedia/mpeg v0.0.0-20220423150039-7eb532c3cae5/go.mod h1:neT7Rmoi+yHT390+q+/73SC+nbR7MJCnCy1R9BcQCnE=
