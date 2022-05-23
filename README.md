@@ -67,10 +67,13 @@
     - VP8
   
 ## rtmp
-
+  
+  [USAGE](https://github.com/yapingcat/gomedia/blob/main/rtmp/README.md)
+  
   - support client/server
   - support play/publish
   - support h264/h265/aac/g711a/g711u
+ 
 
 ## fmp4
   on the way...
