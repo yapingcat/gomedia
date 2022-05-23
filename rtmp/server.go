@@ -8,6 +8,93 @@ import (
     "github.com/yapingcat/gomedia/flv"
 )
 
+//example
+//1. rtmp 推流服务端
+//
+//listen, _ := net.Listen("tcp4", "0.0.0.0:1935")
+//conn, _ := listen.Accept()
+//
+// handle := NewRtmpServerHandle()
+// handle.OnPublish(func(app, streamName string) StatusCode {
+//     return NETSTREAM_PUBLISH_START
+// })
+//
+// handle.SetOutput(func(b []byte) error {
+//     _, err := conn.Write(b)
+//     return err
+// })
+
+// handle.OnFrame(func(cid codec.CodecID, pts, dts uint32, frame []byte) {
+//     if cid == codec.CODECID_VIDEO_H264 {
+//        //do something
+//     }
+//     ........
+// })
+
+//
+// 把从网络中接收到的数据，input到rtmp句柄当中
+// buf := make([]byte, 60000)
+// for {
+//     n, err := conn.Read(buf)
+//     if err != nil {
+//         fmt.Println(err)
+//         break
+//     }
+//     err = handle.Input(buf[0:n])
+//     if err != nil {
+//         fmt.Println(err)
+//         break
+//     }
+// }
+
+// rtmp播放服务端
+// listen, _ := net.Listen("tcp4", "0.0.0.0:1935")
+// conn, _ := listen.Accept()
+
+// ready := make(chan struct{})
+// handle := NewRtmpServerHandle()
+// handle.onPlay = func(app, streamName string, start, duration float64, reset bool) StatusCode {
+//        return NETSTREAM_PLAY_START
+//  }
+//
+// handle.OnStateChange(func(newstate RtmpState) {
+//    if newstate == STATE_RTMP_PLAY_START {
+//        close(ready) //关闭这个通道，通知推流协程可以向客户端推流了
+//    }
+//  })
+//
+//  handle.SetOutput(func(b []byte) error {
+//       _, err := conn.Write(b)
+//      return err
+//  })
+//
+//  go func() {
+//
+//      等待推流
+//      <-ready
+//
+//      开始推流
+//      handle.WriteVideo(cid, frame, pts, dts)
+//      handle.WriteAudio(cid, frame, pts, dts)
+//
+//  }()
+//
+//  把从网络中接收到的数据，input到rtmp句柄当中
+//  buf := make([]byte, 60000)
+//  for {
+//      n, err := conn.Read(buf)
+//      if err != nil {
+//          fmt.Println(err)
+//          break
+//      }
+//      err = handle.Input(buf[0:n])
+//      if err != nil {
+//          fmt.Println(err)
+//          break
+//      }
+//  }
+//  conn.Close()
+
 type RtmpServerHandle struct {
     app            string
     streamName     string
@@ -76,6 +163,9 @@ func (server *RtmpServerHandle) OnRelease(onRelease OnReleaseStream) {
     server.onRelease = onRelease
 }
 
+//状态变更，回调函数，
+//服务端在STATE_RTMP_PLAY_START状态下，开始发流
+//客户端在STATE_RTMP_PUBLISH_START状态，开始推流
 func (server *RtmpServerHandle) OnStateChange(stateChange OnStateChange) {
     server.onChangeState = stateChange
 }

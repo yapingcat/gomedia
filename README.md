@@ -8,24 +8,66 @@
   - decode OPUS Extradata(ID Head "OpusHead") /OPUS Packet(TOC...)
   - encode OPUS Extradata
   - decode VP8 Frame Tag/Key Frame Head
+
 ## mpeg-ts
-  - decode H264/H265/AAC
-  - encode H264/H265/AAC
+  - mux
+    - H264
+    - H265
+    - AAC
+  - demux
+    - H264
+    - H265
+    - AAC
+
 ## mpeg-ps
-  - decode H264/H265/AAC/G711A/G711U
-  - encode H264/H265/AAC/G711A/G711U
+  - mux 
+    - H264
+    - H265
+    - AAC
+    - G711A
+    - G711U
+  - demux 
+    - H264
+    - H265
+    - AAC
+    - G711A
+    - G711U
+    - 
 ## flv
-  - decode H264/H265/AAC/G711A/G711U
-  - encode H264/H265/AAC/G711A/G711U
+  - mux 
+    - H264
+    - H265
+    - AAC
+    - G711A
+    - G711U
+  - demux 
+    - H264
+    - H265
+    - AAC
+    - G711A
+    - G711U
   
 ## mp4
-  - encode H264/H265/AAC/G711A/G711U
-  - decode H264/H265/AAC/G711A/G711U
+  - demux 
+    - H264
+    - H265
+    - AAC
+    - G711A
+    - G711U
+  - mux 
+    - H264
+    - H265
+    - AAC
+    - G711A
+    - G711U
 
 ## ogg
-  - decode OPUS/VP8
+  - demux 
+    - OPUS
+    - VP8
   
 ## rtmp
+
   - support client/server
   - support play/publish
   - support h264/h265/aac/g711a/g711u
