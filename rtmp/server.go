@@ -178,6 +178,10 @@ func (server *RtmpServerHandle) GetApp() string {
     return server.app
 }
 
+func (server *RtmpServerHandle) GetState() RtmpState {
+    return server.streamState
+}
+
 func (server *RtmpServerHandle) Input(data []byte) error {
     for len(data) > 0 {
         switch server.state {

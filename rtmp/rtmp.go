@@ -37,7 +37,7 @@ const (
 const (
     PUBLISHING_LIVE   = "live"
     PUBLISHING_RECORD = "record"
-    PUBLISHING_APPEND = "appedn"
+    PUBLISHING_APPEND = "append"
 )
 
 const (

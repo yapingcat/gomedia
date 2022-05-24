@@ -144,6 +144,10 @@ func (cli *RtmpClient) Start(url string) {
     cli.hs.start()
 }
 
+func (cli *RtmpClient) GetState() RtmpState {
+    return cli.streamState
+}
+
 func (cli *RtmpClient) Input(data []byte) error {
 
     switch cli.state {
