@@ -2,6 +2,7 @@
  mpeg-ts,mpeg-ps,flv,mp4 muxer/demuxer
  
 ## H264/H265/AAC/VP8/OPUS
+ [USAGE](https://github.com/yapingcat/gomedia/blob/main/codec/README.md)
   - decode sps/pps/vps/slice header
   - decode HEVCDecoderConfigurationRecord/AVCDecoderConfigurationRecord/AAC-ADTS/AudioSpecificConfiguration
   - encode HEVCDecoderConfigurationRecord/AVCDecoderConfigurationRecord/AAC-ADTS/AudioSpecificConfiguration
