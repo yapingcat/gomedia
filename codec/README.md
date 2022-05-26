@@ -8,7 +8,7 @@
     var rawsps []byte = []byte{0x67,....}
     
     //step1 创建BitStream
-    bs := NewBitStream(rawsps)
+    bs := codec.NewBitStream(rawsps)
 
     //step2 解析sps
     sps := &SPS{}
@@ -20,7 +20,7 @@
     ```golang
     //sps原始数据,以startcode开头(0x00000001)
     var rawsps []byte = []byte{0x00,0x00,0x00,0x01,0x67,.....}
-    w, h := GetH264Resolution(rawsps)
+    w, h := codec.GetH264Resolution(rawsps)
     ```
 
 3. 生成Extradata
@@ -40,7 +40,7 @@
         []byte{0x00,0x00,0x00,0x01,0x68,...},
         ....
     }
-    extranData := CreateH264AVCCExtradata(spss,ppss)
+    extranData := codec.CreateH264AVCCExtradata(spss,ppss)
     ```
 
 4. Extradata转为Annex-B格式的sps,pps
@@ -49,7 +49,7 @@
 
     //一般从flv/mp4格式中获取 extraData
     //解析出来多个sps,pps, 且sps pps 都以startcode开头
-    spss,ppss := CovertExtradata(extraData)
+    spss,ppss := codec.CovertExtradata(extraData)
     ```
 
 5. 生成H265 extrandata
@@ -58,7 +58,7 @@
     // H265的extra data 生成过程稍微复杂一些
     //创建一个 HEVCRecordConfiguration 对象
 
-    hvcc := NewHEVCRecordConfiguration()
+    hvcc := codec.NewHEVCRecordConfiguration()
     
     //对每一个 sps/pps/vps,调用相应的UpdateSPS,UpdatePPS,UpdateVPS接口
     hvcc.UpdateSPS(sps)
@@ -71,18 +71,18 @@
 6. 获取对应的sps id/vps id/pps id
 
     ```golang
-    这四个接口
+    //以h264为例子，有四个接口
     //sps 以startcode 开头
-    GetSPSIdWithStartCode(sps)
+    codec.GetSPSIdWithStartCode(sps)
 
     //sps2 不以startcode 开头
-    GetSPSId(sps2)
+    codec.GetSPSId(sps2)
 
     //pps 以startcode 开头
-    GetPPSIdWithStartCode(pps)
+    codec.GetPPSIdWithStartCode(pps)
 
     //pps2 不以startcode 开头
-    GetPPSId(pps2)
+    codec.GetPPSId(pps2)
 
 
 
