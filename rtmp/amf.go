@@ -2,6 +2,7 @@ package rtmp
 
 import (
     "encoding/binary"
+    "fmt"
     "math"
 )
 
@@ -105,8 +106,11 @@ func (amf *amf0Item) decode(data []byte) int {
         str := make([]byte, amf.length)
         copy(str, data[5:5+amf.length])
         return 5 + amf.length
+    case AMF0_UNDEFINED:
+    case AMF0_ECMA_ARRAY:
+        return 5
     default:
-        panic("unsupport amf type")
+        panic(fmt.Sprintf("unsupport amf type %d", amf.amfType))
     }
     return 1
 }
@@ -162,20 +166,30 @@ func (object *amfObject) encode() []byte {
 func (object *amfObject) decode(data []byte) int {
     total := 1
     data = data[1:]
+    isArray := false
     for len(data) > 0 {
         if data[0] == 0x00 && data[1] == 0x00 && data[2] == byte(AMF0_OBJECT_END) {
             total += 3
-            break
+            if isArray {
+                isArray = false
+                continue
+            } else {
+                break
+            }
         }
         length := binary.BigEndian.Uint16(data)
         name := string(data[2 : 2+length])
         item := amf0Item{}
         l := item.decode(data[2+length:])
-        obj := &amfObjectItem{
-            name:  name,
-            value: item,
+        if item.amfType == AMF0_ECMA_ARRAY {
+            isArray = true
+        } else {
+            obj := &amfObjectItem{
+                name:  name,
+                value: item,
+            }
+            object.items = append(object.items, obj)
         }
-        object.items = append(object.items, obj)
         data = data[2+int(length)+l:]
         total += 2 + int(length) + l
     }
@@ -185,6 +199,9 @@ func (object *amfObject) decode(data []byte) int {
 func decodeAmf0(data []byte) (items []amf0Item, objs []amfObject) {
     for len(data) > 0 {
         switch AMF0_DATA_TYPE(data[0]) {
+        case AMF0_ECMA_ARRAY:
+            data = data[5:]
+            fallthrough
         case AMF0_OBJECT:
             obj := amfObject{}
             l := obj.decode(data)

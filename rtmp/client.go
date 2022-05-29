@@ -43,6 +43,7 @@ type RtmpClient struct {
     audioMuxer     flv.AVTagMuxer
     timestamp      uint32
     lastMethod     RtmpConnectCmd
+    lastMethodTid  int
     tid            uint32
     streamId       uint32
     writeChunkSize uint32
@@ -165,6 +166,7 @@ func (cli *RtmpClient) Input(data []byte) error {
                 return err
             }
             cli.lastMethod = CONNECT
+            cli.lastMethodTid = 1
         }
     case ReadChunk:
 
@@ -341,13 +343,9 @@ func (cli *RtmpClient) handleResult(data []byte) error {
     switch cli.lastMethod {
 
     case CONNECT:
-        cli.lastMethod = CREATE_STREAM
         return cli.handleConnectResponse(data)
-
     case CREATE_STREAM:
-        cli.lastMethod = GET_STREAM_LENGTH
         return cli.handleCreateStreamResponse(data)
-
     case GET_STREAM_LENGTH:
         //TODO
     }
@@ -355,6 +353,18 @@ func (cli *RtmpClient) handleResult(data []byte) error {
 }
 
 func (cli *RtmpClient) handleConnectResponse(data []byte) error {
+
+    items, _ := decodeAmf0(data)
+    if len(items) > 0 {
+        if tid, ok := items[0].value.(float64); ok {
+            if cli.lastMethodTid != int(tid) {
+                return nil
+            }
+        }
+    }
+
+    cli.lastMethod = CREATE_STREAM
+    cli.lastMethodTid = 2
     if !cli.isPublish {
         ack := makeAcknowledgementSize(cli.wndAckSize)
         bufs := cli.userCtrlChan.writeData(ack, WND_ACK_SIZE, 0, 0)
@@ -381,11 +391,19 @@ func (cli *RtmpClient) handleCreateStreamResponse(data []byte) error {
 
     items, _ := decodeAmf0(data)
     if len(items) > 0 {
+        if tid, ok := items[0].value.(float64); ok {
+            if cli.lastMethodTid != int(tid) {
+                return nil
+            }
+        }
         if sid, ok := items[len(items)-1].value.(float64); ok {
             cli.streamId = uint32(sid)
         }
     }
+
     if !cli.isPublish {
+        cli.lastMethod = GET_STREAM_LENGTH
+        cli.lastMethodTid = 3
         cmd := makeGetStreamLength(3, cli.streamName)
         bufs := cli.cmdChan.writeData(cmd, Command_AMF0, cli.streamId, 0)
         req := makePlay(int(cli.tid), cli.streamName, -1, -1, true)
