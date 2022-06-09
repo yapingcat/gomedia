@@ -122,7 +122,7 @@ func makeElstBox(track *mp4track) (boxdata []byte) {
 	elst.entrys.entryCount = uint32(entryCount)
 	elst.entrys.entrys = make([]elstEntry, entryCount)
 	if entryCount > 1 {
-		elst.entrys.entrys[0].segmentDuration = delay
+		elst.entrys.entrys[0].segmentDuration = startCt
 		elst.entrys.entrys[0].mediaTime = -1
 		elst.entrys.entrys[0].mediaRateInteger = 0x0001
 		elst.entrys.entrys[0].mediaRateFraction = 0
