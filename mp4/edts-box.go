@@ -127,6 +127,8 @@ func makeElstBox(track *mp4track) (boxdata []byte) {
 	// 	elst.entrys.entrys[0].mediaRateInteger = 0x0001
 	// 	elst.entrys.entrys[0].mediaRateFraction = 0
 	// }
+
+	//简单起见，mediaTime先固定为0,即不延迟播放
 	elst.entrys.entrys[entryCount-1].segmentDuration = uint64(track.duration)
 	elst.entrys.entrys[entryCount-1].mediaTime = 0
 	elst.entrys.entrys[entryCount-1].mediaRateInteger = 0x0001

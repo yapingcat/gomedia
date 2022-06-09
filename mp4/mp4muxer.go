@@ -412,6 +412,8 @@ func (muxer *Movmuxer) writeH264(track *mp4track, h264 []byte, pts, dts uint64) 
             copy(tmp, nalu)
             h264extra.ppss = append(h264extra.ppss, tmp)
         }
+        //aud/sps/pps/sei 为帧间隔
+        //通过first_slice_in_mb来判断，改nalu是否为一帧的开头
         if track.lastSample.hasVcl && isH264NewAccessUnit(nalu) {
             entry := sampleEntry{
                 pts:                    track.lastSample.pts,
@@ -504,6 +506,7 @@ func (muxer *Movmuxer) writeAAC(track *mp4track, aacframes []byte, pts, dts uint
         copy(aacextra.asc, asc)
     }
 
+    //某些情况下，aacframes 可能由多个aac帧组成需要分帧，否则quicktime 貌似播放有问题
     codec.SplitAACFrame(aacframes, func(aac []byte) {
         entry := sampleEntry{
             pts:                    pts,
