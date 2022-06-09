@@ -1,0 +1,15 @@
+github.com/yapingcat/gomedia/codec v0.0.0-20220424104503-efa359334caf/go.mod h1:obSECV6X3NPUsLL0olA7DurvQHKMq7J3iBTNQ4bL/vQ=
+github.com/yapingcat/gomedia/codec v0.0.0-20220508032416-b0cdfab6bfd6/go.mod h1:obSECV6X3NPUsLL0olA7DurvQHKMq7J3iBTNQ4bL/vQ=
+github.com/yapingcat/gomedia/codec v0.0.0-20220609081842-9e0c0e8a19a0 h1:gAmdgY8sSyyw081bp3gdwNwpXWeYddcCF0ZfzRG1Au8=
+github.com/yapingcat/gomedia/codec v0.0.0-20220609081842-9e0c0e8a19a0/go.mod h1:obSECV6X3NPUsLL0olA7DurvQHKMq7J3iBTNQ4bL/vQ=
+github.com/yapingcat/gomedia/flv v0.0.0-20220519142142-f49fa2bb8a07/go.mod h1:GxYDfT+TgpyXzQOBW59E94LbXC2Xn/qkv7xm2Wa5iwU=
+github.com/yapingcat/gomedia/flv v0.0.0-20220609081842-9e0c0e8a19a0 h1:o4dThrQL2i4P7iJtORkaUlJHt43YMj6yYVjlxI7sG6U=
+github.com/yapingcat/gomedia/flv v0.0.0-20220609081842-9e0c0e8a19a0/go.mod h1:GxYDfT+TgpyXzQOBW59E94LbXC2Xn/qkv7xm2Wa5iwU=
+github.com/yapingcat/gomedia/mp4 v0.0.0-20220609081842-9e0c0e8a19a0 h1:ujBw8Ppk9+gYFKCGaUUQtD2dTlb4ImUthqw79fEu0iY=
+github.com/yapingcat/gomedia/mp4 v0.0.0-20220609081842-9e0c0e8a19a0/go.mod h1:UJAyrV85Gex0nfKklOiDDyEkx5v43dIhguRxRPT/vYU=
+github.com/yapingcat/gomedia/mpeg v0.0.0-20220423150039-7eb532c3cae5/go.mod h1:neT7Rmoi+yHT390+q+/73SC+nbR7MJCnCy1R9BcQCnE=
+github.com/yapingcat/gomedia/mpeg2 v0.0.0-20220529165349-7d531b82bb61/go.mod h1:4VoPcUr2+e+Rx/8sHuHRDVHbyluWyl3OFrmcUOo80Vw=
+github.com/yapingcat/gomedia/mpeg2 v0.0.0-20220609081842-9e0c0e8a19a0 h1:N0+8vqj3EXtR5VyLlqIU/4U00Q+l1JHCTZr6gMrNI84=
+github.com/yapingcat/gomedia/mpeg2 v0.0.0-20220609081842-9e0c0e8a19a0/go.mod h1:4VoPcUr2+e+Rx/8sHuHRDVHbyluWyl3OFrmcUOo80Vw=
+github.com/yapingcat/gomedia/rtmp v0.0.0-20220609081842-9e0c0e8a19a0 h1:2RfWZVA3t8QcJ0hsZQa6YDnU3/HrY8Ez8qnWFXbkPAM=
+github.com/yapingcat/gomedia/rtmp v0.0.0-20220609081842-9e0c0e8a19a0/go.mod h1:JTmaDncxYX5ZRRJ67iJmVvD0boPScjwCqHBs7wZl1xo=
