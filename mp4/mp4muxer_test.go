@@ -108,7 +108,7 @@ func TestCreateMp4Muxer(t *testing.T) {
 				return true
 			})
 			fmt.Printf("last dts %d\n", dts)
-			muxer.Writetrailer()
+			muxer.WriteTrailer()
 		})
 	}
 }
@@ -152,7 +152,7 @@ func TestMuxAAC(t *testing.T) {
 		muxer.Write(tid, aac, pts, pts)
 		//fmt.Println(pts)
 	})
-	muxer.Writetrailer()
+	muxer.WriteTrailer()
 }
 
 func TestMuxMp4(t *testing.T) {
@@ -205,7 +205,7 @@ func TestMuxMp4(t *testing.T) {
 	}
 	demuxer.Flush()
 
-	err = muxer.Writetrailer()
+	err = muxer.WriteTrailer()
 	if err != nil {
 		panic(err)
 	}

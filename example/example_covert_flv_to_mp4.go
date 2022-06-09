@@ -50,5 +50,5 @@ func main() {
 		}
 		fr.Input(cache[0:n])
 	}
-	muxer.Writetrailer()
+	muxer.WriteTrailer()
 }

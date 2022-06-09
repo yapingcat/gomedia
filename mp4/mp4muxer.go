@@ -302,7 +302,7 @@ func (muxer *Movmuxer) Write(track uint32, data []byte, pts uint64, dts uint64) 
     return nil
 }
 
-func (muxer *Movmuxer) Writetrailer() (err error) {
+func (muxer *Movmuxer) WriteTrailer() (err error) {
 
     var currentOffset int64
     for _, track := range muxer.tracks {
