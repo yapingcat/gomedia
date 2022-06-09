@@ -103,7 +103,7 @@ func (elst *EditListBox) Decode(rh Reader) (offset int, err error) {
 }
 
 func makeElstBox(track *mp4track) (boxdata []byte) {
-	startCt := track.samplelist[0].pts - track.samplelist[0].dts
+	//startCt := track.samplelist[0].pts - track.samplelist[0].dts
 	delay := track.samplelist[0].pts * 1000 / uint64(track.timescale)
 	entryCount := 1
 	version := uint32(0)
@@ -113,22 +113,22 @@ func makeElstBox(track *mp4track) (boxdata []byte) {
 		version = 1
 		entrySize = 20
 	}
-	if delay > 0 {
-		entryCount += 1
-	}
+	// if delay > 0 {
+	// 	entryCount += 1
+	// }
 	boxSize += 4 + entrySize*entryCount
 	elst := NewEditListBox(version)
 	elst.entrys = new(movelst)
 	elst.entrys.entryCount = uint32(entryCount)
 	elst.entrys.entrys = make([]elstEntry, entryCount)
-	if entryCount > 1 {
-		elst.entrys.entrys[0].segmentDuration = startCt
-		elst.entrys.entrys[0].mediaTime = -1
-		elst.entrys.entrys[0].mediaRateInteger = 0x0001
-		elst.entrys.entrys[0].mediaRateFraction = 0
-	}
+	// if entryCount > 1 {
+	// 	elst.entrys.entrys[0].segmentDuration = startCt
+	// 	elst.entrys.entrys[0].mediaTime = -1
+	// 	elst.entrys.entrys[0].mediaRateInteger = 0x0001
+	// 	elst.entrys.entrys[0].mediaRateFraction = 0
+	// }
 	elst.entrys.entrys[entryCount-1].segmentDuration = uint64(track.duration)
-	elst.entrys.entrys[entryCount-1].mediaTime = int64(startCt)
+	elst.entrys.entrys[entryCount-1].mediaTime = 0
 	elst.entrys.entrys[entryCount-1].mediaRateInteger = 0x0001
 	elst.entrys.entrys[entryCount-1].mediaRateFraction = 0
 
