@@ -95,6 +95,22 @@ func H265NaluTypeWithoutStartCode(h265 []byte) H265_NAL_TYPE {
     return H265_NAL_TYPE((h265[0] >> 1) & 0x3F)
 }
 
+func GetH264FirstMbInSlice(nalu []byte) uint64 {
+    start, sc := FindStartCode(nalu, 0)
+    bs := NewBitStream(nalu[start+int(sc)+1:])
+    sliceHdr := &SliceHeader{}
+    sliceHdr.Decode(bs)
+    return sliceHdr.First_mb_in_slice
+}
+
+func GetH265FirstMbInSlice(nalu []byte) uint64 {
+    start, sc := FindStartCode(nalu, 0)
+    bs := NewBitStream(nalu[start+int(sc)+2:])
+    sliceHdr := &SliceHeader{}
+    sliceHdr.Decode(bs)
+    return sliceHdr.First_mb_in_slice
+}
+
 func IsH264IDRFrame(h264 []byte) bool {
 
     ret := false

@@ -6,9 +6,11 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/yapingcat/gomedia/codec"
+	"github.com/yapingcat/gomedia/mpeg2"
 )
 
 type mymp4writer struct {
@@ -171,4 +173,60 @@ func TestMuxAAC(t *testing.T) {
 		//fmt.Println(pts)
 	})
 	muxer.Writetrailer()
+}
+
+func TestMuxMp4(t *testing.T) {
+	tsfile := `demo.ts`         // input
+	mp4filename := "test14.mp4" // output
+	mp4file, err := os.OpenFile(mp4filename, os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer mp4file.Close()
+
+	muxer := CreateMp4Muxer(newmymp4writer(mp4file))
+	vtid := muxer.AddVideoTrack(MP4_CODEC_H264)
+	atid := muxer.AddAudioTrack(MP4_CODEC_AAC, 0, 16, 44100)
+
+	buf, err := ioutil.ReadFile(tsfile)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("read %d size\n", len(buf))
+	afile, err := os.OpenFile("r.aac", os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer afile.Close()
+	demuxer := mpeg2.NewTSDemuxer()
+	demuxer.OnFrame = func(cid mpeg2.TS_STREAM_TYPE, frame []byte, pts uint64, dts uint64) {
+
+		if cid == mpeg2.TS_STREAM_AAC {
+			err = muxer.Write(atid, frame, uint64(pts), uint64(dts))
+			if err != nil {
+				panic(err)
+			}
+		} else if cid == mpeg2.TS_STREAM_H264 {
+			fmt.Println("pts,dts,len", pts, dts, len(frame))
+			err = muxer.Write(vtid, frame, uint64(pts), uint64(dts))
+			if err != nil {
+				panic(err)
+			}
+		} else {
+			panic("unkwon cid " + strconv.Itoa(int(cid)))
+		}
+	}
+
+	err = demuxer.Input(buf)
+	if err != nil {
+		panic(err)
+	}
+	demuxer.Flush()
+
+	err = muxer.Writetrailer()
+	if err != nil {
+		panic(err)
+	}
 }

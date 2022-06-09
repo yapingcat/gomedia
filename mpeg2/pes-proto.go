@@ -171,6 +171,8 @@ func (pkg *PesPacket) Decode(bs *codec.BitStream) error {
         bs.SkipBits(1)
         pkg.Dts = (pkg.Dts << 15) | bs.GetBits(15)
         bs.SkipBits(1)
+    } else {
+        pkg.Dts = pkg.Pts
     }
 
     if pkg.ESCR_flag == 1 {

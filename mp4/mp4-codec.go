@@ -1,5 +1,7 @@
 package mp4
 
+import "github.com/yapingcat/gomedia/codec"
+
 type MP4_CODEC_TYPE int
 
 const (
@@ -44,4 +46,42 @@ func getBojecttypeWithCodecId(cid MP4_CODEC_TYPE) uint8 {
     default:
         panic("unsupport codec id")
     }
+}
+
+func isH264NewAccessUnit(nalu []byte) bool {
+    nalu_type := codec.H264NaluType(nalu)
+    switch nalu_type {
+    case codec.H264_NAL_AUD, codec.H264_NAL_SPS,
+        codec.H264_NAL_PPS, codec.H264_NAL_SEI:
+        return true
+    case codec.H264_NAL_I_SLICE, codec.H264_NAL_P_SLICE,
+        codec.H264_NAL_SLICE_A, codec.H264_NAL_SLICE_B, codec.H264_NAL_SLICE_C:
+        firstMbInSlice := codec.GetH264FirstMbInSlice(nalu)
+        if firstMbInSlice == 0 {
+            return true
+        }
+    }
+    return false
+}
+
+func isH265NewAccessUnit(nalu []byte) bool {
+    nalu_type := codec.H265NaluType(nalu)
+    switch nalu_type {
+    case codec.H265_NAL_AUD, codec.H265_NAL_SPS,
+        codec.H265_NAL_PPS, codec.H265_NAL_SEI, codec.H265_NAL_VPS:
+        return true
+    case codec.H265_NAL_LICE_TRAIL_R, codec.H265_NAL_SLICE_TSA_N,
+        codec.H265_NAL_SLICE_TSA_R, codec.H265_NAL_SLICE_STSA_N,
+        codec.H265_NAL_SLICE_STSA_R, codec.H265_NAL_SLICE_RADL_N,
+        codec.H265_NAL_SLICE_RADL_R, codec.H265_NAL_SLICE_RASL_N,
+        codec.H265_NAL_SLICE_RASL_R, codec.H265_NAL_SLICE_BLA_W_LP,
+        codec.H265_NAL_SLICE_BLA_W_RADL, codec.H265_NAL_SLICE_BLA_N_LP,
+        codec.H265_NAL_SLICE_IDR_W_RADL, codec.H265_NAL_SLICE_IDR_N_LP,
+        codec.H265_NAL_SLICE_CRA:
+        firstMbInSlice := codec.GetH265FirstMbInSlice(nalu)
+        if firstMbInSlice == 0 {
+            return true
+        }
+    }
+    return false
 }

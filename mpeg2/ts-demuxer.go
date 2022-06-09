@@ -90,7 +90,6 @@ func (demuxer *TSDemuxer) Input(data []byte) error {
                                 cid:     TS_STREAM_TYPE(ps.StreamType),
                                 pes_sid: findPESIDByStreamType(TS_STREAM_TYPE(ps.StreamType)),
                                 pes_pkg: NewPesPacket(),
-                                pkg:     newPacket_t(1024),
                             }
                         }
                     }
@@ -144,15 +143,26 @@ func (demuxer *TSDemuxer) doVideoPesPacket(stream *tsstream, start uint8) {
     if stream.cid != TS_STREAM_H264 && stream.cid != TS_STREAM_H265 {
         return
     }
+    if stream.pkg == nil {
+        stream.pkg = newPacket_t(1024)
+        stream.pkg.pts = stream.pes_pkg.Pts
+        stream.pkg.dts = stream.pes_pkg.Dts
+    }
     stream.pkg.payload = append(stream.pkg.payload, stream.pes_pkg.Pes_payload...)
+    demuxer.splitH26XFrame(stream)
     stream.pkg.pts = stream.pes_pkg.Pts
     stream.pkg.dts = stream.pes_pkg.Dts
-    demuxer.splitH26XFrame(stream)
 }
 
 func (demuxer *TSDemuxer) doAudioPesPacket(stream *tsstream, start uint8) {
     if stream.cid != TS_STREAM_AAC {
         return
+    }
+
+    if stream.pkg == nil {
+        stream.pkg = newPacket_t(1024)
+        stream.pkg.pts = stream.pes_pkg.Pts
+        stream.pkg.dts = stream.pes_pkg.Dts
     }
 
     if len(stream.pkg.payload) > 0 && (start == 1 || stream.pes_pkg.Pts != stream.pkg.pts) {
