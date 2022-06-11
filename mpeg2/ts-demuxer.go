@@ -127,18 +127,20 @@ func (demuxer *TSDemuxer) Input(r io.Reader) error {
         _, err := io.ReadFull(r, buf)
         if err != nil {
             if errors.Is(err, io.EOF) {
-                return nil
+                break
             } else {
                 return errNeedMore
             }
         }
     }
+    demuxer.flush()
+    return nil
 }
 
-func (demuxer *TSDemuxer) Flush() {
+func (demuxer *TSDemuxer) flush() {
     for _, pm := range demuxer.programs {
         for _, stream := range pm.streams {
-            if len(stream.pkg.payload) == 0 {
+            if stream.pkg == nil || len(stream.pkg.payload) == 0 {
                 continue
             }
             if demuxer.OnFrame != nil {
