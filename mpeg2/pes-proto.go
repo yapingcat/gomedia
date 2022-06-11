@@ -205,20 +205,27 @@ func (pkg *PesPacket) Decode(bs *codec.BitStream) error {
     if pkg.PES_CRC_flag == 1 {
         pkg.Previous_PES_packet_CRC = bs.Uint16(16)
     }
+
     loc := bs.DistanceFromMarkDot()
-    bs.SkipBits(int(pkg.PES_header_data_length)*8 - loc)
-    if int(pkg.PES_packet_length)-int(pkg.PES_header_data_length)-3 > bs.RemainBytes() {
+    bs.SkipBits(int(pkg.PES_header_data_length)*8 - loc) // skip remaining header
+
+    // the -3 bytes are the combined lengths
+    // of all fields between PES_packet_length and PES_header_data_length (2 bytes)
+    // and the PES_header_data_length itself (1 byte)
+    dataLen := int(pkg.PES_packet_length - 3 - uint16(pkg.PES_header_data_length))
+
+    if bs.RemainBytes() < dataLen {
         pkg.Pes_payload = bs.RemainData()
         bs.UnRead((9 + int(pkg.PES_header_data_length)) * 8)
         return errNeedMore
     }
-    if pkg.PES_packet_length == 0 ||
-        bs.RemainBits() <= int(pkg.PES_packet_length-3-uint16(pkg.PES_header_data_length))*8 {
+
+    if pkg.PES_packet_length == 0 || bs.RemainBytes() <= dataLen {
         pkg.Pes_payload = bs.RemainData()
         bs.SkipBits(bs.RemainBits())
     } else {
-        pkg.Pes_payload = bs.RemainData()[:pkg.PES_packet_length-3-uint16(pkg.PES_header_data_length)]
-        bs.SkipBits(int(pkg.PES_packet_length-3-uint16(pkg.PES_header_data_length)) * 8)
+        pkg.Pes_payload = bs.RemainData()[:dataLen]
+        bs.SkipBits(dataLen * 8)
     }
 
     return nil

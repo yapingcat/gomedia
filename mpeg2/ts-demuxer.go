@@ -105,7 +105,11 @@ func (demuxer *TSDemuxer) Input(r io.Reader) error {
                             continue
                         }
                         if pkg.Payload_unit_start_indicator == 1 {
-                            stream.pes_pkg.Decode(bs)
+                            err := stream.pes_pkg.Decode(bs)
+                            // ignore error if it was a short payload read, next ts packet should append missing data
+                            if err != nil && !(errors.Is(err, errNeedMore) && stream.pes_pkg.Pes_payload != nil) {
+                                return err
+                            }
                             pkg.Payload = stream.pes_pkg
                         } else {
                             stream.pes_pkg.Pes_payload = bs.RemainData()

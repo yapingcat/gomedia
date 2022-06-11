@@ -118,7 +118,10 @@ func (pkg *TSPacket) DecodeHeader(bs *codec.BitStream) error {
         if pkg.Field == nil {
             pkg.Field = new(Adaptation_field)
         }
-        pkg.Field.Decode(bs)
+        err := pkg.Field.Decode(bs)
+        if err != nil {
+            return err
+        }
     }
     return nil
 }
