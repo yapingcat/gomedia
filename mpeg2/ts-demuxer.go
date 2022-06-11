@@ -2,6 +2,7 @@ package mpeg2
 
 import (
     "errors"
+    "io"
 
     "github.com/yapingcat/gomedia/codec"
 )
@@ -46,9 +47,14 @@ func NewTSDemuxer() *TSDemuxer {
     }
 }
 
-func (demuxer *TSDemuxer) Input(data []byte) error {
-    for len(data) >= TS_PAKCET_SIZE {
-        bs := codec.NewBitStream(data[0:TS_PAKCET_SIZE])
+func (demuxer *TSDemuxer) Input(r io.Reader) error {
+    buf := make([]byte, TS_PAKCET_SIZE)
+    _, err := io.ReadFull(r, buf)
+    if err != nil {
+        return errNeedMore
+    }
+    for {
+        bs := codec.NewBitStream(buf)
         var pkg TSPacket
         if err := pkg.DecodeHeader(bs); err != nil {
             return err
@@ -118,12 +124,15 @@ func (demuxer *TSDemuxer) Input(data []byte) error {
         if demuxer.OnTSPacket != nil {
             demuxer.OnTSPacket(&pkg)
         }
-        data = data[TS_PAKCET_SIZE:]
+        _, err := io.ReadFull(r, buf)
+        if err != nil {
+            if errors.Is(err, io.EOF) {
+                return nil
+            } else {
+                return errNeedMore
+            }
+        }
     }
-    if len(data) > 0 {
-        return errNeedMore
-    }
-    return nil
 }
 
 func (demuxer *TSDemuxer) Flush() {
