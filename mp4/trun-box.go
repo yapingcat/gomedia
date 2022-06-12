@@ -1,6 +1,9 @@
 package mp4
 
-import "encoding/binary"
+import (
+    "encoding/binary"
+    "io"
+)
 
 // aligned(8) class TrackRunBox extends FullBox(‘trun’, version, tr_flags) {
 //      unsigned int(32) sample_count;
@@ -72,13 +75,13 @@ func (trun *TrackRunBox) Size() uint64 {
     return n
 }
 
-func (trun *TrackRunBox) Decode(rh Reader) (offset int, err error) {
-    if offset, err = trun.Box.Decode(rh); err != nil {
+func (trun *TrackRunBox) Decode(r io.Reader) (offset int, err error) {
+    if offset, err = trun.Box.Decode(r); err != nil {
         return
     }
     needSize := trun.Box.Box.Size - 12
     buf := make([]byte, needSize)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return 0, err
     }
     n := 0

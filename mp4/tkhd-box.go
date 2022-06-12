@@ -2,6 +2,7 @@ package mp4
 
 import (
     "encoding/binary"
+    "io"
     "time"
 )
 
@@ -66,8 +67,8 @@ func (tkhd *TrackHeaderBox) Size() uint64 {
     }
 }
 
-func (tkhd *TrackHeaderBox) Decode(rh Reader) (offset int, err error) {
-    if offset, err = tkhd.Box.Decode(rh); err != nil {
+func (tkhd *TrackHeaderBox) Decode(r io.Reader) (offset int, err error) {
+    if offset, err = tkhd.Box.Decode(r); err != nil {
         return 0, err
     }
     boxsize := 0
@@ -77,7 +78,7 @@ func (tkhd *TrackHeaderBox) Decode(rh Reader) (offset int, err error) {
         boxsize = 92
     }
     buf := make([]byte, boxsize)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return 0, err
     }
     n := 0
@@ -180,7 +181,7 @@ func makeTkhdBox(track *mp4track) []byte {
 
 func decodeTkhdBox(demuxer *MovDemuxer) (err error) {
     tkhd := TrackHeaderBox{Box: new(FullBox)}
-    if _, err = tkhd.Decode(demuxer.readerHandler); err != nil {
+    if _, err = tkhd.Decode(demuxer.reader); err != nil {
         return err
     }
     track := demuxer.tracks[len(demuxer.tracks)-1]

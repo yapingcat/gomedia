@@ -3,6 +3,7 @@ package mp4
 import (
     "encoding/binary"
     "errors"
+	"io"
 
     "github.com/yapingcat/gomedia/codec"
 )
@@ -19,7 +20,7 @@ type sampleEntry struct {
     dts                    uint64
     offset                 uint64
     size                   uint64
-    SampleDescriptionIndex uint32 //alway should be 1
+	SampleDescriptionIndex uint32 //always should be 1
 }
 
 type movchunk struct {
@@ -224,7 +225,7 @@ func (extra *aacExtraData) load(data []byte) {
 }
 
 type Movmuxer struct {
-    writerHandler Writer
+	writer        io.WriteSeeker
     nextTrackId   uint32
     mdatOffset    uint32
     tracks        map[uint32]*mp4track
@@ -233,9 +234,9 @@ type Movmuxer struct {
     height        uint32
 }
 
-func CreateMp4Muxer(wh Writer) *Movmuxer {
+func CreateMp4Muxer(w io.WriteSeeker) *Movmuxer {
     muxer := &Movmuxer{
-        writerHandler: wh,
+		writer:        w,
         nextTrackId:   1,
         tracks:        make(map[uint32]*mp4track),
     }
@@ -248,15 +249,16 @@ func CreateMp4Muxer(wh Writer) *Movmuxer {
     ftyp.Compatible_brands[2] = mov_tag(avc1)
     ftyp.Compatible_brands[3] = mov_tag(mp41)
     len, boxdata := ftyp.Encode()
-    muxer.writerHandler.Write(boxdata[0:len])
+	muxer.writer.Write(boxdata[0:len])
     free := NewFreeBox()
     freelen, freeboxdata := free.Encode()
-    muxer.writerHandler.Write(freeboxdata[0:freelen])
-    muxer.mdatOffset = uint32(muxer.writerHandler.Tell())
+    muxer.writer.Write(freeboxdata[0:freelen])
+    currentOffset, _ := muxer.writer.Seek(0, io.SeekCurrent)
+    muxer.mdatOffset = uint32(currentOffset)
     mdat := BasicBox{Type: [4]byte{'m', 'd', 'a', 't'}}
     mdat.Size = 8
     mdatlen, mdatBox := mdat.Encode()
-    muxer.writerHandler.Write(mdatBox[0:mdatlen])
+    muxer.writer.Write(mdatBox[0:mdatlen])
     return muxer
 }
 
@@ -302,17 +304,21 @@ func (muxer *Movmuxer) Write(track uint32, data []byte, pts uint64, dts uint64) 
 
 func (muxer *Movmuxer) Writetrailer() (err error) {
 
+    var currentOffset int64
     for _, track := range muxer.tracks {
         if track.lastSample != nil && len(track.lastSample.cache) > 0 {
+            if currentOffset, err = muxer.writer.Seek(0, io.SeekCurrent); err != nil {
+                return err
+            }
             entry := sampleEntry{
                 pts:                    track.lastSample.pts,
                 dts:                    track.lastSample.dts,
                 size:                   0,
                 SampleDescriptionIndex: 1,
-                offset:                 uint64(muxer.writerHandler.Tell()),
+				offset:                 uint64(currentOffset),
             }
             n := 0
-            if n, err = muxer.writerHandler.Write(track.lastSample.cache); err != nil {
+			if n, err = muxer.writer.Write(track.lastSample.cache); err != nil {
                 return err
             }
             entry.size = uint64(n)
@@ -320,31 +326,33 @@ func (muxer *Movmuxer) Writetrailer() (err error) {
         }
     }
 
-    currentoffset := muxer.writerHandler.Tell()
-    datalen := currentoffset - int64(muxer.mdatOffset)
+    if currentOffset, err = muxer.writer.Seek(0, io.SeekCurrent); err != nil {
+        return err
+    }
+	datalen := currentOffset - int64(muxer.mdatOffset)
     if datalen > 0xFFFFFFFF {
         mdat := BasicBox{Type: [4]byte{'m', 'd', 'a', 't'}}
         mdat.Size = uint64(datalen)
-        len, mdatBox := mdat.Encode()
-        if _, err = muxer.writerHandler.Seek(int64(muxer.mdatOffset)-8, 0); err != nil {
+        mdatBoxLen, mdatBox := mdat.Encode()
+        if _, err = muxer.writer.Seek(int64(muxer.mdatOffset)-8, io.SeekStart); err != nil {
             return
         }
-        if _, err = muxer.writerHandler.Write(mdatBox[0:len]); err != nil {
+        if _, err = muxer.writer.Write(mdatBox[0:mdatBoxLen]); err != nil {
             return
         }
-        if _, err = muxer.writerHandler.Seek(currentoffset, 0); err != nil {
+		if _, err = muxer.writer.Seek(currentOffset, io.SeekStart); err != nil {
             return
         }
     } else {
-        if _, err = muxer.writerHandler.Seek(int64(muxer.mdatOffset), 0); err != nil {
+		if _, err = muxer.writer.Seek(int64(muxer.mdatOffset), io.SeekStart); err != nil {
             return
         }
         tmpdata := make([]byte, 4)
         binary.BigEndian.PutUint32(tmpdata, uint32(datalen))
-        if _, err = muxer.writerHandler.Write(tmpdata); err != nil {
+		if _, err = muxer.writer.Write(tmpdata); err != nil {
             return
         }
-        if _, err = muxer.writerHandler.Seek(currentoffset, 0); err != nil {
+		if _, err = muxer.writer.Seek(currentOffset, io.SeekStart); err != nil {
             return
         }
     }
@@ -375,7 +383,7 @@ func (muxer *Movmuxer) Writetrailer() (err error) {
         copy(moovBox[offset:], trak)
         offset += len(trak)
     }
-    if _, err = muxer.writerHandler.Write(moovBox); err != nil {
+    if _, err = muxer.writer.Write(moovBox); err != nil {
         return
     }
     return
@@ -418,15 +426,19 @@ func (muxer *Movmuxer) writeH264(track *mp4track, h264 []byte, pts, dts uint64) 
         //aud/sps/pps/sei 为帧间隔
         //通过first_slice_in_mb来判断，改nalu是否为一帧的开头
         if track.lastSample.hasVcl && isH264NewAccessUnit(nalu) {
+            var currentOffset int64
+            if currentOffset, err = muxer.writer.Seek(0, io.SeekCurrent); err != nil {
+                return false
+            }
             entry := sampleEntry{
                 pts:                    track.lastSample.pts,
                 dts:                    track.lastSample.dts,
                 size:                   0,
                 SampleDescriptionIndex: 1,
-                offset:                 uint64(muxer.writerHandler.Tell()),
+				offset:                 uint64(currentOffset),
             }
             n := 0
-            if n, err = muxer.writerHandler.Write(track.lastSample.cache); err != nil {
+			if n, err = muxer.writer.Write(track.lastSample.cache); err != nil {
                 return false
             }
             entry.size = uint64(n)
@@ -467,15 +479,19 @@ func (muxer *Movmuxer) writeH265(track *mp4track, h265 []byte, pts, dts uint64) 
         }
 
         if track.lastSample.hasVcl && isH265NewAccessUnit(nalu) {
-            n := 0
+            var currentOffset int64
+			if currentOffset, err = muxer.writer.Seek(0, io.SeekCurrent); err != nil {
+                return false
+            }
             entry := sampleEntry{
                 pts:                    track.lastSample.pts,
                 dts:                    track.lastSample.dts,
                 size:                   0,
                 SampleDescriptionIndex: 1,
-                offset:                 uint64(muxer.writerHandler.Tell()),
+				offset:                 uint64(currentOffset),
             }
-            if n, err = muxer.writerHandler.Write(track.lastSample.cache); err != nil {
+			n := 0
+			if n, err = muxer.writer.Write(track.lastSample.cache); err != nil {
                 return false
             }
             entry.size = uint64(n)
@@ -511,15 +527,19 @@ func (muxer *Movmuxer) writeAAC(track *mp4track, aacframes []byte, pts, dts uint
 
     //某些情况下，aacframes 可能由多个aac帧组成需要分帧，否则quicktime 貌似播放有问题
     codec.SplitAACFrame(aacframes, func(aac []byte) {
+        var currentOffset int64
+        if currentOffset, err = muxer.writer.Seek(0, io.SeekCurrent); err != nil {
+            return
+        }
         entry := sampleEntry{
             pts:                    pts,
             dts:                    dts,
             size:                   0,
             SampleDescriptionIndex: 1,
-            offset:                 uint64(muxer.writerHandler.Tell()),
+			offset:                 uint64(currentOffset),
         }
         n := 0
-        n, err = muxer.writerHandler.Write(aac[7:])
+		n, err = muxer.writer.Write(aac[7:])
         entry.size = uint64(n)
         track.addSampleEntry(entry)
     })
@@ -528,15 +548,19 @@ func (muxer *Movmuxer) writeAAC(track *mp4track, aacframes []byte, pts, dts uint
 }
 
 func (muxer *Movmuxer) writeG711(track *mp4track, g711 []byte, pts, dts uint64) (err error) {
+    var currentOffset int64
+    if currentOffset, err = muxer.writer.Seek(0, io.SeekCurrent); err != nil {
+        return
+    }
     entry := sampleEntry{
         pts:                    pts,
         dts:                    dts,
         size:                   0,
         SampleDescriptionIndex: 1,
-        offset:                 uint64(muxer.writerHandler.Tell()),
+        offset:                 uint64(currentOffset),
     }
     n := 0
-    n, err = muxer.writerHandler.Write(g711)
+    n, err = muxer.writer.Write(g711)
     entry.size = uint64(n)
     track.addSampleEntry(entry)
     return

@@ -2,6 +2,7 @@ package mp4
 
 import (
     "bytes"
+    "io"
 )
 
 // Box Type: 'hdlr'
@@ -54,12 +55,12 @@ func (hdlr *HandlerBox) Size() uint64 {
     return hdlr.Box.Size() + 20 + uint64(len(hdlr.Name)+1)
 }
 
-func (hdlr *HandlerBox) Decode(rh Reader, size uint64) (offset int, err error) {
-    if _, err = hdlr.Box.Decode(rh); err != nil {
+func (hdlr *HandlerBox) Decode(r io.Reader, size uint64) (offset int, err error) {
+    if _, err = hdlr.Box.Decode(r); err != nil {
         return 0, err
     }
     buf := make([]byte, size-FullBoxLen)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return 0, err
     }
     offset = 0
@@ -118,6 +119,6 @@ func makeHdlrBox(hdt HandlerType) []byte {
 
 func decodeHdlrBox(demuxer *MovDemuxer, size uint64) (err error) {
     hdlr := HandlerBox{Box: new(FullBox)}
-    _, err = hdlr.Decode(demuxer.readerHandler, size)
+    _, err = hdlr.Decode(demuxer.reader, size)
     return
 }

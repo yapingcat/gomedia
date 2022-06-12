@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/binary"
+	"io"
 )
 
 var isom [4]byte = [4]byte{'i', 's', 'o', 'm'}
@@ -31,9 +32,9 @@ func (ftyp *FileTypeBox) Size() uint64 {
 	return uint64(8 + len(ftyp.Compatible_brands)*4 + 8)
 }
 
-func (ftyp *FileTypeBox) decode(rh Reader, size uint32) (int, error) {
+func (ftyp *FileTypeBox) decode(r io.Reader, size uint32) (int, error) {
 	buf := make([]byte, size-BasicBoxLen)
-	if n, err := rh.ReadAtLeast(buf); err != nil {
+	if n, err := io.ReadFull(r, buf); err != nil {
 		return n, err
 	}
 	ftyp.Major_brand = binary.LittleEndian.Uint32(buf[0:])
@@ -61,7 +62,7 @@ func (ftyp *FileTypeBox) Encode() (int, []byte) {
 
 func decodeFtypBox(demuxer *MovDemuxer, size uint32) (err error) {
 	ftyp := FileTypeBox{}
-	if _, err = ftyp.decode(demuxer.readerHandler, size); err != nil {
+	if _, err = ftyp.decode(demuxer.reader, size); err != nil {
 		return
 	}
 	demuxer.mp4Info.CompatibleBrands = ftyp.Compatible_brands

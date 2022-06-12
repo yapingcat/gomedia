@@ -1,6 +1,9 @@
 package mp4
 
-import "encoding/binary"
+import (
+    "encoding/binary"
+    "io"
+)
 
 // aligned(8) class TrackFragmentRandomAccessBox
 // extends FullBox(‘tfra’, version, 0) {
@@ -45,14 +48,14 @@ func (tfra *TrackFragmentRandomAccessBox) Size() uint64 {
     return tfra.Box.Size() + 12 + uint64(tfra.NumberOfEntry)*19
 }
 
-func (tfra *TrackFragmentRandomAccessBox) Decode(rh Reader) (offset int, err error) {
-    if offset, err = tfra.Box.Decode(rh); err != nil {
+func (tfra *TrackFragmentRandomAccessBox) Decode(r io.Reader) (offset int, err error) {
+    if offset, err = tfra.Box.Decode(r); err != nil {
         return
     }
 
     needSize := tfra.Box.Box.Size - 12
     buf := make([]byte, needSize)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return 0, err
     }
     n := 0

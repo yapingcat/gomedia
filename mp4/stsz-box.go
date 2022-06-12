@@ -2,6 +2,7 @@ package mp4
 
 import (
     "encoding/binary"
+    "io"
 )
 
 // aligned(8) class SampleSizeBox extends FullBox(‘stsz’, version = 0, 0) {
@@ -35,12 +36,12 @@ func (stsz *SampleSizeBox) Size() uint64 {
     }
 }
 
-func (stsz *SampleSizeBox) Decode(rh Reader) (offset int, err error) {
-    if _, err = stsz.box.Decode(rh); err != nil {
+func (stsz *SampleSizeBox) Decode(r io.Reader) (offset int, err error) {
+    if _, err = stsz.box.Decode(r); err != nil {
         return
     }
     tmp := make([]byte, 8)
-    if _, err = rh.ReadAtLeast(tmp); err != nil {
+    if _, err = io.ReadFull(r, tmp); err != nil {
         return
     }
     offset = 12
@@ -49,7 +50,7 @@ func (stsz *SampleSizeBox) Decode(rh Reader) (offset int, err error) {
     stsz.stsz.sampleCount = binary.BigEndian.Uint32(tmp[4:])
     if stsz.stsz.sampleSize == 0 {
         buf := make([]byte, stsz.stsz.sampleCount*4)
-        if _, err = rh.ReadAtLeast(buf); err != nil {
+        if _, err = io.ReadFull(r, buf); err != nil {
             return
         }
         idx := 0
@@ -88,7 +89,7 @@ func makeStsz(stsz *movstsz) (boxdata []byte) {
 
 func decodeStszBox(demuxer *MovDemuxer) (err error) {
     stsz := SampleSizeBox{box: new(FullBox)}
-    if _, err = stsz.Decode(demuxer.readerHandler); err != nil {
+    if _, err = stsz.Decode(demuxer.reader); err != nil {
         return
     }
     track := demuxer.tracks[len(demuxer.tracks)-1]

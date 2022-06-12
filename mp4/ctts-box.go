@@ -1,6 +1,9 @@
 package mp4
 
-import "encoding/binary"
+import (
+    "encoding/binary"
+    "io"
+)
 
 // aligned(8) class CompositionOffsetBox extends FullBox(‘ctts’, version = 0, 0) {
 //     unsigned int(32) entry_count;
@@ -37,12 +40,12 @@ func (ctts *CompositionOffsetBox) Size() uint64 {
     }
 }
 
-func (ctts *CompositionOffsetBox) Decode(rh Reader) (offset int, err error) {
-    if _, err = ctts.box.Decode(rh); err != nil {
+func (ctts *CompositionOffsetBox) Decode(r io.Reader) (offset int, err error) {
+    if _, err = ctts.box.Decode(r); err != nil {
         return
     }
     entryCountBuf := make([]byte, 4)
-    if _, err = rh.ReadAtLeast(entryCountBuf); err != nil {
+    if _, err = io.ReadFull(r, entryCountBuf); err != nil {
         return
     }
     offset = 8
@@ -51,7 +54,7 @@ func (ctts *CompositionOffsetBox) Decode(rh Reader) (offset int, err error) {
     ctts.ctts.entrys = make([]cttsEntry, ctts.ctts.entryCount)
 
     buf := make([]byte, ctts.ctts.entryCount*8)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return
     }
     idx := 0
@@ -88,7 +91,7 @@ func makeCtts(ctts *movctts) (boxdata []byte) {
 
 func decodeCttsBox(demuxer *MovDemuxer) (err error) {
     ctts := CompositionOffsetBox{box: new(FullBox)}
-    if _, err = ctts.Decode(demuxer.readerHandler); err != nil {
+    if _, err = ctts.Decode(demuxer.reader); err != nil {
         return
     }
     track := demuxer.tracks[len(demuxer.tracks)-1]

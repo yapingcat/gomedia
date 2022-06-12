@@ -1,6 +1,9 @@
 package mp4
 
-import "encoding/binary"
+import (
+    "encoding/binary"
+    "io"
+)
 
 // aligned(8) class SegmentIndexBox extends FullBox(‘sidx’, version, 0) {
 //    unsigned int(32) reference_ID;
@@ -55,12 +58,12 @@ func (sidx *SegmentIndexBox) Size() uint64 {
     return sidx.Box.Size() + 28 + uint64(len(sidx.Entrys)*12)
 }
 
-func (sidx *SegmentIndexBox) Decode(rh Reader) (offset int, err error) {
-    if offset, err = sidx.Box.Decode(rh); err != nil {
+func (sidx *SegmentIndexBox) Decode(r io.Reader) (offset int, err error) {
+    if offset, err = sidx.Box.Decode(r); err != nil {
         return
     }
     buf := make([]byte, sidx.Box.Box.Size-12)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return
     }
     n := 0

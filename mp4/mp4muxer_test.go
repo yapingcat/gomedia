@@ -13,26 +13,6 @@ import (
 	"github.com/yapingcat/gomedia/mpeg2"
 )
 
-type mymp4writer struct {
-	fp *os.File
-}
-
-func newmymp4writer(f *os.File) *mymp4writer {
-	return &mymp4writer{
-		fp: f,
-	}
-}
-
-func (mp4w *mymp4writer) Write(p []byte) (n int, err error) {
-	return mp4w.fp.Write(p)
-}
-func (mp4w *mymp4writer) Seek(offset int64, whence int) (int64, error) {
-	return mp4w.fp.Seek(offset, whence)
-}
-func (mp4w *mymp4writer) Tell() (offset int64) {
-	offset, _ = mp4w.fp.Seek(0, 1)
-	return
-}
 
 func TestCreateMp4Reader(t *testing.T) {
 	f, err := os.Open("jellyfish-3-mbps-hd.h264.mp4")
@@ -94,14 +74,14 @@ func TestCreateMp4Muxer(t *testing.T) {
 	idx := 0
 
 	type args struct {
-		wh Writer
+		wh io.WriteSeeker
 	}
 	tests := []struct {
 		name string
 		args args
 		want *Movmuxer
 	}{
-		{name: "muxer h264", args: args{wh: newmymp4writer(mp4file)}, want: nil},
+		{name: "muxer h264", args: args{wh: mp4file}, want: nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -154,7 +134,7 @@ func TestMuxAAC(t *testing.T) {
 	//var dts uint64 = 0
 	//var i int = 0
 	samples := uint64(0)
-	muxer := CreateMp4Muxer(newmymp4writer(mp4file))
+	muxer := CreateMp4Muxer(mp4file)
 
 	tid := muxer.AddAudioTrack(MP4_CODEC_AAC, 2, 16, 44100)
 	codec.SplitAACFrame(aac, func(aac []byte) {
@@ -185,7 +165,7 @@ func TestMuxMp4(t *testing.T) {
 	}
 	defer mp4file.Close()
 
-	muxer := CreateMp4Muxer(newmymp4writer(mp4file))
+	muxer := CreateMp4Muxer(mp4file)
 	vtid := muxer.AddVideoTrack(MP4_CODEC_H264)
 	atid := muxer.AddAudioTrack(MP4_CODEC_AAC, 0, 16, 44100)
 

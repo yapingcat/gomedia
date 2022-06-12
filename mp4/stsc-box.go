@@ -2,6 +2,7 @@ package mp4
 
 import (
     "encoding/binary"
+    "io"
 )
 
 // aligned(8) class SampleToChunkBox extends FullBox(‘stsc’, version = 0, 0) {
@@ -32,19 +33,19 @@ func (stsc *SampleToChunkBox) Size() uint64 {
     }
 }
 
-func (stsc *SampleToChunkBox) Decode(rh Reader) (offset int, err error) {
-    if _, err = stsc.box.Decode(rh); err != nil {
+func (stsc *SampleToChunkBox) Decode(r io.Reader) (offset int, err error) {
+    if _, err = stsc.box.Decode(r); err != nil {
         return
     }
     tmp := make([]byte, 4)
-    if _, err = rh.ReadAtLeast(tmp); err != nil {
+    if _, err = io.ReadFull(r, tmp); err != nil {
         return
     }
     stsc.stscentrys = new(movstsc)
     stsc.stscentrys.entryCount = binary.BigEndian.Uint32(tmp)
     stsc.stscentrys.entrys = make([]stscEntry, stsc.stscentrys.entryCount)
     buf := make([]byte, stsc.stscentrys.entryCount*12)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return
     }
     offset = 8
@@ -86,7 +87,7 @@ func makeStsc(stsc *movstsc) (boxdata []byte) {
 
 func decodeStscBox(demuxer *MovDemuxer) (err error) {
     stsc := SampleToChunkBox{box: new(FullBox)}
-    if _, err = stsc.Decode(demuxer.readerHandler); err != nil {
+    if _, err = stsc.Decode(demuxer.reader); err != nil {
         return
     }
     track := demuxer.tracks[len(demuxer.tracks)-1]

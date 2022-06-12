@@ -7,29 +7,6 @@ import (
     "testing"
 )
 
-type mymp4reader struct {
-    fp *os.File
-}
-
-func newmymp4reader(f *os.File) *mymp4reader {
-    return &mymp4reader{
-        fp: f,
-    }
-}
-
-func (mp4w *mymp4reader) ReadAtLeast(p []byte) (n int, err error) {
-    //fmt.Printf("read %d bytes\n", len(p))
-    return io.ReadAtLeast(mp4w.fp, p, len(p))
-}
-func (mp4w *mymp4reader) Seek(offset int64, whence int) (int64, error) {
-    //fmt.Printf("seek %d where %d\n", offset, whence)
-    return mp4w.fp.Seek(offset, whence)
-}
-func (mp4w *mymp4reader) Tell() (offset int64) {
-    offset, _ = mp4w.fp.Seek(0, 1)
-    return
-}
-
 func TestCreateMovDemuxer(t *testing.T) {
     f, err := os.Open("source.200kbps.768x320.flv.mp4")
     if err != nil {
@@ -41,7 +18,7 @@ func TestCreateMovDemuxer(t *testing.T) {
     defer vfile.Close()
     afile, _ := os.OpenFile("a.aac", os.O_CREATE|os.O_RDWR, 0666)
     defer afile.Close()
-    demuxer := CreateMp4Demuxer(newmymp4reader(f))
+	demuxer := CreateMp4Demuxer(f)
     if infos, err := demuxer.ReadHead(); err != nil && err != io.EOF {
         fmt.Println(err)
     } else {

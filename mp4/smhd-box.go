@@ -1,6 +1,9 @@
 package mp4
 
-import "encoding/binary"
+import (
+    "encoding/binary"
+    "io"
+)
 
 // aligned(8) class SoundMediaHeaderBox
 //    extends FullBox(‘smhd’, version = 0, 0) {
@@ -23,12 +26,12 @@ func (smhd *SoundMediaHeaderBox) Size() uint64 {
     return smhd.Box.Size() + 4
 }
 
-func (smhd *SoundMediaHeaderBox) Decode(rh Reader) (offset int, err error) {
-    if offset, err = smhd.Box.Decode(rh); err != nil {
+func (smhd *SoundMediaHeaderBox) Decode(r io.Reader) (offset int, err error) {
+    if offset, err = smhd.Box.Decode(r); err != nil {
         return 0, err
     }
     buf := make([]byte, 4)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return
     }
     smhd.Balance = int16(binary.BigEndian.Uint16(buf[:]))
@@ -50,6 +53,6 @@ func makeSmhdBox() []byte {
 
 func decodeSmhdBox(demuxer *MovDemuxer) (err error) {
     smhd := SoundMediaHeaderBox{Box: new(FullBox)}
-    _, err = smhd.Decode(demuxer.readerHandler)
+    _, err = smhd.Decode(demuxer.reader)
     return
 }

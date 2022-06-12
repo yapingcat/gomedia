@@ -3,6 +3,7 @@ package mp4
 import (
     "bytes"
     "encoding/binary"
+	"io"
 )
 
 const (
@@ -47,9 +48,9 @@ func NewBasicBox(boxtype [4]byte) *BasicBox {
     }
 }
 
-func (box *BasicBox) Decode(rh Reader) (int, error) {
+func (box *BasicBox) Decode(r io.Reader) (int, error) {
     buf := make([]byte, 8)
-    if n, err := rh.ReadAtLeast(buf); err != nil {
+	if n, err := io.ReadFull(r, buf); err != nil {
         return n, err
     }
     nn := 0
@@ -65,7 +66,7 @@ func (box *BasicBox) Decode(rh Reader) (int, error) {
     }
     if bytes.Equal(box.Type[:], []byte("uuid")) {
         uuid := make([]byte, 16)
-        if n, err := rh.ReadAtLeast(uuid); err != nil {
+		if n, err := io.ReadFull(r, uuid); err != nil {
             return n + nn, err
         }
         copy(box.UserType[:], uuid[:])
@@ -119,9 +120,9 @@ func (box *FullBox) Size() uint64 {
     }
 }
 
-func (box *FullBox) Decode(rh Reader) (int, error) {
+func (box *FullBox) Decode(r io.Reader) (int, error) {
     buf := make([]byte, 4)
-    if n, err := rh.ReadAtLeast(buf); err != nil {
+	if n, err := io.ReadFull(r, buf); err != nil {
         return n, err
     }
     box.Version = buf[0]

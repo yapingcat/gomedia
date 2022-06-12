@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/binary"
+	"io"
 )
 
 // aligned(8) class EditListBox extends FullBox(‘elst’, version, 0) {
@@ -55,13 +56,13 @@ func (elst *EditListBox) Encode() (int, []byte) {
 	return offset, elstdata
 }
 
-func (elst *EditListBox) Decode(rh Reader) (offset int, err error) {
-	if offset, err = elst.box.Decode(rh); err != nil {
+func (elst *EditListBox) Decode(r io.Reader) (offset int, err error) {
+	if offset, err = elst.box.Decode(r); err != nil {
 		return 0, err
 	}
 
 	entryCountBuf := make([]byte, 4)
-	if _, err = rh.ReadAtLeast(entryCountBuf); err != nil {
+	if _, err = io.ReadFull(r, entryCountBuf); err != nil {
 		return
 	}
 	entryCount := binary.BigEndian.Uint32(entryCountBuf)
@@ -73,7 +74,7 @@ func (elst *EditListBox) Decode(rh Reader) (offset int, err error) {
 		boxsize = 20 * entryCount
 	}
 	buf := make([]byte, boxsize)
-	if _, err := rh.ReadAtLeast(buf); err != nil {
+	if _, err := io.ReadFull(r, buf); err != nil {
 		return 0, err
 	}
 	if elst.entrys == nil {
@@ -151,7 +152,7 @@ func makeEdtsBox(track *mp4track) []byte {
 func decodeElstBox(demuxer *MovDemuxer) (err error) {
 	track := demuxer.tracks[len(demuxer.tracks)-1]
 	elst := &EditListBox{box: new(FullBox)}
-	if _, err = elst.Decode(demuxer.readerHandler); err != nil {
+	if _, err = elst.Decode(demuxer.reader); err != nil {
 		return
 	}
 	track.elst = elst.entrys

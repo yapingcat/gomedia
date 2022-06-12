@@ -2,6 +2,7 @@ package mp4
 
 import (
     "encoding/binary"
+    "io"
 )
 
 // aligned(8) class TimeToSampleBox extends FullBox(’stts’, version = 0, 0) {
@@ -32,12 +33,12 @@ func (stts *TimeToSampleBox) Size() uint64 {
     }
 }
 
-func (stts *TimeToSampleBox) Decode(rh Reader) (offset int, err error) {
-    if _, err = stts.box.Decode(rh); err != nil {
+func (stts *TimeToSampleBox) Decode(r io.Reader) (offset int, err error) {
+    if _, err = stts.box.Decode(r); err != nil {
         return
     }
     entryCountBuf := make([]byte, 4)
-    if _, err = rh.ReadAtLeast(entryCountBuf); err != nil {
+    if _, err = io.ReadFull(r, entryCountBuf); err != nil {
         return
     }
     offset = 8
@@ -45,7 +46,7 @@ func (stts *TimeToSampleBox) Decode(rh Reader) (offset int, err error) {
     stts.entryList.entryCount = binary.BigEndian.Uint32(entryCountBuf)
     stts.entryList.entrys = make([]sttsEntry, stts.entryList.entryCount)
     buf := make([]byte, stts.entryList.entryCount*8)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return
     }
     idx := 0
@@ -82,7 +83,7 @@ func makeStts(stts *movstts) (boxdata []byte) {
 
 func decodeSttsBox(demuxer *MovDemuxer) (err error) {
     stts := TimeToSampleBox{box: new(FullBox)}
-    if _, err = stts.Decode(demuxer.readerHandler); err != nil {
+    if _, err = stts.Decode(demuxer.reader); err != nil {
         return
     }
     track := demuxer.tracks[len(demuxer.tracks)-1]

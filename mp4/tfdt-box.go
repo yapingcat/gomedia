@@ -1,6 +1,9 @@
 package mp4
 
-import "encoding/binary"
+import (
+    "encoding/binary"
+    "io"
+)
 
 // aligned(8) class TrackFragmentBaseMediaDecodeTimeBox extends FullBox(‘tfdt’, version, 0) {
 // 	if (version==1) {
@@ -26,14 +29,14 @@ func (tfdt *TrackFragmentBaseMediaDecodeTimeBox) Size() uint64 {
     return tfdt.Box.Size() + 8
 }
 
-func (tfdt *TrackFragmentBaseMediaDecodeTimeBox) Decode(rh Reader) (offset int, err error) {
-    if offset, err = tfdt.Box.Decode(rh); err != nil {
+func (tfdt *TrackFragmentBaseMediaDecodeTimeBox) Decode(r io.Reader) (offset int, err error) {
+    if offset, err = tfdt.Box.Decode(r); err != nil {
         return
     }
 
     needSize := tfdt.Box.Box.Size - 12
     buf := make([]byte, needSize)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return 0, err
     }
     if tfdt.Box.Version == 1 {

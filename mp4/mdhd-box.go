@@ -2,6 +2,7 @@ package mp4
 
 import (
     "encoding/binary"
+    "io"
     "time"
 
     "github.com/yapingcat/gomedia/codec"
@@ -67,8 +68,8 @@ func (mdhd *MediaHeaderBox) Size() uint64 {
     }
 }
 
-func (mdhd *MediaHeaderBox) Decode(rh Reader) (offset int, err error) {
-    if _, err = mdhd.Box.Decode(rh); err != nil {
+func (mdhd *MediaHeaderBox) Decode(r io.Reader) (offset int, err error) {
+    if _, err = mdhd.Box.Decode(r); err != nil {
         return 0, err
     }
     boxsize := 0
@@ -78,7 +79,7 @@ func (mdhd *MediaHeaderBox) Decode(rh Reader) (offset int, err error) {
         boxsize = 20
     }
     buf := make([]byte, boxsize)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return 0, err
     }
     offset = 0
@@ -147,7 +148,7 @@ func makeMdhdBox() []byte {
 
 func decodeMdhdBox(demuxer *MovDemuxer) (err error) {
     mdhd := MediaHeaderBox{Box: new(FullBox)}
-    if _, err = mdhd.Decode(demuxer.readerHandler); err != nil {
+    if _, err = mdhd.Decode(demuxer.reader); err != nil {
         return
     }
     track := demuxer.tracks[len(demuxer.tracks)-1]
