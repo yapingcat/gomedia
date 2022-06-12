@@ -176,7 +176,14 @@ func TestMuxAAC(t *testing.T) {
 }
 
 func TestMuxMp4(t *testing.T) {
-	tsfile := `demo.ts`         // input
+	tsfilename := `demo.ts`     // input
+	tsfile, err := os.Open(tsfilename)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer tsfile.Close()
+
 	mp4filename := "test14.mp4" // output
 	mp4file, err := os.OpenFile(mp4filename, os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
@@ -189,11 +196,6 @@ func TestMuxMp4(t *testing.T) {
 	vtid := muxer.AddVideoTrack(MP4_CODEC_H264)
 	atid := muxer.AddAudioTrack(MP4_CODEC_AAC, 0, 16, 44100)
 
-	buf, err := ioutil.ReadFile(tsfile)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("read %d size\n", len(buf))
 	afile, err := os.OpenFile("r.aac", os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
 		fmt.Println(err)
@@ -219,11 +221,10 @@ func TestMuxMp4(t *testing.T) {
 		}
 	}
 
-	err = demuxer.Input(buf)
+	err = demuxer.Input(tsfile)
 	if err != nil {
 		panic(err)
 	}
-	demuxer.Flush()
 
 	err = muxer.Writetrailer()
 	if err != nil {
