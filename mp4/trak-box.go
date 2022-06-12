@@ -6,12 +6,13 @@ func makeTrak(track *mp4track) []byte {
     edts := makeEdtsBox(track)
     mdia := makeMdiaBox(track)
 
-    TRAK.Size = 8 + uint64(len(tkhd)+len(edts)+len(mdia))
-    offset, trak := TRAK.Encode()
-    copy(trak[offset:], tkhd)
+    trak := BasicBox{Type: [4]byte{'t', 'r', 'a', 'k'}}
+    trak.Size = 8 + uint64(len(tkhd)+len(edts)+len(mdia))
+    offset, trakBox := trak.Encode()
+    copy(trakBox[offset:], tkhd)
     offset += len(tkhd)
-    copy(trak[offset:], edts)
+    copy(trakBox[offset:], edts)
     offset += len(edts)
-    copy(trak[offset:], mdia)
-    return trak
+    copy(trakBox[offset:], mdia)
+    return trakBox
 }

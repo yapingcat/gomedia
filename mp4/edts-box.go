@@ -141,8 +141,9 @@ func makeElstBox(track *mp4track) (boxdata []byte) {
 
 func makeEdtsBox(track *mp4track) []byte {
 	elst := makeElstBox(track)
-	EDTS.Size = 8 + uint64(len(elst))
-	offset, edtsbox := EDTS.Encode()
+	edts := BasicBox{Type: [4]byte{'e', 'd', 't', 's'}}
+	edts.Size = 8 + uint64(len(elst))
+	offset, edtsbox := edts.Encode()
 	copy(edtsbox[offset:], elst)
 	return edtsbox
 }

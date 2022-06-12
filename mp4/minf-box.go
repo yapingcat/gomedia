@@ -18,8 +18,10 @@ func makeMinfBox(track *mp4track) []byte {
     }
     dinfbox := makeDefaultDinfBox()
     stblbox := makeStblBox(track)
-    MINF.Size = 8 + uint64(len(mhdbox)+len(dinfbox)+len(stblbox))
-    offset, minfbox := MINF.Encode()
+
+    minf := BasicBox{Type: [4]byte{'m', 'i', 'n', 'f'}}
+    minf.Size = 8 + uint64(len(mhdbox)+len(dinfbox)+len(stblbox))
+    offset, minfbox := minf.Encode()
     copy(minfbox[offset:], mhdbox)
     offset += len(mhdbox)
     copy(minfbox[offset:], dinfbox)

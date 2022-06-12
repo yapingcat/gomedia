@@ -10,25 +10,6 @@ const (
     FullBoxLen  = 12
 )
 
-var (
-    MOOV BasicBox = BasicBox{Type: [4]byte{'m', 'o', 'o', 'v'}}
-    TRAK BasicBox = BasicBox{Type: [4]byte{'t', 'r', 'a', 'k'}}
-    MDIA BasicBox = BasicBox{Type: [4]byte{'m', 'd', 'i', 'a'}}
-    MINF BasicBox = BasicBox{Type: [4]byte{'m', 'i', 'n', 'f'}}
-    NMHD FullBox  = FullBox{Box: NewBasicBox([4]byte{'n', 'm', 'h', 'd'}), Version: 0}
-    STBL BasicBox = BasicBox{Type: [4]byte{'s', 't', 'b', 'l'}}
-    MDAT BasicBox = BasicBox{Type: [4]byte{'m', 'd', 'a', 't'}}
-    AVCC BasicBox = BasicBox{Type: [4]byte{'a', 'v', 'c', 'C'}}
-    HVCC BasicBox = BasicBox{Type: [4]byte{'h', 'v', 'c', 'C'}}
-    ESDS FullBox  = FullBox{Box: NewBasicBox([4]byte{'e', 's', 'd', 's'}), Version: 0}
-    DINF BasicBox = BasicBox{Type: [4]byte{'d', 'i', 'n', 'f'}}
-    EDTS BasicBox = BasicBox{Type: [4]byte{'e', 'd', 't', 's'}}
-    MVEX BasicBox = BasicBox{Type: [4]byte{'m', 'v', 'e', 'x'}}
-    MOOF BasicBox = BasicBox{Type: [4]byte{'m', 'o', 'o', 'f'}}
-    TRAF BasicBox = BasicBox{Type: [4]byte{'t', 'r', 'a', 'f'}}
-    MFRA BasicBox = BasicBox{Type: [4]byte{'m', 'f', 'r', 'a'}}
-)
-
 type BoxEncoder interface {
     Encode(buf []byte) (int, []byte)
 }

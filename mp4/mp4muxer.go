@@ -253,9 +253,10 @@ func CreateMp4Muxer(wh Writer) *Movmuxer {
     freelen, freeboxdata := free.Encode()
     muxer.writerHandler.Write(freeboxdata[0:freelen])
     muxer.mdatOffset = uint32(muxer.writerHandler.Tell())
-    MDAT.Size = 8
-    mdatlen, mdat := MDAT.Encode()
-    muxer.writerHandler.Write(mdat[0:mdatlen])
+    mdat := BasicBox{Type: [4]byte{'m', 'd', 'a', 't'}}
+    mdat.Size = 8
+    mdatlen, mdatBox := mdat.Encode()
+    muxer.writerHandler.Write(mdatBox[0:mdatlen])
     return muxer
 }
 
@@ -322,12 +323,13 @@ func (muxer *Movmuxer) Writetrailer() (err error) {
     currentoffset := muxer.writerHandler.Tell()
     datalen := currentoffset - int64(muxer.mdatOffset)
     if datalen > 0xFFFFFFFF {
-        MDAT.Size = uint64(datalen)
-        len, mdata := MDAT.Encode()
+        mdat := BasicBox{Type: [4]byte{'m', 'd', 'a', 't'}}
+        mdat.Size = uint64(datalen)
+        len, mdatBox := mdat.Encode()
         if _, err = muxer.writerHandler.Seek(int64(muxer.mdatOffset)-8, 0); err != nil {
             return
         }
-        if _, err = muxer.writerHandler.Write(mdata[0:len]); err != nil {
+        if _, err = muxer.writerHandler.Write(mdatBox[0:len]); err != nil {
             return
         }
         if _, err = muxer.writerHandler.Seek(currentoffset, 0); err != nil {
@@ -364,15 +366,16 @@ func (muxer *Movmuxer) Writetrailer() (err error) {
         moovsize += len(traks[idx])
         idx++
     }
-    MOOV.Size = 8 + uint64(moovsize)
-    offset, moov := MOOV.Encode()
-    copy(moov[offset:], mvhd)
+    moov := BasicBox{Type: [4]byte{'m', 'o', 'o', 'v'}}
+    moov.Size = 8 + uint64(moovsize)
+    offset, moovBox := moov.Encode()
+    copy(moovBox[offset:], mvhd)
     offset += len(mvhd)
     for _, trak := range traks {
-        copy(moov[offset:], trak)
+        copy(moovBox[offset:], trak)
         offset += len(trak)
     }
-    if _, err = muxer.writerHandler.Write(moov); err != nil {
+    if _, err = muxer.writerHandler.Write(moovBox); err != nil {
         return
     }
     return

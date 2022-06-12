@@ -24,8 +24,9 @@ func makeStblBox(track *mp4track) []byte {
 		stcobox = makeStco(track.stbltable.stco)
 	}
 
-	STBL.Size = uint64(8 + len(stsdbox) + len(sttsbox) + len(cttsbox) + len(stscbox) + len(stszbox) + len(stcobox))
-	offset, stblbox := STBL.Encode()
+	stbl := BasicBox{Type: [4]byte{'s', 't', 'b', 'l'}}
+	stbl.Size = uint64(8 + len(stsdbox) + len(sttsbox) + len(cttsbox) + len(stscbox) + len(stszbox) + len(stcobox))
+	offset, stblbox := stbl.Encode()
 	copy(stblbox[offset:], stsdbox)
 	offset += len(stsdbox)
 	copy(stblbox[offset:], sttsbox)

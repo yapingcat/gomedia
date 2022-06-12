@@ -17,8 +17,9 @@ import "encoding/binary"
 // }
 
 func makeDefaultDinfBox() []byte {
-    DINF.Size = 36
-    offset, dinfbox := DINF.Encode()
+    dinf := BasicBox{Type: [4]byte{'d', 'i', 'n', 'f'}}
+    dinf.Size = 36
+    offset, dinfbox := dinf.Encode()
     binary.BigEndian.PutUint32(dinfbox[offset:], 28)
     offset += 4
     copy(dinfbox[offset:], []byte("dref"))

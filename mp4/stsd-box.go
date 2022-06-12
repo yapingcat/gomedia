@@ -335,8 +335,9 @@ func makeAvcCBox(extra extraData) []byte {
         panic("avcc extraData is nil")
     }
     tmp := extra.export()
-    AVCC.Size = 8 + uint64(len(tmp))
-    offset, boxdata := AVCC.Encode()
+    avcc := BasicBox{Type: [4]byte{'a', 'v', 'c', 'C'}}
+    avcc.Size = 8 + uint64(len(tmp))
+    offset, boxdata := avcc.Encode()
     copy(boxdata[offset:], tmp)
     return boxdata
 }
@@ -356,8 +357,9 @@ func makeHvcCBox(extra extraData) []byte {
         panic("avcc extraData is nil")
     }
     tmp := extra.export()
-    HVCC.Size = 8 + uint64(len(tmp))
-    offset, boxdata := HVCC.Encode()
+    hvcc := BasicBox{Type: [4]byte{'h', 'v', 'c', 'C'}}
+    hvcc.Size = 8 + uint64(len(tmp))
+    offset, boxdata := hvcc.Encode()
     copy(boxdata[offset:], tmp)
     return boxdata
 }
@@ -374,10 +376,11 @@ func decodeHvccBox(demuxer *MovDemuxer, size uint32) (err error) {
 
 func makeEsdsBox(track *mp4track) []byte {
     esd := makeESDescriptor(uint16(track.trackId), track.cid, track.extra.export())
-    ESDS.Box.Size = ESDS.Size() + uint64(len(esd))
-    offset, buf := ESDS.Encode()
-    copy(buf[offset:], esd)
-    return buf
+    esds := FullBox{Box: NewBasicBox([4]byte{'e', 's', 'd', 's'}), Version: 0}
+    esds.Box.Size = esds.Size() + uint64(len(esd))
+    offset, esdsBox := esds.Encode()
+    copy(esdsBox[offset:], esd)
+    return esdsBox
 }
 
 func decodeEsdsBox(demuxer *MovDemuxer, size uint32) (err error) {
