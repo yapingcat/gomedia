@@ -1,5 +1,7 @@
 package mp4
 
+import "io"
+
 type FreeBox struct {
     Box  BasicBox
     Data []byte
@@ -17,10 +19,10 @@ func (free *FreeBox) Size() uint64 {
     return 8 + uint64(len(free.Data))
 }
 
-func (free *FreeBox) Decode(rh Reader) (int, error) {
+func (free *FreeBox) Decode(r io.Reader) (int, error) {
     if BasicBoxLen < free.Box.Size {
         free.Data = make([]byte, free.Box.Size-BasicBoxLen)
-        if _, err := rh.ReadAtLeast(free.Data); err != nil {
+        if _, err := io.ReadFull(r, free.Data); err != nil {
             return 0, err
         }
     }
@@ -36,6 +38,6 @@ func (free *FreeBox) Encode() (int, []byte) {
 
 func decodeFreeBox(demuxer *MovDemuxer) (err error) {
     var free FreeBox
-    _, err = free.Decode(demuxer.readerHandler)
+    _, err = free.Decode(demuxer.reader)
     return
 }

@@ -1,6 +1,9 @@
 package mp4
 
-import "encoding/binary"
+import (
+    "encoding/binary"
+    "io"
+)
 
 // aligned(8) class HintMediaHeaderBox
 //    extends FullBox(‘hmhd’, version = 0, 0) {
@@ -29,12 +32,12 @@ func (hmhd *HintMediaHeaderBox) Size() uint64 {
     return hmhd.Box.Size() + 16
 }
 
-func (hmhd *HintMediaHeaderBox) Decode(rh Reader) (offset int, err error) {
-    if _, err = hmhd.Box.Decode(rh); err != nil {
+func (hmhd *HintMediaHeaderBox) Decode(r io.Reader) (offset int, err error) {
+    if _, err = hmhd.Box.Decode(r); err != nil {
         return 0, err
     }
     buf := make([]byte, 16)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return 0, err
     }
     offset = 0

@@ -1,6 +1,9 @@
 package mp4
 
-import "encoding/binary"
+import (
+    "encoding/binary"
+    "io"
+)
 
 // aligned(8) class MovieFragmentHeaderBox extends FullBox(‘mfhd’, 0, 0){
 // 	unsigned int(32) sequence_number;
@@ -22,12 +25,12 @@ func (mfhd *MovieFragmentHeaderBox) Size() uint64 {
     return mfhd.Box.Size() + 4
 }
 
-func (mfhd *MovieFragmentHeaderBox) Decode(rh Reader) (offset int, err error) {
-    if offset, err = mfhd.Box.Decode(rh); err != nil {
+func (mfhd *MovieFragmentHeaderBox) Decode(r io.Reader) (offset int, err error) {
+    if offset, err = mfhd.Box.Decode(r); err != nil {
         return
     }
     buf := make([]byte, 4)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return 0, err
     }
     mfhd.SequenceNumber = binary.BigEndian.Uint32(buf)

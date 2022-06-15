@@ -2,6 +2,7 @@ package mp4
 
 import (
     "encoding/binary"
+    "io"
 )
 
 // Box Types: ‘vmhd’, ‘smhd’, ’hmhd’, ‘nmhd’
@@ -33,12 +34,12 @@ func (vmhd *VideoMediaHeaderBox) Size() uint64 {
     return vmhd.Box.Size() + 8
 }
 
-func (vmhd *VideoMediaHeaderBox) Decode(rh Reader) (offset int, err error) {
-    if _, err = vmhd.Box.Decode(rh); err != nil {
+func (vmhd *VideoMediaHeaderBox) Decode(r io.Reader) (offset int, err error) {
+    if _, err = vmhd.Box.Decode(r); err != nil {
         return 0, err
     }
     buf := make([]byte, 8)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return 0, err
     }
     offset = 0
@@ -72,6 +73,6 @@ func makeVmhdBox() []byte {
 
 func decodeVmhdBox(demuxer *MovDemuxer) (err error) {
     vmhd := VideoMediaHeaderBox{Box: new(FullBox)}
-    _, err = vmhd.Decode(demuxer.readerHandler)
+    _, err = vmhd.Decode(demuxer.reader)
     return
 }

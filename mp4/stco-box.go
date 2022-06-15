@@ -2,6 +2,7 @@ package mp4
 
 import (
     "encoding/binary"
+    "io"
 )
 
 // aligned(8) class ChunkOffsetBox
@@ -38,12 +39,12 @@ func (stco *ChunkOffsetBox) Size() uint64 {
     }
 }
 
-func (stco *ChunkOffsetBox) Decode(rh Reader) (offset int, err error) {
-    if _, err = stco.box.Decode(rh); err != nil {
+func (stco *ChunkOffsetBox) Decode(r io.Reader) (offset int, err error) {
+    if _, err = stco.box.Decode(r); err != nil {
         return
     }
     tmp := make([]byte, 4)
-    if _, err = rh.ReadAtLeast(tmp); err != nil {
+    if _, err = io.ReadFull(r, tmp); err != nil {
         return
     }
     offset = 8
@@ -51,7 +52,7 @@ func (stco *ChunkOffsetBox) Decode(rh Reader) (offset int, err error) {
     stco.stco.entryCount = binary.BigEndian.Uint32(tmp)
     stco.stco.chunkOffsetlist = make([]uint64, stco.stco.entryCount)
     buf := make([]byte, stco.stco.entryCount*4)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return
     }
     idx := 0
@@ -94,12 +95,12 @@ func (co64 *ChunkLargeOffsetBox) Size() uint64 {
     }
 }
 
-func (co64 *ChunkLargeOffsetBox) Decode(rh Reader) (offset int, err error) {
-    if _, err = co64.box.Decode(rh); err != nil {
+func (co64 *ChunkLargeOffsetBox) Decode(r io.Reader) (offset int, err error) {
+    if _, err = co64.box.Decode(r); err != nil {
         return
     }
     tmp := make([]byte, 4)
-    if _, err = rh.ReadAtLeast(tmp); err != nil {
+    if _, err = io.ReadFull(r, tmp); err != nil {
         return
     }
     offset = 8
@@ -107,7 +108,7 @@ func (co64 *ChunkLargeOffsetBox) Decode(rh Reader) (offset int, err error) {
     co64.stco.entryCount = binary.BigEndian.Uint32(tmp)
     co64.stco.chunkOffsetlist = make([]uint64, co64.stco.entryCount)
     buf := make([]byte, co64.stco.entryCount*8)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return
     }
     idx := 0
@@ -150,7 +151,7 @@ func makeStco(stco *movstco) (boxdata []byte) {
 
 func decodeStcoBox(demuxer *MovDemuxer) (err error) {
     stco := ChunkOffsetBox{box: new(FullBox)}
-    if _, err = stco.Decode(demuxer.readerHandler); err != nil {
+    if _, err = stco.Decode(demuxer.reader); err != nil {
         return
     }
     track := demuxer.tracks[len(demuxer.tracks)-1]
@@ -160,7 +161,7 @@ func decodeStcoBox(demuxer *MovDemuxer) (err error) {
 
 func decodeCo64Box(demuxer *MovDemuxer) (err error) {
     co64 := ChunkLargeOffsetBox{box: new(FullBox)}
-    if _, err = co64.Decode(demuxer.readerHandler); err != nil {
+    if _, err = co64.Decode(demuxer.reader); err != nil {
         return
     }
     track := demuxer.tracks[len(demuxer.tracks)-1]

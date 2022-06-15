@@ -1,6 +1,9 @@
 package mp4
 
-import "encoding/binary"
+import (
+    "encoding/binary"
+    "io"
+)
 
 // aligned(8) class TrackFragmentHeaderBox extends FullBox(‘tfhd’, 0, tf_flags){
 //     unsigned int(32) track_ID;
@@ -63,14 +66,14 @@ func (tfhd *TrackFragmentHeaderBox) Size() uint64 {
     return n
 }
 
-func (tfhd *TrackFragmentHeaderBox) Decode(rh Reader) (offset int, err error) {
-    if offset, err = tfhd.Box.Decode(rh); err != nil {
+func (tfhd *TrackFragmentHeaderBox) Decode(r io.Reader) (offset int, err error) {
+    if offset, err = tfhd.Box.Decode(r); err != nil {
         return
     }
 
     needSize := tfhd.Box.Box.Size - 12
     buf := make([]byte, needSize)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return 0, err
     }
     n := 0

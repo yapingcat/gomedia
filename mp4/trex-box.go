@@ -1,6 +1,9 @@
 package mp4
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"io"
+)
 
 // aligned(8) class TrackExtendsBox extends FullBox(‘trex’, 0, 0){
 // 	unsigned int(32) track_ID;
@@ -30,13 +33,13 @@ func (trex *TrackExtendsBox) Size() uint64 {
 	return trex.Box.Size() + 20
 }
 
-func (trex *TrackExtendsBox) Decode(rh Reader) (offset int, err error) {
-	if offset, err = trex.Box.Decode(rh); err != nil {
+func (trex *TrackExtendsBox) Decode(r io.Reader) (offset int, err error) {
+	if offset, err = trex.Box.Decode(r); err != nil {
 		return 0, err
 	}
 
 	buf := make([]byte, 20)
-	if _, err := rh.ReadAtLeast(buf); err != nil {
+	if _, err := io.ReadFull(r, buf); err != nil {
 		return 0, err
 	}
 	n := 0

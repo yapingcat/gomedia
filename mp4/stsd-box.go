@@ -2,6 +2,7 @@ package mp4
 
 import (
     "encoding/binary"
+    "io"
 )
 
 // aligned(8) abstract class SampleEntry (unsigned int(32) format) extends Box(format){
@@ -25,10 +26,10 @@ func (entry *SampleEntry) Size() uint64 {
     return 8 + 8
 }
 
-func (entry *SampleEntry) Decode(rh Reader) (offset int, err error) {
+func (entry *SampleEntry) Decode(r io.Reader) (offset int, err error) {
 
     buf := make([]byte, 8)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return
     }
     offset = 6
@@ -76,12 +77,12 @@ func NewAudioSampleEntry(format [4]byte) *AudioSampleEntry {
     }
 }
 
-func (entry *AudioSampleEntry) Decode(rh Reader) (offset int, err error) {
-    if _, err = entry.entry.Decode(rh); err != nil {
+func (entry *AudioSampleEntry) Decode(r io.Reader) (offset int, err error) {
+    if _, err = entry.entry.Decode(r); err != nil {
         return
     }
     buf := make([]byte, 20)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return
     }
     offset = 8
@@ -120,7 +121,7 @@ func (entry *AudioSampleEntry) Encode() (int, []byte) {
 
 func decodeAudioSampleEntry(demuxer *MovDemuxer) (err error) {
     entry := AudioSampleEntry{entry: new(SampleEntry)}
-    _, err = entry.Decode(demuxer.readerHandler)
+    _, err = entry.Decode(demuxer.reader)
     track := demuxer.tracks[len(demuxer.tracks)-1]
     track.chanelCount = uint8(entry.channelcount)
     track.sampleBits = uint8(entry.samplesize)
@@ -169,12 +170,12 @@ func (entry *VisualSampleEntry) Size() uint64 {
     return entry.entry.Size() + 70
 }
 
-func (entry *VisualSampleEntry) Decode(rh Reader) (offset int, err error) {
-    if _, err = entry.entry.Decode(rh); err != nil {
+func (entry *VisualSampleEntry) Decode(r io.Reader) (offset int, err error) {
+    if _, err = entry.entry.Decode(r); err != nil {
         return 0, err
     }
     buf := make([]byte, 70)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return
     }
     offset = 16
@@ -218,7 +219,7 @@ func (entry *VisualSampleEntry) Encode() (int, []byte) {
 
 func decodeVisualSampleEntry(demuxer *MovDemuxer) (err error) {
     entry := VisualSampleEntry{entry: new(SampleEntry)}
-    _, err = entry.Decode(demuxer.readerHandler)
+    _, err = entry.Decode(demuxer.reader)
     track := demuxer.tracks[len(demuxer.tracks)-1]
     track.width = uint32(entry.width)
     track.height = uint32(entry.height)
@@ -268,12 +269,12 @@ func (stsd *SampleDescriptionBox) Size() uint64 {
     return stsd.box.Size() + 4
 }
 
-func (stsd *SampleDescriptionBox) Decode(rh Reader) (offset int, err error) {
-    if _, err = stsd.box.Decode(rh); err != nil {
+func (stsd *SampleDescriptionBox) Decode(r io.Reader) (offset int, err error) {
+    if _, err = stsd.box.Decode(r); err != nil {
         return
     }
     buf := make([]byte, 4)
-    if _, err = rh.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(r, buf); err != nil {
         return
     }
     stsd.entry_count = binary.BigEndian.Uint32(buf)
@@ -326,7 +327,7 @@ func makeStsd(track *mp4track, handler_type HandlerType) []byte {
 
 func decodeStsdBox(demuxer *MovDemuxer) (err error) {
     stsd := SampleDescriptionBox{box: new(FullBox)}
-    _, err = stsd.Decode(demuxer.readerHandler)
+    _, err = stsd.Decode(demuxer.reader)
     return
 }
 
@@ -344,7 +345,7 @@ func makeAvcCBox(extra extraData) []byte {
 
 func decodeAvccBox(demuxer *MovDemuxer, size uint32) (err error) {
     buf := make([]byte, size-BasicBoxLen)
-    if _, err = demuxer.readerHandler.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(demuxer.reader, buf); err != nil {
         return
     }
     track := demuxer.tracks[len(demuxer.tracks)-1]
@@ -366,7 +367,7 @@ func makeHvcCBox(extra extraData) []byte {
 
 func decodeHvccBox(demuxer *MovDemuxer, size uint32) (err error) {
     buf := make([]byte, size-BasicBoxLen)
-    if _, err = demuxer.readerHandler.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(demuxer.reader, buf); err != nil {
         return
     }
     track := demuxer.tracks[len(demuxer.tracks)-1]
@@ -385,11 +386,11 @@ func makeEsdsBox(track *mp4track) []byte {
 
 func decodeEsdsBox(demuxer *MovDemuxer, size uint32) (err error) {
     esds := FullBox{}
-    if _, err = esds.Decode(demuxer.readerHandler); err != nil {
+    if _, err = esds.Decode(demuxer.reader); err != nil {
         return
     }
     buf := make([]byte, size-FullBoxLen)
-    if _, err = demuxer.readerHandler.ReadAtLeast(buf); err != nil {
+    if _, err = io.ReadFull(demuxer.reader, buf); err != nil {
         return
     }
     vosdata := decodeESDescriptor(buf)

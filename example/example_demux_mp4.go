@@ -9,26 +9,6 @@ import (
 	"github.com/yapingcat/gomedia/mp4"
 )
 
-type mymp4reader struct {
-	fp *os.File
-}
-
-func newmymp4reader(f *os.File) *mymp4reader {
-	return &mymp4reader{
-		fp: f,
-	}
-}
-func (mp4w *mymp4reader) ReadAtLeast(p []byte) (n int, err error) {
-	return io.ReadAtLeast(mp4w.fp, p, len(p))
-}
-func (mp4w *mymp4reader) Seek(offset int64, whence int) (int64, error) {
-	return mp4w.fp.Seek(offset, whence)
-}
-func (mp4w *mymp4reader) Tell() (offset int64) {
-	offset, _ = mp4w.fp.Seek(0, 1)
-	return
-}
-
 var mp4filename = flag.String("mp4file", "test.mp4", "mp4 file you want to decode")
 var rawvideo = flag.String("videofile", "v.h264", "export raw video data to the videofile")
 var rawaudio = flag.String("audiofile", "a.aac", "export raw audio data to the audiofile")
@@ -53,7 +33,7 @@ func main() {
 		return
 	}
 	defer afile.Close()
-	demuxer := mp4.CreateMp4Demuxer(newmymp4reader(f))
+	demuxer := mp4.CreateMp4Demuxer(f)
 	if infos, err := demuxer.ReadHead(); err != nil && err != io.EOF {
 		fmt.Println(err)
 	} else {
