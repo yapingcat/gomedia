@@ -243,7 +243,6 @@ func (sess *MediaSession) play(frame *MediaFrame) {
 }
 
 func (sess *MediaSession) sendToClient() {
-    fmt.Println("quit sendToClient")
     firstVideo := true
     for {
         select {

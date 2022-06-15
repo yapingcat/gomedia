@@ -39,7 +39,7 @@ type Mp4Info struct {
 }
 
 type MovDemuxer struct {
-	reader        io.ReadSeeker
+    reader        io.ReadSeeker
     mdatOffset    []uint64 //一个mp4文件可能存在多个mdatbox
     tracks        []*mp4track
     readSampleIdx []uint32
@@ -54,7 +54,7 @@ type MovDemuxer struct {
 
 func CreateMp4Demuxer(r io.ReadSeeker) *MovDemuxer {
     return &MovDemuxer{
-		reader: r,
+        reader: r,
     }
 }
 
@@ -64,7 +64,7 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
     for {
         fullbox := FullBox{}
         basebox := BasicBox{}
-		_, err = basebox.Decode(demuxer.reader)
+        _, err = basebox.Decode(demuxer.reader)
         if err != nil {
             break
         }
@@ -78,26 +78,26 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
         case mov_tag([4]byte{'f', 'r', 'e', 'e'}):
             err = decodeFreeBox(demuxer)
         case mov_tag([4]byte{'m', 'd', 'a', 't'}):
-			var currentOffset int64
-			if currentOffset, err = demuxer.reader.Seek(0, io.SeekCurrent); err != nil {
-				break
-			}
-			demuxer.mdatOffset = append(demuxer.mdatOffset, uint64(currentOffset))
-			_, err = demuxer.reader.Seek(int64(basebox.Size)-BasicBoxLen, io.SeekCurrent)
+            var currentOffset int64
+            if currentOffset, err = demuxer.reader.Seek(0, io.SeekCurrent); err != nil {
+                break
+            }
+            demuxer.mdatOffset = append(demuxer.mdatOffset, uint64(currentOffset))
+            _, err = demuxer.reader.Seek(int64(basebox.Size)-BasicBoxLen, io.SeekCurrent)
         case mov_tag([4]byte{'m', 'o', 'o', 'v'}):
-			var currentOffset int64
-			if currentOffset, err = demuxer.reader.Seek(0, io.SeekCurrent); err != nil {
-				break
-			}
+            var currentOffset int64
+            if currentOffset, err = demuxer.reader.Seek(0, io.SeekCurrent); err != nil {
+                break
+            }
             offset := int64(0)
-			if offset, err = demuxer.reader.Seek(0, io.SeekEnd); err != nil {
+            if offset, err = demuxer.reader.Seek(0, io.SeekEnd); err != nil {
                 break
             }
             if offset-currentOffset < int64(basebox.Size)-BasicBoxLen {
                 err = errors.New("incomplete mp4 file")
                 break
             }
-			_, err = demuxer.reader.Seek(currentOffset, io.SeekStart)
+            _, err = demuxer.reader.Seek(currentOffset, io.SeekStart)
         case mov_tag([4]byte{'m', 'v', 'h', 'd'}):
             err = decodeMvhd(demuxer)
         case mov_tag([4]byte{'t', 'r', 'a', 'k'}):
@@ -116,9 +116,9 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
         case mov_tag([4]byte{'s', 'm', 'h', 'd'}):
             err = decodeSmhdBox(demuxer)
         case mov_tag([4]byte{'h', 'm', 'h', 'd'}):
-			_, err = fullbox.Decode(demuxer.reader)
+            _, err = fullbox.Decode(demuxer.reader)
         case mov_tag([4]byte{'n', 'm', 'h', 'd'}):
-			_, err = fullbox.Decode(demuxer.reader)
+            _, err = fullbox.Decode(demuxer.reader)
         case mov_tag([4]byte{'s', 't', 'b', 'l'}):
             demuxer.tracks[len(demuxer.tracks)-1].stbltable = new(movstbl)
         case mov_tag([4]byte{'s', 't', 's', 'd'}):
@@ -165,7 +165,7 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
         //case mov_tag([4]byte{'m', 'v', 'e', 'x'}):
         default:
             //panic(1)
-			_, err = demuxer.reader.Seek(int64(basebox.Size)-BasicBoxLen, io.SeekCurrent)
+            _, err = demuxer.reader.Seek(int64(basebox.Size)-BasicBoxLen, io.SeekCurrent)
         }
         if err != nil {
             break
@@ -229,11 +229,11 @@ func (demuxer *MovDemuxer) ReadPacket() (*AVPacket, error) {
         if minTsSample.dts == uint64(maxdts) {
             return nil, io.EOF
         }
-		if _, err := demuxer.reader.Seek(int64(minTsSample.offset), io.SeekStart); err != nil {
+        if _, err := demuxer.reader.Seek(int64(minTsSample.offset), io.SeekStart); err != nil {
             return nil, err
         }
         sample := make([]byte, minTsSample.size)
-		if _, err := io.ReadFull(demuxer.reader, sample); err != nil {
+        if _, err := io.ReadFull(demuxer.reader, sample); err != nil {
             return nil, err
         }
         demuxer.readSampleIdx[whichTracki]++
