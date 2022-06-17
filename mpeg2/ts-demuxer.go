@@ -2,6 +2,7 @@ package mpeg2
 
 import (
     "errors"
+    "io"
 
     "github.com/yapingcat/gomedia/codec"
 )
@@ -46,9 +47,14 @@ func NewTSDemuxer() *TSDemuxer {
     }
 }
 
-func (demuxer *TSDemuxer) Input(data []byte) error {
-    for len(data) >= TS_PAKCET_SIZE {
-        bs := codec.NewBitStream(data[0:TS_PAKCET_SIZE])
+func (demuxer *TSDemuxer) Input(r io.Reader) error {
+    buf := make([]byte, TS_PAKCET_SIZE)
+    _, err := io.ReadFull(r, buf)
+    if err != nil {
+        return errNeedMore
+    }
+    for {
+        bs := codec.NewBitStream(buf)
         var pkg TSPacket
         if err := pkg.DecodeHeader(bs); err != nil {
             return err
@@ -99,7 +105,11 @@ func (demuxer *TSDemuxer) Input(data []byte) error {
                             continue
                         }
                         if pkg.Payload_unit_start_indicator == 1 {
-                            stream.pes_pkg.Decode(bs)
+                            err := stream.pes_pkg.Decode(bs)
+                            // ignore error if it was a short payload read, next ts packet should append missing data
+                            if err != nil && !(errors.Is(err, errNeedMore) && stream.pes_pkg.Pes_payload != nil) {
+                                return err
+                            }
                             pkg.Payload = stream.pes_pkg
                         } else {
                             stream.pes_pkg.Pes_payload = bs.RemainData()
@@ -118,18 +128,23 @@ func (demuxer *TSDemuxer) Input(data []byte) error {
         if demuxer.OnTSPacket != nil {
             demuxer.OnTSPacket(&pkg)
         }
-        data = data[TS_PAKCET_SIZE:]
+        _, err := io.ReadFull(r, buf)
+        if err != nil {
+            if errors.Is(err, io.EOF) {
+                break
+            } else {
+                return errNeedMore
+            }
+        }
     }
-    if len(data) > 0 {
-        return errNeedMore
-    }
+    demuxer.flush()
     return nil
 }
 
-func (demuxer *TSDemuxer) Flush() {
+func (demuxer *TSDemuxer) flush() {
     for _, pm := range demuxer.programs {
         for _, stream := range pm.streams {
-            if len(stream.pkg.payload) == 0 {
+            if stream.pkg == nil || len(stream.pkg.payload) == 0 {
                 continue
             }
             if demuxer.OnFrame != nil {
