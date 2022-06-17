@@ -88,6 +88,11 @@ func main() {
 	defer afile.Close()
 
 	b, _ := io.ReadAll(f)
+
+	/*
+		If there are no specific requirements,please use bytes.Reader
+		crs := bytes.NewReader(b)
+	*/
 	crs := newCacheReaderSeeker(b)
 
 	demuxer := mp4.CreateMp4Demuxer(crs)
