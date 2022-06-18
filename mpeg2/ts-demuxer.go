@@ -51,7 +51,7 @@ func (demuxer *TSDemuxer) Input(r io.Reader) error {
     buf := make([]byte, TS_PAKCET_SIZE)
     _, err := io.ReadFull(r, buf)
     if err != nil {
-        return errNeedMore
+        return err
     }
     for {
         bs := codec.NewBitStream(buf)
@@ -132,9 +132,8 @@ func (demuxer *TSDemuxer) Input(r io.Reader) error {
         if err != nil {
             if errors.Is(err, io.EOF) {
                 break
-            } else {
-                return errNeedMore
             }
+            return err
         }
     }
     demuxer.flush()
