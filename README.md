@@ -1,6 +1,11 @@
 # gomedia
  mpeg-ts,mpeg-ps,flv,mp4 muxer/demuxer
  
+## Installation
+```
+go get github.com/yapingcat/gomedia
+```
+ 
 ## H264/H265/AAC/VP8/OPUS
  [USAGE](https://github.com/yapingcat/gomedia/blob/main/codec/README.md)
   - decode sps/pps/vps/slice header
