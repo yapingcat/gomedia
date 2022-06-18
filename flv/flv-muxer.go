@@ -116,7 +116,7 @@ func (muxer *AVCMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
             ppss[idx] = pps
             idx++
         }
-        extraData := codec.CreateH264AVCCExtradata(spss, ppss)
+        extraData, _ := codec.CreateH264AVCCExtradata(spss, ppss)
         tags = append(tags, WriteVideoTag(extraData, true, FLV_AVC, 0, true))
         muxer.first = false
     }
@@ -168,7 +168,7 @@ func (muxer *HevcMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
     })
     var tags [][]byte
     if muxer.first && len(muxer.hvcc.Arrays) > 0 {
-        extraData := muxer.hvcc.Encode()
+        extraData, _ := muxer.hvcc.Encode()
         tags = append(tags, WriteVideoTag(extraData, true, FLV_HEVC, 0, true))
         muxer.first = false
     }

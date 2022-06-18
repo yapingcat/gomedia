@@ -2,6 +2,7 @@ package codec
 
 import (
     "bytes"
+    "errors"
 )
 
 // nal_unit_header() {
@@ -673,7 +674,10 @@ func NewHEVCRecordConfiguration() *HEVCRecordConfiguration {
     }
 }
 
-func (hvcc *HEVCRecordConfiguration) Encode() []byte {
+func (hvcc *HEVCRecordConfiguration) Encode() ([]byte, error) {
+    if len(hvcc.Arrays) < 3 {
+        return nil, errors.New("lack of sps or pps or vps")
+    }
     bsw := NewBitStreamWriter(512)
     bsw.PutByte(hvcc.ConfigurationVersion)
     bsw.PutUint8(hvcc.General_profile_space, 2)
@@ -711,13 +715,13 @@ func (hvcc *HEVCRecordConfiguration) Encode() []byte {
         bsw.PutUint8(arrays.Array_completeness, 1)
         bsw.PutUint8(0, 1)
         bsw.PutUint8(arrays.NAL_unit_type, 6)
-        bsw.PutUint16(arrays.NumNalus, 16)
+        bsw.PutUint16(uint16(len(arrays.NalUnits)), 16)
         for _, nalu := range arrays.NalUnits {
             bsw.PutUint16(nalu.NalUnitLength, 16)
             bsw.PutBytes(nalu.Nalu)
         }
     }
-    return bsw.Bits()
+    return bsw.Bits(), nil
 }
 
 func (hvcc *HEVCRecordConfiguration) Decode(hevc []byte) {
@@ -771,38 +775,35 @@ func (hvcc *HEVCRecordConfiguration) UpdateSPS(sps []byte) {
     i := 0
     for ; i < len(hvcc.Arrays); i++ {
         arrays := hvcc.Arrays[i]
-        found := false
-        if arrays.NAL_unit_type == uint8(H265_NAL_SPS) {
-            j := 0
-            for ; j < len(arrays.NalUnits); j++ {
-                if spsid != GetH265SPSId(arrays.NalUnits[j].Nalu) {
-                    found = true
-                    continue
-                }
-                //find the same sps nalu
-                if arrays.NalUnits[j].NalUnitLength == uint16(len(sps)) && bytes.Equal(arrays.NalUnits[j].Nalu, sps) {
-                    return
-                }
-                tmpsps := make([]byte, len(sps))
-                copy(tmpsps, sps)
-                arrays.NalUnits[j].Nalu = tmpsps
-                arrays.NalUnits[j].NalUnitLength = uint16(len(tmpsps))
-                needUpdate = true
-                break
-            }
-            if j == len(arrays.NalUnits) {
-                nalu := &NalUnit{
-                    Nalu:          make([]byte, len(sps)),
-                    NalUnitLength: uint16(len(sps)),
-                }
-                copy(nalu.Nalu, sps)
-                arrays.NalUnits = append(arrays.NalUnits, nalu)
-                needUpdate = true
-            }
+        if arrays.NAL_unit_type != uint8(H265_NAL_SPS) {
+            continue
         }
-        if found {
+        j := 0
+        for ; j < len(arrays.NalUnits); j++ {
+            if spsid != GetH265SPSId(arrays.NalUnits[j].Nalu) {
+                continue
+            }
+            //find the same sps nalu
+            if arrays.NalUnits[j].NalUnitLength == uint16(len(sps)) && bytes.Equal(arrays.NalUnits[j].Nalu, sps) {
+                return
+            }
+            tmpsps := make([]byte, len(sps))
+            copy(tmpsps, sps)
+            arrays.NalUnits[j].Nalu = tmpsps
+            arrays.NalUnits[j].NalUnitLength = uint16(len(tmpsps))
+            needUpdate = true
             break
         }
+        if j == len(arrays.NalUnits) {
+            nalu := &NalUnit{
+                Nalu:          make([]byte, len(sps)),
+                NalUnitLength: uint16(len(sps)),
+            }
+            copy(nalu.Nalu, sps)
+            arrays.NalUnits = append(arrays.NalUnits, nalu)
+            needUpdate = true
+        }
+        break
     }
     if i == len(hvcc.Arrays) {
         nua := &HVCCNALUnitArray{
@@ -841,38 +842,35 @@ func (hvcc *HEVCRecordConfiguration) UpdatePPS(pps []byte) {
     i := 0
     for ; i < len(hvcc.Arrays); i++ {
         arrays := hvcc.Arrays[i]
-        found := false
-        if arrays.NAL_unit_type == uint8(H265_NAL_PPS) {
-            j := 0
-            for ; j < len(arrays.NalUnits); j++ {
-                if ppsid != GetH265PPSId(arrays.NalUnits[j].Nalu) {
-                    found = true
-                    continue
-                }
-                //find the same sps nalu
-                if arrays.NalUnits[j].NalUnitLength == uint16(len(pps)) && bytes.Equal(arrays.NalUnits[j].Nalu, pps) {
-                    return
-                }
-                tmppps := make([]byte, len(pps))
-                copy(tmppps, pps)
-                arrays.NalUnits[j].Nalu = tmppps
-                arrays.NalUnits[j].NalUnitLength = uint16(len(tmppps))
-                needUpdate = true
-                break
-            }
-            if j == len(arrays.NalUnits) {
-                nalu := &NalUnit{
-                    Nalu:          make([]byte, len(pps)),
-                    NalUnitLength: uint16(len(pps)),
-                }
-                copy(nalu.Nalu, pps)
-                arrays.NalUnits = append(arrays.NalUnits, nalu)
-                needUpdate = true
-            }
+        if arrays.NAL_unit_type != uint8(H265_NAL_PPS) {
+            continue
         }
-        if found {
+        j := 0
+        for ; j < len(arrays.NalUnits); j++ {
+            if ppsid != GetH265PPSId(arrays.NalUnits[j].Nalu) {
+                continue
+            }
+            //find the same sps nalu
+            if arrays.NalUnits[j].NalUnitLength == uint16(len(pps)) && bytes.Equal(arrays.NalUnits[j].Nalu, pps) {
+                return
+            }
+            tmppps := make([]byte, len(pps))
+            copy(tmppps, pps)
+            arrays.NalUnits[j].Nalu = tmppps
+            arrays.NalUnits[j].NalUnitLength = uint16(len(tmppps))
+            needUpdate = true
             break
         }
+        if j == len(arrays.NalUnits) {
+            nalu := &NalUnit{
+                Nalu:          make([]byte, len(pps)),
+                NalUnitLength: uint16(len(pps)),
+            }
+            copy(nalu.Nalu, pps)
+            arrays.NalUnits = append(arrays.NalUnits, nalu)
+            needUpdate = true
+        }
+        break
     }
     if i == len(hvcc.Arrays) {
         nua := &HVCCNALUnitArray{
@@ -913,39 +911,35 @@ func (hvcc *HEVCRecordConfiguration) UpdateVPS(vps []byte) {
     i := 0
     for ; i < len(hvcc.Arrays); i++ {
         arrays := hvcc.Arrays[i]
-        found := false
-        if arrays.NAL_unit_type == uint8(H265_NAL_VPS) {
-            found = true
-            j := 0
-            for ; j < len(arrays.NalUnits); j++ {
-                if vpsid != GetVPSId(arrays.NalUnits[j].Nalu) {
-                    found = true
-                    continue
-                }
-                //find the same sps nalu
-                if arrays.NalUnits[j].NalUnitLength == uint16(len(vps)) && bytes.Equal(arrays.NalUnits[j].Nalu, vps) {
-                    return
-                }
-                tmpvps := make([]byte, len(vps))
-                copy(tmpvps, vps)
-                arrays.NalUnits[j].Nalu = tmpvps
-                arrays.NalUnits[j].NalUnitLength = uint16(len(tmpvps))
-                needUpdate = true
-                break
-            }
-            if j == len(arrays.NalUnits) {
-                nalu := &NalUnit{
-                    Nalu:          make([]byte, len(vps)),
-                    NalUnitLength: uint16(len(vps)),
-                }
-                copy(nalu.Nalu, vps)
-                arrays.NalUnits = append(arrays.NalUnits, nalu)
-                needUpdate = true
-            }
+        if arrays.NAL_unit_type != uint8(H265_NAL_VPS) {
+            continue
         }
-        if found {
+        j := 0
+        for ; j < len(arrays.NalUnits); j++ {
+            if vpsid != GetVPSId(arrays.NalUnits[j].Nalu) {
+                continue
+            }
+            //find the same sps nalu
+            if arrays.NalUnits[j].NalUnitLength == uint16(len(vps)) && bytes.Equal(arrays.NalUnits[j].Nalu, vps) {
+                return
+            }
+            tmpvps := make([]byte, len(vps))
+            copy(tmpvps, vps)
+            arrays.NalUnits[j].Nalu = tmpvps
+            arrays.NalUnits[j].NalUnitLength = uint16(len(tmpvps))
+            needUpdate = true
             break
         }
+        if j == len(arrays.NalUnits) {
+            nalu := &NalUnit{
+                Nalu:          make([]byte, len(vps)),
+                NalUnitLength: uint16(len(vps)),
+            }
+            copy(nalu.Nalu, vps)
+            arrays.NalUnits = append(arrays.NalUnits, nalu)
+            needUpdate = true
+        }
+        break
     }
     if i == len(hvcc.Arrays) {
         nua := &HVCCNALUnitArray{

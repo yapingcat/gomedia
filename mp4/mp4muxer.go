@@ -180,7 +180,8 @@ type h264ExtraData struct {
 }
 
 func (extra *h264ExtraData) export() []byte {
-    return codec.CreateH264AVCCExtradata(extra.spss, extra.ppss)
+    data, _ := codec.CreateH264AVCCExtradata(extra.spss, extra.ppss)
+    return data
 }
 
 func (extra *h264ExtraData) load(data []byte) {
@@ -198,10 +199,11 @@ func newh265ExtraData() *h265ExtraData {
 }
 
 func (extra *h265ExtraData) export() []byte {
-    if extra.hvccExtra != nil {
-        return extra.hvccExtra.Encode()
+    if extra.hvccExtra == nil {
+        panic("extra.hvccExtra must init")
     }
-    panic("extra.hvccExtra must init")
+    data, _ := extra.hvccExtra.Encode()
+    return data
 }
 
 func (extra *h265ExtraData) load(data []byte) {

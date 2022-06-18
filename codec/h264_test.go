@@ -92,7 +92,7 @@ func TestCreateH264AVCCExtradata(t *testing.T) {
     }
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            if got := CreateH264AVCCExtradata(tt.args.spss, tt.args.ppss); !reflect.DeepEqual(got, tt.want) {
+            if got, _ := CreateH264AVCCExtradata(tt.args.spss, tt.args.ppss); !reflect.DeepEqual(got, tt.want) {
                 t.Errorf("CreateH264AVCCExtradata() = %v, want %v", got, tt.want)
             }
         })

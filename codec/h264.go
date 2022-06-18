@@ -1,6 +1,9 @@
 package codec
 
-import "encoding/binary"
+import (
+    "encoding/binary"
+    "errors"
+)
 
 // nal_unit( NumBytesInNALunit ) {
 //     forbidden_zero_bit All         f(1)
@@ -301,7 +304,12 @@ func GetH264Resolution(sps []byte) (width uint32, height uint32) {
 //   16       PPS size
 //   variable PPS NALU data
 
-func CreateH264AVCCExtradata(spss [][]byte, ppss [][]byte) []byte {
+func CreateH264AVCCExtradata(spss [][]byte, ppss [][]byte) ([]byte, error) {
+
+    if len(spss) == 0 || len(ppss) == 0 {
+        return nil, errors.New("lack of sps or pps")
+    }
+
     extradata := make([]byte, 6, 256)
     for i, sps := range spss {
         start, sc := FindStartCode(sps, 0)
@@ -346,7 +354,7 @@ func CreateH264AVCCExtradata(spss [][]byte, ppss [][]byte) []byte {
         extradata = append(extradata, tmp...)
     }
 
-    return extradata
+    return extradata, nil
 }
 
 func CovertExtradata(extraData []byte) ([][]byte, [][]byte) {
