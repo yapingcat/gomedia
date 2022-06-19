@@ -100,7 +100,10 @@ func (demuxer *Demuxer) Input(buf []byte) (err error) {
                     if demuxer.OnPacket != nil {
                         demuxer.OnPacket(stream.streamId, stream.currentPage.granulePos, stream.cache, 1)
                     }
-                    demuxer.readPacket(stream, stream.cache)
+                    err = demuxer.readPacket(stream, stream.cache)
+                    if err != nil {
+                        return err
+                    }
                     stream.cache = stream.cache[:0]
                 } else {
                     stream.lost = 0
@@ -232,7 +235,10 @@ func (demuxer *Demuxer) readPacket(stream *oggStream, packet []byte) error {
     switch stream.cid {
     case codec.CODECID_AUDIO_OPUS:
         if stream.currentPage.isFirstPage || stream.currentPage.granulePos == 0 {
-            stream.parser.header(stream, packet)
+            err := stream.parser.header(stream, packet)
+            if err != nil {
+                return err
+            }
             if demuxer.aparam == nil {
                 opus, _ := stream.parser.(*opusDemuxer)
                 demuxer.aparam = &AudioParam{
@@ -251,7 +257,10 @@ func (demuxer *Demuxer) readPacket(stream *oggStream, packet []byte) error {
         }
     case codec.CODECID_VIDEO_VP8:
         if stream.currentPage.isFirstPage || stream.currentPage.granulePos == 0 {
-            stream.parser.header(stream, packet)
+            err := stream.parser.header(stream, packet)
+            if err != nil {
+                return err
+            }
             if demuxer.vparam == nil {
                 vp8, _ := stream.parser.(*vp8Demuxer)
                 demuxer.vparam = &VideoParam{

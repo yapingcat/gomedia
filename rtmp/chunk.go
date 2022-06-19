@@ -70,7 +70,7 @@ func (cmh *chunkMsgHead) encode(fmt uint8) []byte {
         }
     case 3:
     default:
-        panic("unkow fmt")
+        panic("unknown fmt")
     }
     return hdr[:ChunkType[fmt]]
 }
@@ -88,7 +88,7 @@ func (cmh *chunkMsgHead) decode(fmt uint8, data []byte) {
         cmh.timestamp = uint32(data[0])<<16 | uint32(data[1])<<8 | uint32(data[2])
     case 3:
     default:
-        panic("unkown fmt")
+        panic("unknown fmt")
     }
 
 }
@@ -139,7 +139,7 @@ func (chk *chunkPacket) decodeHead(data []byte) {
         chk.msgHdr.timestamp = uint32(data[0])<<16 | uint32(data[1])<<8 | uint32(data[2])
     case 3:
     default:
-        panic("unkown fmt")
+        panic("unknown fmt")
     }
 }
 
@@ -372,7 +372,7 @@ func (reader *chunkStreamReader) readRtmpMessage(data []byte, onMsg func(*rtmpMe
                 reader.current.message = reader.current.message[:0]
             }
         default:
-            panic("unkown state")
+            panic("unknown state")
         }
     }
     return nil

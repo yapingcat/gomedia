@@ -192,7 +192,7 @@ func (demuxer *AACTagDemuxer) Decode(data []byte) error {
     }
 
     atag := AudioTag{}
-    atag.Decode(data[0:2])
+    _ = atag.Decode(data[0:2])
     data = data[2:]
     if atag.AACPacketType == AAC_SEQUENCE_HEADER {
         demuxer.asc = make([]byte, len(data))
@@ -230,7 +230,10 @@ func (demuxer *G711Demuxer) Decode(data []byte) error {
     }
 
     atag := AudioTag{}
-    atag.Decode(data[0:1])
+    err := atag.Decode(data[0:1])
+    if err != nil {
+        return err
+    }
     data = data[1:]
 
     if demuxer.onframe != nil {

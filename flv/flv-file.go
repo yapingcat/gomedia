@@ -150,14 +150,20 @@ func (f *FlvReader) Input(data []byte) (err error) {
             if f.flvTag.DataSize > uint32(len(buf)) {
                 goto end
             }
-            f.videoDemuxer.Decode(buf[:f.flvTag.DataSize])
+            err = f.videoDemuxer.Decode(buf[:f.flvTag.DataSize])
+            if err != nil {
+                return err
+            }
             buf = buf[f.flvTag.DataSize:]
             f.state = FLV_PARSER_TAG_SIZE
         case FLV_PARSER_AUDIO_TAG:
             if f.flvTag.DataSize > uint32(len(buf)) {
                 goto end
             }
-            f.audioDemuxer.Decode(buf[:f.flvTag.DataSize])
+            err = f.audioDemuxer.Decode(buf[:f.flvTag.DataSize])
+            if err != nil {
+                return err
+            }
             buf = buf[f.flvTag.DataSize:]
             f.state = FLV_PARSER_TAG_SIZE
         case FLV_PARSER_SCRIPT_TAG:

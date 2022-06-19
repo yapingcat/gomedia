@@ -106,22 +106,14 @@ func (vtag VideoTag) Encode() (tag []byte) {
     return
 }
 
-func (vtag *VideoTag) Decode(data []byte) error {
-
-    if len(data) < 1 {
-        return errors.New("tag len < 1 bytes")
-    }
+// 外部已经确保len(data) >= 5
+func (vtag *VideoTag) Decode(data []byte) {
     vtag.FrameType = data[0] >> 4
     vtag.CodecId = data[0] & 0x0F
     if vtag.CodecId == uint8(FLV_AVC) || vtag.CodecId == uint8(FLV_HEVC) {
-        if len(data) < 5 {
-            return errors.New("tag len < 5 bytes")
-        }
         vtag.AVCPacketType = data[1]
         vtag.CompositionTime = int32(GetUint24(data[2:]))
     }
-
-    return nil
 }
 
 //  Audio Tag

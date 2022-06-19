@@ -18,7 +18,11 @@ func main() {
 	}
 	defer mp4file.Close()
 
-	muxer := mp4.CreateMp4Muxer(mp4file)
+	muxer, err := mp4.CreateMp4Muxer(mp4file)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	vtid := muxer.AddVideoTrack(mp4.MP4_CODEC_H264)
 	atid := muxer.AddAudioTrack(mp4.MP4_CODEC_AAC, 0, 16, 44100)
 
