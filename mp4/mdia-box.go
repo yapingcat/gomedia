@@ -1,7 +1,7 @@
 package mp4
 
 func makeMdiaBox(track *mp4track) []byte {
-    mdhdbox := makeMdhdBox()
+    mdhdbox := makeMdhdBox(track.duration)
     hdlrbox := makeHdlrBox(getHandlerType(track.cid))
     minfbox := makeMinfBox(track)
     mdia := BasicBox{Type: [4]byte{'m', 'd', 'i', 'a'}}

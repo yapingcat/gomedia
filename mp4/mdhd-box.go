@@ -140,8 +140,9 @@ func (mdhd *MediaHeaderBox) Encode() (int, []byte) {
     return offset, buf
 }
 
-func makeMdhdBox() []byte {
+func makeMdhdBox(duration uint32) []byte {
     mdhd := NewMediaHeaderBox()
+    mdhd.Duration = uint64(duration)
     _, boxdata := mdhd.Encode()
     return boxdata
 }

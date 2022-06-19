@@ -12,6 +12,7 @@ type sampleCache struct {
     pts    uint64
     dts    uint64
     hasVcl bool
+    isKey  bool
     cache  []byte
 }
 
@@ -20,6 +21,7 @@ type sampleEntry struct {
     dts                    uint64
     offset                 uint64
     size                   uint64
+    isKeyFrame             bool
     SampleDescriptionIndex uint32 //always should be 1
 }
 
@@ -93,7 +95,7 @@ func (track *mp4track) makeStblTable() {
     ctts.entrys = make([]cttsEntry, 0)
     ckn := uint32(0)
     for i, sample := range track.samplelist {
-        sttsEntry := sttsEntry{sampleCount: 1, sampleDelta: 0}
+        sttsEntry := sttsEntry{sampleCount: 1, sampleDelta: 1}
         cttsEntry := cttsEntry{sampleCount: 1, sampleOffset: uint32(sample.pts) - uint32(sample.dts)}
         if i == len(track.samplelist)-1 {
             stts.entrys = append(stts.entrys, sttsEntry)
@@ -111,6 +113,7 @@ func (track *mp4track) makeStblTable() {
 
         if len(ctts.entrys) == 0 {
             ctts.entrys = append(ctts.entrys, cttsEntry)
+            ctts.entryCount++
         } else {
             if ctts.entrys[len(ctts.entrys)-1].sampleOffset == cttsEntry.sampleOffset {
                 ctts.entrys[len(ctts.entrys)-1].sampleCount++
@@ -315,6 +318,7 @@ func (muxer *Movmuxer) WriteTrailer() (err error) {
             entry := sampleEntry{
                 pts:                    track.lastSample.pts,
                 dts:                    track.lastSample.dts,
+                isKeyFrame:             track.lastSample.isKey,
                 size:                   0,
                 SampleDescriptionIndex: 1,
                 offset:                 uint64(currentOffset),
@@ -436,6 +440,7 @@ func (muxer *Movmuxer) writeH264(track *mp4track, h264 []byte, pts, dts uint64) 
                 pts:                    track.lastSample.pts,
                 dts:                    track.lastSample.dts,
                 size:                   0,
+                isKeyFrame:             track.lastSample.isKey,
                 SampleDescriptionIndex: 1,
                 offset:                 uint64(currentOffset),
             }
@@ -452,6 +457,10 @@ func (muxer *Movmuxer) writeH264(track *mp4track, h264 []byte, pts, dts uint64) 
             track.lastSample.pts = pts
             track.lastSample.dts = dts
             track.lastSample.hasVcl = true
+            track.lastSample.isKey = false
+            if nalu_type == codec.H264_NAL_I_SLICE {
+                track.lastSample.isKey = true
+            }
         }
         track.lastSample.cache = append(track.lastSample.cache, codec.ConvertAnnexBToAVCC(nalu)...)
         return true
@@ -489,6 +498,7 @@ func (muxer *Movmuxer) writeH265(track *mp4track, h265 []byte, pts, dts uint64) 
                 pts:                    track.lastSample.pts,
                 dts:                    track.lastSample.dts,
                 size:                   0,
+                isKeyFrame:             track.lastSample.isKey,
                 SampleDescriptionIndex: 1,
                 offset:                 uint64(currentOffset),
             }
@@ -505,6 +515,10 @@ func (muxer *Movmuxer) writeH265(track *mp4track, h265 []byte, pts, dts uint64) 
             track.lastSample.pts = pts
             track.lastSample.dts = dts
             track.lastSample.hasVcl = true
+            track.lastSample.isKey = false
+            if nalu_type >= codec.H265_NAL_SLICE_BLA_W_LP && nalu_type <= codec.H265_NAL_SLICE_CRA {
+                track.lastSample.isKey = true
+            }
         }
         track.lastSample.cache = append(track.lastSample.cache, codec.ConvertAnnexBToAVCC(nalu)...)
         return true

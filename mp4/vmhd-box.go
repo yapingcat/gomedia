@@ -53,6 +53,7 @@ func (vmhd *VideoMediaHeaderBox) Decode(r io.Reader) (offset int, err error) {
 
 func (vmhd *VideoMediaHeaderBox) Encode() (int, []byte) {
     vmhd.Box.Box.Size = vmhd.Size()
+    vmhd.Box.Flags[2] = 1
     offset, buf := vmhd.Box.Encode()
     binary.BigEndian.PutUint16(buf[offset:], vmhd.Graphicsmode)
     offset += 2
