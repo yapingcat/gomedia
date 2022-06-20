@@ -239,7 +239,7 @@ func GetH264Resolution(sps []byte) (width uint32, height uint32) {
     s.Decode(bs)
 
     widthInSample := (uint32(s.Pic_width_in_mbs_minus1) + 1) * 16
-    widthCrop := uint32(s.Frame_crop_left_offset)*2 - uint32(s.Frame_crop_right_offset)*2
+    widthCrop := uint32(s.Frame_crop_left_offset)*2 + uint32(s.Frame_crop_right_offset)*2
     width = widthInSample - widthCrop
 
     heightInSample := ((2 - uint32(s.Frame_mbs_only_flag)) * (uint32(s.Pic_height_in_map_units_minus1) + 1) * 16)
