@@ -3,8 +3,9 @@ package ogg
 import (
     "bytes"
     "encoding/binary"
-
+    "errors"
     "github.com/yapingcat/gomedia/codec"
+    "strconv"
 )
 
 type oggCodec interface {
@@ -52,7 +53,7 @@ func init() {
 }
 
 type oggParser interface {
-    header(stream *oggStream, packet []byte)
+    header(stream *oggStream, packet []byte)(err error)
     packet(stream *oggStream, packet []byte) (frame []byte, pts uint64, dts uint64)
     gptopts(granulePos uint64) uint64
     extraData() []byte
@@ -99,15 +100,18 @@ type opusDemuxer struct {
 // |                                                               |
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-func (opus *opusDemuxer) header(stream *oggStream, packet []byte) {
+func (opus *opusDemuxer) header(stream *oggStream, packet []byte) (err error) {
     if bytes.Equal([]byte("OpusHead"), packet[0:8]) {
         opus.extradata = make([]byte, len(packet))
         copy(opus.extradata, packet)
-        opus.ctx.ParseExtranData(packet)
+        err = opus.ctx.ParseExtranData(packet)
+        if err != nil {
+            return err
+        }
     } else if bytes.Equal([]byte("OpusTags"), packet[0:8]) {
-        return
+        return nil
     }
-
+    return errors.New(`unsupported opus header` + strconv.Quote(string(packet)))
 }
 
 func (opus *opusDemuxer) packet(stream *oggStream, packet []byte) (frame []byte, pts uint64, dts uint64) {
@@ -161,7 +165,7 @@ type vp8Demuxer struct {
     extradata         []byte
 }
 
-func (vp8 *vp8Demuxer) header(stream *oggStream, packet []byte) {
+func (vp8 *vp8Demuxer) header(stream *oggStream, packet []byte) (err error) {
     if !bytes.Equal([]byte("OVP80"), packet[0:5]) {
         return
     }
@@ -191,8 +195,9 @@ func (vp8 *vp8Demuxer) header(stream *oggStream, packet []byte) {
         }
         //TODO Parse Comment
     default:
-        return
+        return nil
     }
+    return nil
 }
 
 func (vp8 *vp8Demuxer) packet(stream *oggStream, packet []byte) (frame []byte, pts uint64, dts uint64) {

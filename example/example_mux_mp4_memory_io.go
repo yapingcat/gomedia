@@ -1,6 +1,7 @@
 package main
 
 import (
+    "bytes"
     "errors"
     "fmt"
     "io"
@@ -72,7 +73,11 @@ func main() {
     defer mp4File.Close()
     fmt.Println(mp4File.Seek(0, io.SeekCurrent))
     cws := newCacheWriterSeeker(4096)
-    muxer := mp4.CreateMp4Muxer(cws)
+    muxer, err := mp4.CreateMp4Muxer(cws)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
     vtid := muxer.AddVideoTrack(mp4.MP4_CODEC_H264)
     buf, err := ioutil.ReadFile(tsfile)
     if err != nil {
@@ -88,16 +93,18 @@ func main() {
             }
         }
     }
-    err = demuxer.Input(buf)
+    err = demuxer.Input(bytes.NewReader(buf))
     if err != nil {
         panic(err)
     }
-    demuxer.Flush()
     fmt.Println("write trailer")
     err = muxer.WriteTrailer()
     if err != nil {
         panic(err)
     }
-    mp4File.Write(cws.buf)
+    _, err = mp4File.Write(cws.buf)
+    if err != nil {
+        panic(err)
+    }
     fmt.Println(cws.offset, len(cws.buf))
 }

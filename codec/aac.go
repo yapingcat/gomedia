@@ -129,7 +129,7 @@ func NewAdtsFrameHeader() *ADTS_Frame_Header {
     }
 }
 
-func (frame *ADTS_Frame_Header) Decode(aac []byte) error {
+func (frame *ADTS_Frame_Header) Decode(aac []byte) {
     _ = aac[6]
     frame.Fix_Header.ID = aac[1] >> 3
     frame.Fix_Header.Layer = aac[1] >> 1 & 0x03
@@ -145,7 +145,6 @@ func (frame *ADTS_Frame_Header) Decode(aac []byte) error {
     frame.Variable_Header.Frame_length = (uint16(aac[3]&0x03) << 11) | (uint16(aac[4]) << 3) | (uint16(aac[5]>>5) & 0x07)
     frame.Variable_Header.Adts_buffer_fullness = (uint16(aac[5]&0x1F) << 6) | uint16(aac[6]>>2)
     frame.Variable_Header.Number_of_raw_data_blocks_in_frame = aac[6] & 0x03
-    return nil
 }
 
 func (frame *ADTS_Frame_Header) Encode() []byte {

@@ -34,7 +34,10 @@ func (r *RtpReceiver) Read(p []byte) (n int, err error) {
 	}
 	for {
 		readBytes := 0
-		r.conn.SetReadDeadline(time.Now().Add(time.Second * 10))
+		err = r.conn.SetReadDeadline(time.Now().Add(time.Second * 10))
+		if err != nil {
+			return 0, err
+		}
 		readBytes, err = r.conn.Read(r.buf)
 		if err != nil {
 			fmt.Println(err)

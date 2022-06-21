@@ -239,7 +239,7 @@ type Movmuxer struct {
     height      uint32
 }
 
-func CreateMp4Muxer(w io.WriteSeeker) *Movmuxer {
+func CreateMp4Muxer(w io.WriteSeeker) (*Movmuxer, error) {
     muxer := &Movmuxer{
         writer:      w,
         nextTrackId: 1,
@@ -253,18 +253,30 @@ func CreateMp4Muxer(w io.WriteSeeker) *Movmuxer {
     ftyp.Compatible_brands[1] = mov_tag(iso2)
     ftyp.Compatible_brands[2] = mov_tag(avc1)
     ftyp.Compatible_brands[3] = mov_tag(mp41)
-    len, boxdata := ftyp.Encode()
-    muxer.writer.Write(boxdata[0:len])
+    length, boxdata := ftyp.Encode()
+    _, err := muxer.writer.Write(boxdata[0:length])
+    if err != nil {
+        return nil, err
+    }
     free := NewFreeBox()
     freelen, freeboxdata := free.Encode()
-    muxer.writer.Write(freeboxdata[0:freelen])
-    currentOffset, _ := muxer.writer.Seek(0, io.SeekCurrent)
+    _, err = muxer.writer.Write(freeboxdata[0:freelen])
+    if err != nil {
+        return nil, err
+    }
+    currentOffset, err := muxer.writer.Seek(0, io.SeekCurrent)
+    if err != nil {
+        return nil, err
+    }
     muxer.mdatOffset = uint32(currentOffset)
     mdat := BasicBox{Type: [4]byte{'m', 'd', 'a', 't'}}
     mdat.Size = 8
     mdatlen, mdatBox := mdat.Encode()
-    muxer.writer.Write(mdatBox[0:mdatlen])
-    return muxer
+    _, err = muxer.writer.Write(mdatBox[0:mdatlen])
+    if err != nil {
+        return nil, err
+    }
+    return muxer, nil
 }
 
 func (muxer *Movmuxer) AddAudioTrack(cid MP4_CODEC_TYPE, channelcount uint8, sampleBits uint8, sampleRate uint) uint32 {

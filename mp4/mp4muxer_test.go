@@ -85,7 +85,11 @@ func TestCreateMp4Muxer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			muxer := CreateMp4Muxer(tt.args.wh)
+			muxer, err := CreateMp4Muxer(tt.args.wh)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
 			tid := muxer.AddVideoTrack(MP4_CODEC_H265)
 			cache := make([]byte, 0)
 			codec.SplitFrameWithStartCode(buf, func(nalu []byte) bool {
@@ -134,7 +138,11 @@ func TestMuxAAC(t *testing.T) {
 	//var dts uint64 = 0
 	//var i int = 0
 	samples := uint64(0)
-	muxer := CreateMp4Muxer(mp4file)
+	muxer, err := CreateMp4Muxer(mp4file)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	tid := muxer.AddAudioTrack(MP4_CODEC_AAC, 2, 16, 44100)
 	codec.SplitAACFrame(aac, func(aac []byte) {
@@ -172,7 +180,11 @@ func TestMuxMp4(t *testing.T) {
 	}
 	defer mp4file.Close()
 
-	muxer := CreateMp4Muxer(mp4file)
+	muxer, err := CreateMp4Muxer(mp4file)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	vtid := muxer.AddVideoTrack(MP4_CODEC_H264)
 	atid := muxer.AddAudioTrack(MP4_CODEC_AAC, 0, 16, 44100)
 
