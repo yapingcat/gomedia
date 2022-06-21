@@ -148,6 +148,8 @@ func (demuxer *TSDemuxer) flush() {
             }
             if demuxer.OnFrame != nil {
                 demuxer.OnFrame(stream.cid, stream.pkg.payload, stream.pkg.pts/90, stream.pkg.dts/90)
+                stream.pkg.payload = stream.pkg.payload[:0]
+                stream.pkg = nil
             }
         }
     }
