@@ -350,7 +350,7 @@ func (muxer *Movmuxer) WriteTrailer() (err error) {
     datalen := currentOffset - int64(muxer.mdatOffset)
     if datalen > 0xFFFFFFFF {
         mdat := BasicBox{Type: [4]byte{'m', 'd', 'a', 't'}}
-        mdat.Size = uint64(datalen)
+        mdat.Size = uint64(datalen + 8)
         mdatBoxLen, mdatBox := mdat.Encode()
         if _, err = muxer.writer.Seek(int64(muxer.mdatOffset)-8, io.SeekStart); err != nil {
             return

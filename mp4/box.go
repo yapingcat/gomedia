@@ -3,7 +3,7 @@ package mp4
 import (
     "bytes"
     "encoding/binary"
-	"io"
+    "io"
 )
 
 const (
@@ -50,7 +50,7 @@ func NewBasicBox(boxtype [4]byte) *BasicBox {
 
 func (box *BasicBox) Decode(r io.Reader) (int, error) {
     buf := make([]byte, 8)
-	if n, err := io.ReadFull(r, buf); err != nil {
+    if n, err := io.ReadFull(r, buf); err != nil {
         return n, err
     }
     nn := 0
@@ -66,7 +66,7 @@ func (box *BasicBox) Decode(r io.Reader) (int, error) {
     }
     if bytes.Equal(box.Type[:], []byte("uuid")) {
         uuid := make([]byte, 16)
-		if n, err := io.ReadFull(r, uuid); err != nil {
+        if n, err := io.ReadFull(r, uuid); err != nil {
             return n + nn, err
         }
         copy(box.UserType[:], uuid[:])
@@ -78,18 +78,21 @@ func (box *BasicBox) Decode(r io.Reader) (int, error) {
 
 func (box *BasicBox) Encode() (int, []byte) {
     nn := 8
-    buf := make([]byte, box.Size)
-    if box.Size > 0xFFFFFFFF {
+    var buf []byte
+    if box.Size > 0xFFFFFFFF { //just for mdat box
+        buf = make([]byte, 16)
         binary.BigEndian.PutUint32(buf, 1)
         copy(buf[4:], box.Type[:])
         nn += 8
-        binary.BigEndian.PutUint32(buf[8:], uint32(box.Size))
+        binary.BigEndian.PutUint64(buf[8:], box.Size)
     } else {
+        buf = make([]byte, box.Size)
         binary.BigEndian.PutUint32(buf, uint32(box.Size))
         copy(buf[4:], box.Type[:])
-    }
-    if bytes.Equal(box.Type[:], []byte("uuid")) {
-        copy(buf[nn:nn+16], box.UserType[:])
+        if bytes.Equal(box.Type[:], []byte("uuid")) {
+            copy(buf[nn:nn+16], box.UserType[:])
+            nn += 16
+        }
     }
     return nn, buf
 }
@@ -122,7 +125,7 @@ func (box *FullBox) Size() uint64 {
 
 func (box *FullBox) Decode(r io.Reader) (int, error) {
     buf := make([]byte, 4)
-	if n, err := io.ReadFull(r, buf); err != nil {
+    if n, err := io.ReadFull(r, buf); err != nil {
         return n, err
     }
     box.Version = buf[0]
