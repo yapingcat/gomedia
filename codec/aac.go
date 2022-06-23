@@ -225,24 +225,25 @@ func (asc *AudioSpecificConfiguration) Decode(buf []byte) error {
     return nil
 }
 
-func ConvertADTSToASC(frame []byte) ([]byte, error) {
-
+func ConvertADTSToASC(frame []byte) (*AudioSpecificConfiguration, error) {
     if len(frame) < 7 {
         return nil, errors.New("len of frame < 7")
     }
-
     adts := NewAdtsFrameHeader()
     adts.Decode(frame)
     asc := NewAudioSpecificConfiguration()
     asc.Audio_object_type = adts.Fix_Header.Profile + 1
     asc.Channel_configuration = adts.Fix_Header.Channel_configuration
     asc.Sample_freq_index = adts.Fix_Header.Sampling_frequency_index
-    return asc.Encode(), nil
+    return asc, nil
 }
 
-func ConvertASCToADTS(asc []byte, aacbytes int) []byte {
+func ConvertASCToADTS(asc []byte, aacbytes int) (*ADTS_Frame_Header, error) {
     aac_asc := NewAudioSpecificConfiguration()
-    aac_asc.Decode(asc)
+    err := aac_asc.Decode(asc)
+    if err != nil {
+        return nil, err
+    }
     aac_adts := NewAdtsFrameHeader()
     aac_adts.Fix_Header.Profile = aac_asc.Audio_object_type - 1
     aac_adts.Fix_Header.Channel_configuration = aac_asc.Channel_configuration
@@ -250,5 +251,5 @@ func ConvertASCToADTS(asc []byte, aacbytes int) []byte {
     aac_adts.Fix_Header.Protection_absent = 1
     aac_adts.Variable_Header.Adts_buffer_fullness = 0x3F
     aac_adts.Variable_Header.Frame_length = uint16(aacbytes)
-    return aac_adts.Encode()
+    return aac_adts, nil
 }

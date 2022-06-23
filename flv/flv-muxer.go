@@ -203,7 +203,7 @@ func (muxer *AACMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
         hdr.Decode(aac)
         if muxer.updateSequence {
             asc, _ := codec.ConvertADTSToASC(aac)
-            tags = append(tags, WriteAudioTag(asc, FLV_AAC, true))
+            tags = append(tags, WriteAudioTag(asc.Encode(), FLV_AAC, true))
             muxer.updateSequence = false
         }
         tags = append(tags, WriteAudioTag(aac[7:], FLV_AAC, false))

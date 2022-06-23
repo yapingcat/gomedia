@@ -545,16 +545,26 @@ func (muxer *Movmuxer) writeH265(track *mp4track, h265 []byte, pts, dts uint64) 
 func (muxer *Movmuxer) writeAAC(track *mp4track, aacframes []byte, pts, dts uint64) (err error) {
     aacextra, ok := track.extra.(*aacExtraData)
     if !ok {
-        panic("must init aacExtraData first")
+        return errors.New("must init aacExtraData first")
     }
     if aacextra.asc == nil || len(aacextra.asc) <= 0 {
-
         asc, err := codec.ConvertADTSToASC(aacframes)
         if err != nil {
             return err
         }
-        aacextra.asc = make([]byte, len(asc))
-        copy(aacextra.asc, asc)
+        aacextra.asc = asc.Encode()
+
+        if track.chanelCount == 0 {
+            track.chanelCount = asc.Channel_configuration
+        }
+        if track.sampleRate == 0 {
+            track.sampleRate = uint32(codec.AACSampleIdxToSample(int(asc.Sample_freq_index)))
+        }
+        if track.sampleBits == 0 {
+            // aac has no fixed bit depth, so we just set it to the default of 16
+            // see AudioSampleEntry (stsd-box) and https://superuser.com/a/1173507
+            track.sampleBits = 16
+        }
     }
 
     var currentOffset int64

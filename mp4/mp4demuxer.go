@@ -260,9 +260,11 @@ func (demuxer *MovDemuxer) ReadPacket() (*AVPacket, error) {
             if !ok {
                 panic("must init aacExtraData first")
             }
-            aacframe := codec.ConvertASCToADTS(aacExtra.asc, len(sample)+7)
-            aacframe = append(aacframe, sample...)
-            avpkg.Data = aacframe
+            adts, err := codec.ConvertASCToADTS(aacExtra.asc, len(sample)+7)
+            if err != nil {
+                return nil, err
+            }
+            avpkg.Data = append(adts.Encode(), sample...)
         } else {
             avpkg.Data = sample
         }
