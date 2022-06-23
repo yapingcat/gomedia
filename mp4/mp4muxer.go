@@ -239,8 +239,6 @@ type Movmuxer struct {
     mdatOffset  uint32
     tracks      map[uint32]*mp4track
     duration    uint32
-    width       uint32
-    height      uint32
 }
 
 func CreateMp4Muxer(w io.WriteSeeker) (*Movmuxer, error) {
@@ -463,10 +461,14 @@ func (muxer *Movmuxer) writeH264(track *mp4track, h264 []byte, pts, dts uint64) 
             tmp := make([]byte, len(nalu))
             copy(tmp, nalu)
             h264extra.spss = append(h264extra.spss, tmp)
-            if muxer.width == 0 || muxer.height == 0 {
-                muxer.width, muxer.height = codec.GetH264Resolution(h264extra.spss[0])
-                track.width = muxer.width
-                track.height = muxer.height
+            if track.width == 0 || track.height == 0 {
+                width, height := codec.GetH264Resolution(h264extra.spss[0])
+                if track.width == 0 {
+                    track.width = width
+                }
+                if track.height == 0 {
+                    track.height = height
+                }
             }
         case codec.H264_NAL_PPS:
             ppsid := codec.GetPPSIdWithStartCode(nalu)
@@ -528,10 +530,14 @@ func (muxer *Movmuxer) writeH265(track *mp4track, h265 []byte, pts, dts uint64) 
         switch nalu_type {
         case codec.H265_NAL_SPS:
             h265extra.hvccExtra.UpdateSPS(nalu)
-            if muxer.width == 0 || muxer.height == 0 {
-                muxer.width, muxer.height = codec.GetH265Resolution(nalu)
-                track.width = muxer.width
-                track.height = muxer.height
+            if track.width == 0 || track.height == 0 {
+                width, height := codec.GetH265Resolution(nalu)
+                if track.width == 0 {
+                    track.width = width
+                }
+                if track.height == 0 {
+                    track.height = height
+                }
             }
         case codec.H265_NAL_PPS:
             h265extra.hvccExtra.UpdatePPS(nalu)
