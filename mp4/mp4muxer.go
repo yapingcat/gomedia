@@ -283,22 +283,56 @@ func CreateMp4Muxer(w io.WriteSeeker) (*Movmuxer, error) {
     return muxer, nil
 }
 
-func (muxer *Movmuxer) AddAudioTrack(cid MP4_CODEC_TYPE, channelcount uint8, sampleBits uint8, sampleRate uint) uint32 {
-    track := newmp4track(cid)
-    track.trackId = muxer.nextTrackId
-    track.sampleRate = uint32(sampleRate)
-    track.sampleBits = sampleBits
-    track.chanelCount = channelcount
-    muxer.tracks[muxer.nextTrackId] = track
-    muxer.nextTrackId++
-    return track.trackId
+type TrackOption func(track *mp4track)
+
+func WithVideoWidth(width uint32) TrackOption {
+    return func(track *mp4track) {
+        track.width = width
+    }
 }
 
-func (muxer *Movmuxer) AddVideoTrack(cid MP4_CODEC_TYPE) uint32 {
+func WithVideoHeight(height uint32) TrackOption {
+    return func(track *mp4track) {
+        track.height = height
+    }
+}
+
+func WithAudioChannelCount(channelCount uint8) TrackOption {
+    return func(track *mp4track) {
+        track.chanelCount = channelCount
+    }
+}
+
+func WithAudioSampleRate(sampleRate uint32) TrackOption {
+    return func(track *mp4track) {
+        track.sampleRate = sampleRate
+    }
+}
+
+func WithAudioSampleBits(sampleBits uint8) TrackOption {
+    return func(track *mp4track) {
+        track.sampleBits = sampleBits
+    }
+}
+
+func (muxer *Movmuxer) AddAudioTrack(cid MP4_CODEC_TYPE, options ...TrackOption) uint32 {
+    return muxer.addTrack(cid, options...)
+}
+
+func (muxer *Movmuxer) AddVideoTrack(cid MP4_CODEC_TYPE, options ...TrackOption) uint32 {
+    return muxer.addTrack(cid, options...)
+}
+
+func (muxer *Movmuxer) addTrack(cid MP4_CODEC_TYPE, options ...TrackOption) uint32 {
     track := newmp4track(cid)
     track.trackId = muxer.nextTrackId
     muxer.tracks[muxer.nextTrackId] = track
     muxer.nextTrackId++
+
+    for _, opt := range options {
+        opt(track)
+    }
+
     return track.trackId
 }
 

@@ -24,7 +24,7 @@ func main() {
 		return
 	}
 	vtid := muxer.AddVideoTrack(mp4.MP4_CODEC_H264)
-	atid := muxer.AddAudioTrack(mp4.MP4_CODEC_AAC, 0, 16, 44100)
+	atid := muxer.AddAudioTrack(mp4.MP4_CODEC_AAC)
 
 	flvfilereader, _ := os.Open(os.Args[1])
 	defer flvfilereader.Close()
