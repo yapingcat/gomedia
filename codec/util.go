@@ -1,23 +1,27 @@
 package codec
 
-import "fmt"
+import (
+    "bytes"
+    "fmt"
+)
 
 type START_CODE_TYPE int
 
 const (
     START_CODE_3 START_CODE_TYPE = 3
-    START_CODE_4                 = 4
+    START_CODE_4 START_CODE_TYPE = 4
 )
 
 func FindStartCode(nalu []byte, offset int) (int, START_CODE_TYPE) {
-    for i := offset; i < len(nalu)-4; i++ {
-        if nalu[i] == 0x00 && nalu[i+1] == 0x00 {
-            if nalu[i+2] == 0x01 {
-                return i, START_CODE_3
-            } else if nalu[i+2] == 0x00 && nalu[i+3] == 0x01 {
-                return i, START_CODE_4
-            }
+    idx := bytes.Index(nalu[offset:], []byte{0x00, 0x00, 0x01})
+    switch {
+    case idx > 0:
+        if nalu[offset+idx-1] == 0x00 {
+            return offset + idx - 1, START_CODE_4
         }
+        fallthrough
+    case idx == 0:
+        return offset + idx, START_CODE_3
     }
     return -1, START_CODE_3
 }

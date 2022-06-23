@@ -557,12 +557,12 @@ func (muxer *Movmuxer) writeAAC(track *mp4track, aacframes []byte, pts, dts uint
         copy(aacextra.asc, asc)
     }
 
+    var currentOffset int64
+    if currentOffset, err = muxer.writer.Seek(0, io.SeekCurrent); err != nil {
+        return
+    }
     //某些情况下，aacframes 可能由多个aac帧组成需要分帧，否则quicktime 貌似播放有问题
     codec.SplitAACFrame(aacframes, func(aac []byte) {
-        var currentOffset int64
-        if currentOffset, err = muxer.writer.Seek(0, io.SeekCurrent); err != nil {
-            return
-        }
         entry := sampleEntry{
             pts:                    pts,
             dts:                    dts,
@@ -572,6 +572,10 @@ func (muxer *Movmuxer) writeAAC(track *mp4track, aacframes []byte, pts, dts uint
         }
         n := 0
         n, err = muxer.writer.Write(aac[7:])
+        if err != nil {
+            return
+        }
+        currentOffset += int64(n)
         entry.size = uint64(n)
         track.addSampleEntry(entry)
     })
