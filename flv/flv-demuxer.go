@@ -192,16 +192,22 @@ func (demuxer *AACTagDemuxer) Decode(data []byte) error {
     }
 
     atag := AudioTag{}
-    _ = atag.Decode(data[0:2])
+    err := atag.Decode(data[0:2])
+    if err != nil {
+        return err
+    }
     data = data[2:]
     if atag.AACPacketType == AAC_SEQUENCE_HEADER {
         demuxer.asc = make([]byte, len(data))
         copy(demuxer.asc, data)
     } else {
-        adts := codec.ConvertASCToADTS(demuxer.asc, len(data)+7)
-        adts = append(adts, data...)
+        adts, err := codec.ConvertASCToADTS(demuxer.asc, len(data)+7)
+        if err != nil {
+            return err
+        }
+        adts_frame := append(adts.Encode(), data...)
         if demuxer.onframe != nil {
-            demuxer.onframe(codec.CODECID_AUDIO_AAC, adts)
+            demuxer.onframe(codec.CODECID_AUDIO_AAC, adts_frame)
         }
     }
     return nil

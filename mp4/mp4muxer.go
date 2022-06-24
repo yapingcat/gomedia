@@ -239,8 +239,6 @@ type Movmuxer struct {
     mdatOffset  uint32
     tracks      map[uint32]*mp4track
     duration    uint32
-    width       uint32
-    height      uint32
 }
 
 func CreateMp4Muxer(w io.WriteSeeker) (*Movmuxer, error) {
@@ -283,22 +281,56 @@ func CreateMp4Muxer(w io.WriteSeeker) (*Movmuxer, error) {
     return muxer, nil
 }
 
-func (muxer *Movmuxer) AddAudioTrack(cid MP4_CODEC_TYPE, channelcount uint8, sampleBits uint8, sampleRate uint) uint32 {
-    track := newmp4track(cid)
-    track.trackId = muxer.nextTrackId
-    track.sampleRate = uint32(sampleRate)
-    track.sampleBits = sampleBits
-    track.chanelCount = channelcount
-    muxer.tracks[muxer.nextTrackId] = track
-    muxer.nextTrackId++
-    return track.trackId
+type TrackOption func(track *mp4track)
+
+func WithVideoWidth(width uint32) TrackOption {
+    return func(track *mp4track) {
+        track.width = width
+    }
 }
 
-func (muxer *Movmuxer) AddVideoTrack(cid MP4_CODEC_TYPE) uint32 {
+func WithVideoHeight(height uint32) TrackOption {
+    return func(track *mp4track) {
+        track.height = height
+    }
+}
+
+func WithAudioChannelCount(channelCount uint8) TrackOption {
+    return func(track *mp4track) {
+        track.chanelCount = channelCount
+    }
+}
+
+func WithAudioSampleRate(sampleRate uint32) TrackOption {
+    return func(track *mp4track) {
+        track.sampleRate = sampleRate
+    }
+}
+
+func WithAudioSampleBits(sampleBits uint8) TrackOption {
+    return func(track *mp4track) {
+        track.sampleBits = sampleBits
+    }
+}
+
+func (muxer *Movmuxer) AddAudioTrack(cid MP4_CODEC_TYPE, options ...TrackOption) uint32 {
+    return muxer.addTrack(cid, options...)
+}
+
+func (muxer *Movmuxer) AddVideoTrack(cid MP4_CODEC_TYPE, options ...TrackOption) uint32 {
+    return muxer.addTrack(cid, options...)
+}
+
+func (muxer *Movmuxer) addTrack(cid MP4_CODEC_TYPE, options ...TrackOption) uint32 {
     track := newmp4track(cid)
     track.trackId = muxer.nextTrackId
     muxer.tracks[muxer.nextTrackId] = track
     muxer.nextTrackId++
+
+    for _, opt := range options {
+        opt(track)
+    }
+
     return track.trackId
 }
 
@@ -429,10 +461,14 @@ func (muxer *Movmuxer) writeH264(track *mp4track, h264 []byte, pts, dts uint64) 
             tmp := make([]byte, len(nalu))
             copy(tmp, nalu)
             h264extra.spss = append(h264extra.spss, tmp)
-            if muxer.width == 0 || muxer.height == 0 {
-                muxer.width, muxer.height = codec.GetH264Resolution(h264extra.spss[0])
-                track.width = muxer.width
-                track.height = muxer.height
+            if track.width == 0 || track.height == 0 {
+                width, height := codec.GetH264Resolution(h264extra.spss[0])
+                if track.width == 0 {
+                    track.width = width
+                }
+                if track.height == 0 {
+                    track.height = height
+                }
             }
         case codec.H264_NAL_PPS:
             ppsid := codec.GetPPSIdWithStartCode(nalu)
@@ -494,10 +530,14 @@ func (muxer *Movmuxer) writeH265(track *mp4track, h265 []byte, pts, dts uint64) 
         switch nalu_type {
         case codec.H265_NAL_SPS:
             h265extra.hvccExtra.UpdateSPS(nalu)
-            if muxer.width == 0 || muxer.height == 0 {
-                muxer.width, muxer.height = codec.GetH265Resolution(nalu)
-                track.width = muxer.width
-                track.height = muxer.height
+            if track.width == 0 || track.height == 0 {
+                width, height := codec.GetH265Resolution(nalu)
+                if track.width == 0 {
+                    track.width = width
+                }
+                if track.height == 0 {
+                    track.height = height
+                }
             }
         case codec.H265_NAL_PPS:
             h265extra.hvccExtra.UpdatePPS(nalu)
@@ -545,16 +585,26 @@ func (muxer *Movmuxer) writeH265(track *mp4track, h265 []byte, pts, dts uint64) 
 func (muxer *Movmuxer) writeAAC(track *mp4track, aacframes []byte, pts, dts uint64) (err error) {
     aacextra, ok := track.extra.(*aacExtraData)
     if !ok {
-        panic("must init aacExtraData first")
+        return errors.New("must init aacExtraData first")
     }
     if aacextra.asc == nil || len(aacextra.asc) <= 0 {
-
         asc, err := codec.ConvertADTSToASC(aacframes)
         if err != nil {
             return err
         }
-        aacextra.asc = make([]byte, len(asc))
-        copy(aacextra.asc, asc)
+        aacextra.asc = asc.Encode()
+
+        if track.chanelCount == 0 {
+            track.chanelCount = asc.Channel_configuration
+        }
+        if track.sampleRate == 0 {
+            track.sampleRate = uint32(codec.AACSampleIdxToSample(int(asc.Sample_freq_index)))
+        }
+        if track.sampleBits == 0 {
+            // aac has no fixed bit depth, so we just set it to the default of 16
+            // see AudioSampleEntry (stsd-box) and https://superuser.com/a/1173507
+            track.sampleBits = 16
+        }
     }
 
     var currentOffset int64
