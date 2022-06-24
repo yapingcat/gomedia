@@ -422,11 +422,9 @@ func (muxer *Movmuxer) WriteTrailer() (err error) {
     mvhd := makeMvhdBox(muxer.nextTrackId, muxer.duration)
     moovsize := len(mvhd)
     traks := make([][]byte, len(muxer.tracks))
-    idx := 0
-    for _, track := range muxer.tracks {
-        traks[idx] = makeTrak(track)
-        moovsize += len(traks[idx])
-        idx++
+    for i := uint32(1); i < muxer.nextTrackId; i++ {
+        traks[i-1] = makeTrak(muxer.tracks[i])
+        moovsize += len(traks[i-1])
     }
     moov := BasicBox{Type: [4]byte{'m', 'o', 'o', 'v'}}
     moov.Size = 8 + uint64(moovsize)

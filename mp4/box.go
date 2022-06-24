@@ -49,16 +49,14 @@ func NewBasicBox(boxtype [4]byte) *BasicBox {
 }
 
 func (box *BasicBox) Decode(r io.Reader) (int, error) {
-    buf := make([]byte, 8)
-    if n, err := io.ReadFull(r, buf); err != nil {
+    buf := make([]byte, 16)
+    if n, err := io.ReadFull(r, buf[:8]); err != nil {
         return n, err
     }
-    nn := 0
     boxsize := binary.BigEndian.Uint32(buf)
     copy(box.Type[:], buf[4:8])
-    nn = 8
+    nn := 8
     if boxsize == 1 {
-        _ = buf[nn+8]
         box.Size = binary.BigEndian.Uint64(buf[nn:])
         nn += 8
     } else {
