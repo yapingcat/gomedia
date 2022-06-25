@@ -58,6 +58,10 @@ type movstco struct {
     chunkOffsetlist []uint64
 }
 
+type movstss struct {
+    sampleNumber []uint32
+}
+
 type movelst struct {
     entryCount uint32
     entrys     []elstEntry
@@ -73,6 +77,7 @@ type movstbl struct {
     stsc *movstsc
     stsz *movstsz
     stco *movstco
+    stss *movstss
 }
 
 type fragEntry struct {

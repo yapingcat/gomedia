@@ -2,6 +2,7 @@ package mp4
 
 import (
 	"encoding/binary"
+	"io"
 )
 
 // aligned(8) class SyncSampleBox extends FullBox(‘stss’, version = 0, 0) {
@@ -41,6 +42,42 @@ func (stss *SyncSampleBox) Encode() (int, []byte) {
 		offset += 4
 	}
 	return offset, buf
+}
+
+func (stss *SyncSampleBox) Decode(r io.Reader) (offset int, err error) {
+	if _, err = stss.box.Decode(r); err != nil {
+		return
+	}
+	tmp := make([]byte, 4)
+	if _, err = io.ReadFull(r, tmp); err != nil {
+		return
+	}
+	offset = 8
+	entry_count := binary.BigEndian.Uint32(tmp[:])
+	stss.entrys = make([]uint32, entry_count)
+	buf := make([]byte, entry_count*4)
+	if _, err = io.ReadFull(r, buf); err != nil {
+		return
+	}
+	idx := 0
+	for i := 0; i < int(entry_count); i++ {
+		stss.entrys[i] = binary.BigEndian.Uint32(buf[idx:])
+		idx += 4
+	}
+	offset += idx
+	return
+}
+
+func decodeStssBox(demuxer *MovDemuxer) (err error) {
+	stss := SyncSampleBox{box: new(FullBox)}
+	if _, err = stss.Decode(demuxer.reader); err != nil {
+		return
+	}
+	track := demuxer.tracks[len(demuxer.tracks)-1]
+	track.stbltable.stss = &movstss{
+		sampleNumber: stss.entrys,
+	}
+	return
 }
 
 func makeStss(track *mp4track) (boxdata []byte) {

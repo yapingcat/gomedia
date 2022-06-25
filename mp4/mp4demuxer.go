@@ -16,6 +16,13 @@ type AVPacket struct {
     Dts     uint64
 }
 
+type SyncSample struct {
+    Pts    uint64
+    Dts    uint64
+    Size   uint32
+    Offset uint32
+}
+
 type TrackInfo struct {
     Duration     uint32
     TrackId      int
@@ -26,6 +33,8 @@ type TrackInfo struct {
     SampleSize   uint16
     ChannelCount uint8
     Timescale    uint32
+    StartDts     uint64
+    EndDts       uint64
 }
 
 type Mp4Info struct {
@@ -42,6 +51,7 @@ type MovDemuxer struct {
     reader        io.ReadSeeker
     mdatOffset    []uint64 //一个mp4文件可能存在多个mdatbox
     tracks        []*mp4track
+    stss          map[uint32][]uint32
     readSampleIdx []uint32
     mp4out        []byte
     mp4Info       Mp4Info
@@ -135,6 +145,8 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
             err = decodeStcoBox(demuxer)
         case mov_tag([4]byte{'c', 'o', '6', '4'}):
             err = decodeCo64Box(demuxer)
+        case mov_tag([4]byte{'s', 't', 's', 's'}):
+            err = decodeStssBox(demuxer)
         case mov_tag([4]byte{'a', 'v', 'c', '1'}):
             demuxer.tracks[len(demuxer.tracks)-1].cid = MP4_CODEC_H264
             demuxer.tracks[len(demuxer.tracks)-1].extra = new(h264ExtraData)
@@ -175,6 +187,7 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
         return nil, err
     }
     demuxer.buildSampleList()
+    demuxer.readSampleIdx = make([]uint32, len(demuxer.tracks))
     for _, track := range demuxer.tracks {
         info := TrackInfo{}
         info.Cid = track.cid
@@ -186,8 +199,11 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
         info.Width = track.width
         info.Height = track.height
         info.Timescale = track.timescale
+        if len(track.samplelist) > 0 {
+            info.StartDts = track.samplelist[0].dts * 1000 / uint64(track.timescale)
+            info.EndDts = track.samplelist[len(track.samplelist)-1].dts * 1000 / uint64(track.timescale)
+        }
         infos = append(infos, info)
-
     }
     return infos, nil
 }
@@ -198,9 +214,6 @@ func (demuxer *MovDemuxer) GetMp4Info() Mp4Info {
 
 ///return error == io.EOF, means read mp4 file completed
 func (demuxer *MovDemuxer) ReadPacket() (*AVPacket, error) {
-    if len(demuxer.readSampleIdx) == 0 {
-        demuxer.readSampleIdx = make([]uint32, len(demuxer.tracks))
-    }
     for {
         maxdts := int64(-1)
         minTsSample := sampleEntry{dts: uint64(maxdts)}
@@ -240,8 +253,8 @@ func (demuxer *MovDemuxer) ReadPacket() (*AVPacket, error) {
         avpkg := &AVPacket{
             Cid:     whichTrack.cid,
             TrackId: int(whichTrack.trackId),
-            Pts:     minTsSample.pts * uint64(demuxer.mp4Info.Timescale) / uint64(whichTrack.timescale),
-            Dts:     minTsSample.dts * uint64(demuxer.mp4Info.Timescale) / uint64(whichTrack.timescale),
+            Pts:     minTsSample.pts * 1000 / uint64(whichTrack.timescale),
+            Dts:     minTsSample.dts * 1000 / uint64(whichTrack.timescale),
         }
         if whichTrack.cid == MP4_CODEC_H264 {
             extra, ok := whichTrack.extra.(*h264ExtraData)
@@ -272,6 +285,45 @@ func (demuxer *MovDemuxer) ReadPacket() (*AVPacket, error) {
             return avpkg, nil
         }
     }
+}
+
+func (demuxer *MovDemuxer) GetSyncTable(trackId uint32) ([]SyncSample, error) {
+    var track *mp4track = nil
+    for i := 0; i < len(demuxer.tracks); i++ {
+        if demuxer.tracks[i].trackId != trackId {
+            continue
+        }
+        track = demuxer.tracks[i]
+    }
+    if track == nil {
+        return nil, errors.New("not found track")
+    }
+
+    syncTable := make([]SyncSample, len(track.stbltable.stss.sampleNumber))
+
+    for i := 0; i < len(syncTable); i++ {
+        idx := track.stbltable.stss.sampleNumber[i] - 1
+        syncTable[i] = SyncSample{
+            Pts:    track.samplelist[idx].pts * 1000 / uint64(track.timescale),
+            Dts:    track.samplelist[idx].dts * 1000 / uint64(track.timescale),
+            Offset: uint32(track.samplelist[idx].offset),
+            Size:   uint32(track.samplelist[idx].size),
+        }
+    }
+    return syncTable, nil
+}
+
+func (demuxer *MovDemuxer) SeekTime(dts uint64) error {
+    for i, track := range demuxer.tracks {
+        for j := 0; j < len(track.samplelist); j++ {
+            if track.samplelist[j].dts*1000/uint64(track.timescale) < dts {
+                continue
+            }
+            demuxer.readSampleIdx[i] = uint32(j)
+            break
+        }
+    }
+    return nil
 }
 
 func (demuxer *MovDemuxer) buildSampleList() {
