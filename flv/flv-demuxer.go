@@ -87,7 +87,7 @@ func (demuxer *AVCTagDemuxer) Decode(data []byte) error {
                 demuxer.onframe(codec.CODECID_VIDEO_H264, nalus, int(vtag.CompositionTime))
             }
         } else {
-            if demuxer.onframe != nil {
+            if demuxer.onframe != nil && len(data) > 0 {
                 demuxer.onframe(codec.CODECID_VIDEO_H264, data, int(vtag.CompositionTime))
             }
         }
