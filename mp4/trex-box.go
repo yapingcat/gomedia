@@ -71,3 +71,10 @@ func (trex *TrackExtendsBox) Encode() (int, []byte) {
 	offset += 4
 	return offset, buf
 }
+
+func makeTrexBox(track *mp4track) []byte {
+	trex := NewTrackExtendsBox(track.trackId)
+	trex.DefaultSampleDescriptionIndex = 1
+	_, boxData := trex.Encode()
+	return boxData
+}

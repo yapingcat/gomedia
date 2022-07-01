@@ -55,3 +55,12 @@ func (tfdt *TrackFragmentBaseMediaDecodeTimeBox) Encode() (int, []byte) {
     binary.BigEndian.PutUint64(boxdata[offset:], tfdt.BaseMediaDecodeTime)
     return offset + 8, boxdata
 }
+
+func makeTfdtBox(track *mp4track) []byte {
+    if len(track.samplelist) == 0 {
+        return nil
+    }
+    tfdt := NewTrackFragmentBaseMediaDecodeTimeBox(track.samplelist[0].dts)
+    _, boxData := tfdt.Encode()
+    return boxData
+}

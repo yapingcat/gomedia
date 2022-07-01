@@ -27,13 +27,6 @@ func (f MP4_FLAG) isDash() bool {
     return (f & MP4_FLAG_DASH) != 0
 }
 
-type movFragment struct {
-    offset   uint64
-    duration uint32
-    firstDts uint64
-    firstPts uint64
-}
-
 type OnFragment func(duration uint32, firstPts, firstDts uint64)
 type Movmuxer struct {
     writer         io.WriteSeeker
@@ -351,20 +344,26 @@ func (muxer *Movmuxer) flushFragment() (err error) {
             }
             muxer.writeMoov(muxer.writer)
         }
-        for _, track := range muxer.tracks {
-            if len(track.samplelist) == 0 {
-                continue
-            }
-            firstPts := track.samplelist[0].pts
-            firstDts := track.samplelist[0].dts
-            frag := movFragment{
-                offset:   uint64(moofOffset),
-                duration: track.duration,
-                firstDts: firstDts,
-                firstPts: firstPts,
-            }
-            track.fragments = append(track.fragments, frag)
+    }
+
+    for _, track := range muxer.tracks {
+        track.flush()
+        if len(track.samplelist) == 0 {
+            continue
         }
+        firstPts := track.samplelist[0].pts
+        firstDts := track.samplelist[0].dts
+        lastPts := track.samplelist[len(track.samplelist)-1].pts
+        lastDts := track.samplelist[len(track.samplelist)-1].dts
+        frag := movFragment{
+            offset:   uint64(moofOffset),
+            duration: track.duration,
+            firstDts: firstDts,
+            firstPts: firstPts,
+            lastPts:  lastPts,
+            lastDts:  lastDts,
+        }
+        track.fragments = append(track.fragments, frag)
     }
 
     moofSize := 0
@@ -373,7 +372,7 @@ func (muxer *Movmuxer) flushFragment() (err error) {
     moofSize += len(mfhd)
     trafs := make([][]byte, len(muxer.tracks))
     for i := uint32(1); i < muxer.nextTrackId; i++ {
-        traf := makeTraf(muxer.tracks[i])
+        traf := makeTraf(muxer.tracks[i], uint64(moofOffset))
         moofSize += len(traf)
         trafs[i-1] = traf
     }
@@ -424,6 +423,8 @@ func (muxer *Movmuxer) flushFragment() (err error) {
     }
     muxer.fmp4Writer.buffer = muxer.fmp4Writer.buffer[:0]
     muxer.fmp4Writer.offset = 0
-
+    for _, track := range muxer.tracks {
+        track.clearSamples()
+    }
     return nil
 }

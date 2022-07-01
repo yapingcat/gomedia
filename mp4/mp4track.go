@@ -87,6 +87,15 @@ func (extra *aacExtraData) load(data []byte) {
     copy(extra.asc, data)
 }
 
+type movFragment struct {
+    offset   uint64
+    duration uint32
+    firstDts uint64
+    firstPts uint64
+    lastPts  uint64
+    lastDts  uint64
+}
+
 type mp4track struct {
     cid         MP4_CODEC_TYPE
     trackId     uint32
@@ -106,10 +115,12 @@ type mp4track struct {
     fragments   []movFragment
 
     //for fmp4
-    nextFramentId uint32
-    extraData     []byte
-    startDts      uint64
-    startPts      uint64
+    extraData          []byte
+    startDts           uint64
+    startPts           uint64
+    defaultSize        uint32
+    defaultDuration    uint32
+    defaultSampleFlags uint32
 }
 
 func newmp4track(cid MP4_CODEC_TYPE, writer io.WriteSeeker) *mp4track {
@@ -122,10 +133,9 @@ func newmp4track(cid MP4_CODEC_TYPE, writer io.WriteSeeker) *mp4track {
             hasVcl: false,
             cache:  make([]byte, 0, 128),
         },
-        writer:        writer,
-        nextFramentId: 1,
-        fragments:     make([]fragment, 0, 32),
-        startDts:      0,
+        writer:    writer,
+        fragments: make([]movFragment, 0, 32),
+        startDts:  0,
     }
     if cid == MP4_CODEC_H264 {
         track.extra = new(h264ExtraData)
@@ -494,6 +504,15 @@ func (track *mp4track) flush() (err error) {
         }
         entry.size = uint64(n)
         track.addSampleEntry(entry)
+        track.lastSample.cache = track.lastSample.cache[:0]
+        track.lastSample.hasVcl = false
+        track.lastSample.isKey = false
+        track.lastSample.dts = 0
+        track.lastSample.pts = 0
     }
     return nil
+}
+
+func (track *mp4track) clearSamples() {
+    track.samplelist = track.samplelist[:0]
 }

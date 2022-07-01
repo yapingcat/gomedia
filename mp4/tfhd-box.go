@@ -15,16 +15,25 @@ import (
 //     unsigned int(32) default_sample_flags
 // }
 
-type MP4_THFD_FLAG uint32
-
 const (
-    TF_FLAG_BASE_DATA_OFFSET                 MP4_THFD_FLAG = 0x000001
-    TF_FLAG_SAMPLE_DESCRIPTION_INDEX_PRESENT MP4_THFD_FLAG = 0x000002
-    TF_FLAG_DEFAULT_SAMPLE_DURATION_PRESENT  MP4_THFD_FLAG = 0x000008
-    TF_FLAG_DEFAULT_SAMPLE_SIZE_PRESENT      MP4_THFD_FLAG = 0x000010
-    TF_FLAG_DEAAULT_SAMPLE_FLAGS_PRESENT     MP4_THFD_FLAG = 0x000020
-    TF_FLAG_DURATION_IS_EMPTY                MP4_THFD_FLAG = 0x010000
-    TF_FLAG_DEAAULT_BASE_IS_MOOF             MP4_THFD_FLAG = 0x020000
+    TF_FLAG_BASE_DATA_OFFSET                 uint32 = 0x000001
+    TF_FLAG_SAMPLE_DESCRIPTION_INDEX_PRESENT uint32 = 0x000002
+    TF_FLAG_DEFAULT_SAMPLE_DURATION_PRESENT  uint32 = 0x000008
+    TF_FLAG_DEFAULT_SAMPLE_SIZE_PRESENT      uint32 = 0x000010
+    TF_FLAG_DEAAULT_SAMPLE_FLAGS_PRESENT     uint32 = 0x000020
+    TF_FLAG_DURATION_IS_EMPTY                uint32 = 0x010000
+    TF_FLAG_DEAAULT_BASE_IS_MOOF             uint32 = 0x020000
+
+    //ffmpeg isom.h
+    MOV_FRAG_SAMPLE_FLAG_DEGRADATION_PRIORITY_MASK uint32 = 0x0000ffff
+    MOV_FRAG_SAMPLE_FLAG_IS_NON_SYNC               uint32 = 0x00010000
+    MOV_FRAG_SAMPLE_FLAG_PADDING_MASK              uint32 = 0x000e0000
+    MOV_FRAG_SAMPLE_FLAG_REDUNDANCY_MASK           uint32 = 0x00300000
+    MOV_FRAG_SAMPLE_FLAG_DEPENDED_MASK             uint32 = 0x00c00000
+    MOV_FRAG_SAMPLE_FLAG_DEPENDS_MASK              uint32 = 0x03000000
+
+    MOV_FRAG_SAMPLE_FLAG_DEPENDS_NO  uint32 = 0x02000000
+    MOV_FRAG_SAMPLE_FLAG_DEPENDS_YES uint32 = 0x01000000
 )
 
 type TrackFragmentHeaderBox struct {
@@ -37,7 +46,7 @@ type TrackFragmentHeaderBox struct {
     DefaultSampleFlags     uint32
 }
 
-func NewTrackFragmentHeaderBox(trackid uint32, tfFlags uint32) *TrackFragmentHeaderBox {
+func NewTrackFragmentHeaderBox(trackid uint32) *TrackFragmentHeaderBox {
     return &TrackFragmentHeaderBox{
         Box:                    NewFullBox([4]byte{'t', 'f', 'h', 'd'}, 0),
         Track_ID:               trackid,
@@ -131,4 +140,43 @@ func (tfhd *TrackFragmentHeaderBox) Encode() (int, []byte) {
         offset += 4
     }
     return offset, buf
+}
+
+func makeTfhdBox(track *mp4track, offset uint64) []byte {
+    tfFlags := TF_FLAG_SAMPLE_DESCRIPTION_INDEX_PRESENT
+    tfFlags |= TF_FLAG_DEAAULT_BASE_IS_MOOF
+    tfhd := NewTrackFragmentHeaderBox(track.trackId)
+    tfhd.BaseDataOffset = offset
+    if len(track.samplelist) > 1 {
+        tfhd.DefaultSampleDuration = uint32(track.samplelist[1].dts - track.samplelist[0].dts)
+    } else if len(track.samplelist) == 1 && len(track.fragments) > 0 {
+        tfhd.DefaultSampleDuration = uint32(track.samplelist[0].dts - track.fragments[len(track.fragments)-1].lastDts)
+    } else {
+        tfhd.DefaultSampleDuration = 0
+        tfFlags |= TF_FLAG_DURATION_IS_EMPTY
+    }
+    if len(track.samplelist) > 0 {
+        tfFlags |= TF_FLAG_DEAAULT_SAMPLE_FLAGS_PRESENT
+        tfFlags |= TF_FLAG_DEFAULT_SAMPLE_DURATION_PRESENT
+        tfFlags |= TF_FLAG_DEFAULT_SAMPLE_SIZE_PRESENT
+        tfhd.DefaultSampleSize = uint32(track.samplelist[0].size)
+    } else {
+        tfhd.DefaultSampleSize = 0
+    }
+
+    tfhd.Box.Flags[2] = uint8(tfFlags >> 16)
+    tfhd.Box.Flags[1] = uint8(tfFlags >> 8)
+    tfhd.Box.Flags[0] = uint8(tfFlags)
+
+    //ffmpeg movenc.c mov_write_tfhd_tag
+    if isVideo(track.cid) {
+        tfhd.DefaultSampleFlags = MOV_FRAG_SAMPLE_FLAG_DEPENDS_YES | MOV_FRAG_SAMPLE_FLAG_IS_NON_SYNC
+    } else {
+        tfhd.DefaultSampleFlags = MOV_FRAG_SAMPLE_FLAG_DEPENDS_NO
+    }
+    track.defaultDuration = tfhd.DefaultSampleDuration
+    track.defaultSize = tfhd.DefaultSampleSize
+    track.defaultSampleFlags = tfhd.DefaultSampleFlags
+    _, boxData := tfhd.Encode()
+    return boxData
 }
