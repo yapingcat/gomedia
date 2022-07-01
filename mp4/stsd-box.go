@@ -2,6 +2,7 @@ package mp4
 
 import (
     "encoding/binary"
+    "fmt"
     "io"
 )
 
@@ -291,12 +292,22 @@ func (entry *SampleDescriptionBox) Encode() (int, []byte) {
 func makeStsd(track *mp4track, handler_type HandlerType) []byte {
 
     var avbox []byte
+    var extraData []byte
+    if len(track.extraData) == 0 {
+        if track.extra == nil {
+            panic(fmt.Sprintf("track %d:extra is nil", track.trackId))
+        }
+        extraData = track.extra.export()
+    } else {
+        extraData = track.extraData
+    }
+
     if track.cid == MP4_CODEC_H264 {
-        avbox = makeAvcCBox(track.extra)
+        avbox = makeAvcCBox(extraData)
     } else if track.cid == MP4_CODEC_H265 {
-        avbox = makeHvcCBox(track.extra)
+        avbox = makeHvcCBox(extraData)
     } else if track.cid == MP4_CODEC_AAC {
-        avbox = makeEsdsBox(track)
+        avbox = makeEsdsBox(track.trackId, track.cid, extraData)
     }
 
     var se []byte
@@ -331,15 +342,11 @@ func decodeStsdBox(demuxer *MovDemuxer) (err error) {
     return
 }
 
-func makeAvcCBox(extra extraData) []byte {
-    if extra == nil {
-        panic("avcc extraData is nil")
-    }
-    tmp := extra.export()
+func makeAvcCBox(extraData []byte) []byte {
     avcc := BasicBox{Type: [4]byte{'a', 'v', 'c', 'C'}}
-    avcc.Size = 8 + uint64(len(tmp))
+    avcc.Size = 8 + uint64(len(extraData))
     offset, boxdata := avcc.Encode()
-    copy(boxdata[offset:], tmp)
+    copy(boxdata[offset:], extraData)
     return boxdata
 }
 
@@ -353,15 +360,11 @@ func decodeAvccBox(demuxer *MovDemuxer, size uint32) (err error) {
     return
 }
 
-func makeHvcCBox(extra extraData) []byte {
-    if extra == nil {
-        panic("avcc extraData is nil")
-    }
-    tmp := extra.export()
+func makeHvcCBox(extraData []byte) []byte {
     hvcc := BasicBox{Type: [4]byte{'h', 'v', 'c', 'C'}}
-    hvcc.Size = 8 + uint64(len(tmp))
+    hvcc.Size = 8 + uint64(len(extraData))
     offset, boxdata := hvcc.Encode()
-    copy(boxdata[offset:], tmp)
+    copy(boxdata[offset:], extraData)
     return boxdata
 }
 
@@ -375,8 +378,8 @@ func decodeHvccBox(demuxer *MovDemuxer, size uint32) (err error) {
     return
 }
 
-func makeEsdsBox(track *mp4track) []byte {
-    esd := makeESDescriptor(uint16(track.trackId), track.cid, track.extra.export())
+func makeEsdsBox(tid uint32, cid MP4_CODEC_TYPE, extraData []byte) []byte {
+    esd := makeESDescriptor(uint16(tid), cid, extraData)
     esds := FullBox{Box: NewBasicBox([4]byte{'e', 's', 'd', 's'}), Version: 0}
     esds.Box.Size = esds.Size() + uint64(len(esd))
     offset, esdsBox := esds.Encode()

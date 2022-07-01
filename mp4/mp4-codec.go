@@ -15,6 +15,14 @@ const (
     MP4_CODEC_G711U
 )
 
+func isVideo(cid MP4_CODEC_TYPE) bool {
+    return cid == MP4_CODEC_H264 || cid == MP4_CODEC_H265
+}
+
+func isAudio(cid MP4_CODEC_TYPE) bool {
+    return cid == MP4_CODEC_AAC || cid == MP4_CODEC_G711A || cid == MP4_CODEC_G711U
+}
+
 func getCodecNameWithCodecId(cid MP4_CODEC_TYPE) [4]byte {
     switch cid {
     case MP4_CODEC_H264:

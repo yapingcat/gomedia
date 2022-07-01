@@ -44,8 +44,8 @@ func (mfhd *MovieFragmentHeaderBox) Encode() (int, []byte) {
     return offset + 4, boxdata
 }
 
-func makeMfhdBox(frament uint32) (boxdata []byte) {
+func makeMfhdBox(frament uint32) []byte {
     mfhd := NewMovieFragmentHeaderBox(frament)
-    _, boxdata = mfhd.Encode()
-    return
+    _, boxData := mfhd.Encode()
+    return boxData
 }

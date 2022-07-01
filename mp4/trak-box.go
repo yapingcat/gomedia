@@ -1,9 +1,16 @@
 package mp4
 
-func makeTrak(track *mp4track) []byte {
-    track.makeStblTable()
+func makeTrak(track *mp4track, movflag MP4_FLAG) []byte {
+
+    edts := []byte{}
+    if movflag.isDash() || movflag.isFragment() {
+        track.makeEmptyStblTable()
+    } else {
+        track.makeStblTable()
+        edts = makeEdtsBox(track)
+    }
+
     tkhd := makeTkhdBox(track)
-    edts := makeEdtsBox(track)
     mdia := makeMdiaBox(track)
 
     trak := BasicBox{Type: [4]byte{'t', 'r', 'a', 'k'}}
