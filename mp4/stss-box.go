@@ -26,7 +26,7 @@ func NewSyncSampleBox() *SyncSampleBox {
 
 func (stss *SyncSampleBox) Size() uint64 {
 	if len(stss.entrys) == 0 {
-		return stss.box.Size()
+		return stss.box.Size() + 4
 	} else {
 		return stss.box.Size() + 4 + 4*uint64(len(stss.entrys))
 	}

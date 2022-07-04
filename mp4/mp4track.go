@@ -137,6 +137,7 @@ func newmp4track(cid MP4_CODEC_TYPE, writer io.WriteSeeker) *mp4track {
         fragments: make([]movFragment, 0, 32),
         startDts:  0,
     }
+
     if cid == MP4_CODEC_H264 {
         track.extra = new(h264ExtraData)
     } else if cid == MP4_CODEC_H265 {
@@ -255,10 +256,12 @@ func (track *mp4track) makeStblTable() {
 }
 
 func (track *mp4track) makeEmptyStblTable() {
+    track.stbltable = new(movstbl)
     track.stbltable.stts = &movstts{}
     track.stbltable.stsc = &movstsc{}
     track.stbltable.stco = &movstco{}
     track.stbltable.stsz = &movstsz{}
+    track.stbltable.stss = &movstss{}
 }
 
 func (track *mp4track) writeSample(sample []byte, pts, dts uint64) (err error) {

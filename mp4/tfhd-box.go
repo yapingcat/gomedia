@@ -57,19 +57,20 @@ func NewTrackFragmentHeaderBox(trackid uint32) *TrackFragmentHeaderBox {
 func (tfhd *TrackFragmentHeaderBox) Size() uint64 {
     n := tfhd.Box.Size()
     thfdFlags := uint32(tfhd.Box.Flags[0])<<16 | uint32(tfhd.Box.Flags[1])<<8 | uint32(tfhd.Box.Flags[2])
-    if thfdFlags&uint32(TF_FLAG_BASE_DATA_OFFSET) > 0 {
+    n += 4
+    if thfdFlags&TF_FLAG_BASE_DATA_OFFSET > 0 {
         n += 8
     }
-    if thfdFlags&uint32(TF_FLAG_SAMPLE_DESCRIPTION_INDEX_PRESENT) > 0 {
+    if thfdFlags&TF_FLAG_SAMPLE_DESCRIPTION_INDEX_PRESENT > 0 {
         n += 4
     }
-    if thfdFlags&uint32(TF_FLAG_DEFAULT_SAMPLE_DURATION_PRESENT) > 0 {
+    if thfdFlags&TF_FLAG_DEFAULT_SAMPLE_DURATION_PRESENT > 0 {
         n += 4
     }
-    if thfdFlags&uint32(TF_FLAG_DEFAULT_SAMPLE_SIZE_PRESENT) > 0 {
+    if thfdFlags&TF_FLAG_DEFAULT_SAMPLE_SIZE_PRESENT > 0 {
         n += 4
     }
-    if thfdFlags&uint32(TF_FLAG_DEAAULT_SAMPLE_FLAGS_PRESENT) > 0 {
+    if thfdFlags&TF_FLAG_DEAAULT_SAMPLE_FLAGS_PRESENT > 0 {
         n += 4
     }
     return n
@@ -163,10 +164,9 @@ func makeTfhdBox(track *mp4track, offset uint64) []byte {
     } else {
         tfhd.DefaultSampleSize = 0
     }
-
-    tfhd.Box.Flags[2] = uint8(tfFlags >> 16)
+    tfhd.Box.Flags[0] = uint8(tfFlags >> 16)
     tfhd.Box.Flags[1] = uint8(tfFlags >> 8)
-    tfhd.Box.Flags[0] = uint8(tfFlags)
+    tfhd.Box.Flags[2] = uint8(tfFlags)
 
     //ffmpeg movenc.c mov_write_tfhd_tag
     if isVideo(track.cid) {

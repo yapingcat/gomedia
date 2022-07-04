@@ -51,6 +51,7 @@ func NewTrackRunBox() *TrackRunBox {
 
 func (trun *TrackRunBox) Size() uint64 {
     n := trun.Box.Size()
+    n += 4
     trunFlags := uint32(trun.Box.Flags[0])<<16 | uint32(trun.Box.Flags[1])<<8 | uint32(trun.Box.Flags[2])
     if trunFlags&uint32(TR_FLAG_DATA_OFFSET) > 0 {
         n += 4
@@ -124,6 +125,7 @@ func (trun *TrackRunBox) Encode() (int, []byte) {
     binary.BigEndian.PutUint32(buf[offset:], trun.SampleCount)
     offset += 4
     trunFlags := uint32(trun.Box.Flags[0])<<16 | uint32(trun.Box.Flags[1])<<8 | uint32(trun.Box.Flags[2])
+
     if trunFlags&uint32(TR_FLAG_DATA_OFFSET) > 0 {
         binary.BigEndian.PutUint32(buf[offset:], uint32(trun.Dataoffset))
         offset += 4
@@ -143,8 +145,7 @@ func (trun *TrackRunBox) Encode() (int, []byte) {
             offset += 4
         }
         if trunFlags&uint32(TR_FLAG_DATA_SAMPLE_FLAGS) != 0 {
-            binary.BigEndian.PutUint32(buf[offset:], trun.EntryList.entrys[i].sampleSize)
-            trun.EntryList.entrys[i].sampleFlags = binary.BigEndian.Uint32(buf[offset:])
+            binary.BigEndian.PutUint32(buf[offset:], trun.EntryList.entrys[i].sampleFlags)
             offset += 4
         }
         if trunFlags&uint32(TR_FLAG_DATA_SAMPLE_COMPOSITION_TIME) != 0 {
@@ -155,7 +156,7 @@ func (trun *TrackRunBox) Encode() (int, []byte) {
     return offset, buf
 }
 
-func makeTrunBoxes(track *mp4track) []byte {
+func makeTrunBoxes(track *mp4track, moofSize uint64) []byte {
     boxes := make([]byte, 0, 128)
     start := 0
     end := 0
@@ -164,17 +165,17 @@ func makeTrunBoxes(track *mp4track) []byte {
             continue
         }
         end = i
-        boxes = append(boxes, makeTurnBox(track, start, end)...)
+        boxes = append(boxes, makeTrunBox(track, start, end, moofSize)...)
         start = end
     }
 
     if start < len(track.samplelist) {
-        boxes = append(boxes, makeTurnBox(track, start, len(track.samplelist))...)
+        boxes = append(boxes, makeTrunBox(track, start, len(track.samplelist), moofSize)...)
     }
     return boxes
 }
 
-func makeTurnBox(track *mp4track, start, end int) []byte {
+func makeTrunBox(track *mp4track, start, end int, moofSize uint64) []byte {
     flag := TR_FLAG_DATA_OFFSET
     if isVideo(track.cid) && track.samplelist[start].isKeyFrame {
         flag |= TR_FLAG_DATA_FIRST_SAMPLE_FLAGS
@@ -199,17 +200,22 @@ func makeTurnBox(track *mp4track, start, end int) []byte {
     }
 
     trun := NewTrackRunBox()
-    trun.Box.Flags[2] = uint8(flag >> 16)
+    trun.Box.Flags[0] = uint8(flag >> 16)
     trun.Box.Flags[1] = uint8(flag >> 8)
-    trun.Box.Flags[0] = uint8(flag)
+    trun.Box.Flags[2] = uint8(flag)
     trun.SampleCount = uint32(end - start)
-    trun.Dataoffset = int32(track.samplelist[start].offset)
+
+    trun.Dataoffset = int32(moofSize + track.samplelist[start].offset)
     trun.FirstSampleFlags = MOV_FRAG_SAMPLE_FLAG_DEPENDS_NO
     trun.EntryList = new(movtrun)
     for i := start; i < end; i++ {
         sampleDuration := uint32(0)
-        if i == end-1 {
-            sampleDuration = uint32(track.lastSample.dts - track.samplelist[i].dts)
+        if i == len(track.samplelist)-1 {
+            if track.lastSample != nil && track.lastSample.dts != 0 {
+                sampleDuration = uint32(track.lastSample.dts - track.samplelist[i].dts)
+            } else {
+                sampleDuration = track.defaultDuration
+            }
         } else {
             sampleDuration = uint32(track.samplelist[i+1].dts - track.samplelist[i].dts)
         }

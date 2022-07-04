@@ -16,7 +16,7 @@ const (
 )
 
 func (f MP4_FLAG) has(ff MP4_FLAG) bool {
-    return (f | ff) != 0
+    return (f & ff) != 0
 }
 
 func (f MP4_FLAG) isFragment() bool {
@@ -54,6 +54,7 @@ func CreateMp4Muxer(w io.WriteSeeker, options ...MuxerOption) (*Movmuxer, error)
         nextTrackId:    1,
         nextFragmentId: 1,
         tracks:         make(map[uint32]*mp4track),
+        movFlag:        MP4_FLAG_KEYFRAME,
     }
 
     for _, opt := range options {
@@ -178,28 +179,18 @@ func (muxer *Movmuxer) Write(track uint32, data []byte, pts uint64, dts uint64) 
         return nil
     }
 
-    isCustion := muxer.movFlag.has(MP4_FLAG_CUSTOM)
+    // isCustion := muxer.movFlag.has(MP4_FLAG_CUSTOM)
     isKeyFrag := muxer.movFlag.has(MP4_FLAG_KEYFRAME)
-    readyForFlush := false
-    if isCustion {
-        if mp4track.duration < muxer.fragDuration {
-            return nil
-        }
-        if !isKeyFrag || (isKeyFrag && mp4track.lastSample.isKey) {
-            readyForFlush = true
-        }
-    } else if isKeyFrag {
-        if mp4track.lastSample.isKey {
-            readyForFlush = true
+
+    if isKeyFrag {
+        if mp4track.lastSample.isKey && mp4track.duration > 0 {
+            muxer.flushFragment()
+            if muxer.onNewFragment != nil {
+                muxer.onNewFragment(mp4track.duration, mp4track.startPts, mp4track.startPts)
+            }
         }
     }
 
-    if readyForFlush {
-        muxer.flushFragment()
-        if muxer.onNewFragment != nil {
-            muxer.onNewFragment(mp4track.duration, mp4track.startPts, mp4track.startPts)
-        }
-    }
     return nil
 }
 
@@ -214,6 +205,12 @@ func (muxer *Movmuxer) WriteTrailer() (err error) {
     switch {
     case muxer.movFlag.isDash():
     case muxer.movFlag.isFragment():
+        for _, track := range muxer.tracks {
+            muxer.flushFragment()
+            if muxer.onNewFragment != nil {
+                muxer.onNewFragment(track.duration, track.startPts, track.startPts)
+            }
+        }
         return muxer.writeMfra()
     default:
         if err = muxer.reWriteMdatSize(); err != nil {
@@ -329,11 +326,14 @@ func (muxer *Movmuxer) writeMfra() (err error) {
     return
 }
 
-func (muxer *Movmuxer) flushFragment() (err error) {
-    var moofOffset int64
-    if moofOffset, err = muxer.writer.Seek(0, io.SeekCurrent); err != nil {
-        return err
+func (muxer *Movmuxer) FlushFragment() (err error) {
+    for _, track := range muxer.tracks {
+        track.flush()
     }
+    return muxer.flushFragment()
+}
+
+func (muxer *Movmuxer) flushFragment() (err error) {
 
     if muxer.movFlag.isFragment() {
         if muxer.nextFragmentId == 1 { //first fragment ,write moov
@@ -346,8 +346,11 @@ func (muxer *Movmuxer) flushFragment() (err error) {
         }
     }
 
+    var moofOffset int64
+    if moofOffset, err = muxer.writer.Seek(0, io.SeekCurrent); err != nil {
+        return err
+    }
     for _, track := range muxer.tracks {
-        track.flush()
         if len(track.samplelist) == 0 {
             continue
         }
@@ -368,16 +371,25 @@ func (muxer *Movmuxer) flushFragment() (err error) {
 
     moofSize := 0
     mfhd := makeMfhdBox(muxer.nextFragmentId)
-    muxer.nextFragmentId++
+
     moofSize += len(mfhd)
     trafs := make([][]byte, len(muxer.tracks))
     for i := uint32(1); i < muxer.nextTrackId; i++ {
-        traf := makeTraf(muxer.tracks[i], uint64(moofOffset))
+        traf := makeTraf(muxer.tracks[i], uint64(moofOffset), uint64(0))
         moofSize += len(traf)
         trafs[i-1] = traf
     }
+    moofSize += 8 //moof box
+    mfhd = makeMfhdBox(muxer.nextFragmentId)
+    trafs = make([][]byte, len(muxer.tracks))
+    for i := uint32(1); i < muxer.nextTrackId; i++ {
+        traf := makeTraf(muxer.tracks[i], uint64(moofOffset), uint64(moofSize+8))
+        trafs[i-1] = traf
+    }
+    muxer.nextFragmentId++
+
     moof := BasicBox{Type: [4]byte{'m', 'o', 'o', 'f'}}
-    moof.Size = 8 + uint64(moofSize)
+    moof.Size = uint64(moofSize)
     offset, moofBox := moof.Encode()
     copy(moofBox[offset:], mfhd)
     offset += len(mfhd)
@@ -411,7 +423,6 @@ func (muxer *Movmuxer) flushFragment() (err error) {
     if err != nil {
         return err
     }
-
     binary.BigEndian.PutUint32(mdatBox, uint32(mdatlen))
     _, err = muxer.writer.Write(mdatBox)
     if err != nil {
