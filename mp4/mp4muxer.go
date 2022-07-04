@@ -37,7 +37,6 @@ type Movmuxer struct {
     movFlag        MP4_FLAG
     onNewFragment  OnFragment
     fragDuration   uint32
-    fmp4Writer     *fmp4WriterSeeker
 }
 
 type MuxerOption func(muxer *Movmuxer)
@@ -93,8 +92,6 @@ func CreateMp4Muxer(w io.WriteSeeker, options ...MuxerOption) (*Movmuxer, error)
         if err != nil {
             return nil, err
         }
-    } else {
-        muxer.fmp4Writer = newFmp4WriterSeeker(1024 * 1024)
     }
     return muxer, nil
 }
@@ -149,7 +146,7 @@ func (muxer *Movmuxer) AddVideoTrack(cid MP4_CODEC_TYPE, options ...TrackOption)
 func (muxer *Movmuxer) addTrack(cid MP4_CODEC_TYPE, options ...TrackOption) uint32 {
     var track *mp4track
     if muxer.movFlag.isDash() || muxer.movFlag.isFragment() {
-        track = newmp4track(cid, muxer.fmp4Writer)
+        track = newmp4track(cid, newFmp4WriterSeeker(1024*1024))
     } else {
         track = newmp4track(cid, muxer.writer)
     }
@@ -205,8 +202,11 @@ func (muxer *Movmuxer) WriteTrailer() (err error) {
     switch {
     case muxer.movFlag.isDash():
     case muxer.movFlag.isFragment():
+        muxer.flushFragment()
         for _, track := range muxer.tracks {
-            muxer.flushFragment()
+            if isAudio(track.cid) {
+                continue
+            }
             if muxer.onNewFragment != nil {
                 muxer.onNewFragment(track.duration, track.startPts, track.startPts)
             }
@@ -350,24 +350,31 @@ func (muxer *Movmuxer) flushFragment() (err error) {
     if moofOffset, err = muxer.writer.Seek(0, io.SeekCurrent); err != nil {
         return err
     }
-    for _, track := range muxer.tracks {
-        if len(track.samplelist) == 0 {
+    var mdatlen uint64 = 0
+    for i := uint32(1); i < muxer.nextTrackId; i++ {
+        if len(muxer.tracks[i].samplelist) == 0 {
             continue
         }
-        firstPts := track.samplelist[0].pts
-        firstDts := track.samplelist[0].dts
-        lastPts := track.samplelist[len(track.samplelist)-1].pts
-        lastDts := track.samplelist[len(track.samplelist)-1].dts
+        firstPts := muxer.tracks[i].samplelist[0].pts
+        firstDts := muxer.tracks[i].samplelist[0].dts
+        lastPts := muxer.tracks[i].samplelist[len(muxer.tracks[i].samplelist)-1].pts
+        lastDts := muxer.tracks[i].samplelist[len(muxer.tracks[i].samplelist)-1].dts
         frag := movFragment{
             offset:   uint64(moofOffset),
-            duration: track.duration,
+            duration: muxer.tracks[i].duration,
             firstDts: firstDts,
             firstPts: firstPts,
             lastPts:  lastPts,
             lastDts:  lastDts,
         }
-        track.fragments = append(track.fragments, frag)
+        muxer.tracks[i].fragments = append(muxer.tracks[i].fragments, frag)
+        for j := 0; j < len(muxer.tracks[i].samplelist); j++ {
+            muxer.tracks[i].samplelist[j].offset += mdatlen
+        }
+        ws := muxer.tracks[i].writer.(*fmp4WriterSeeker)
+        mdatlen += uint64(len(ws.buffer))
     }
+    mdatlen += 8
 
     moofSize := 0
     mfhd := makeMfhdBox(muxer.nextFragmentId)
@@ -379,6 +386,7 @@ func (muxer *Movmuxer) flushFragment() (err error) {
         moofSize += len(traf)
         trafs[i-1] = traf
     }
+
     moofSize += 8 //moof box
     mfhd = makeMfhdBox(muxer.nextFragmentId)
     trafs = make([][]byte, len(muxer.tracks))
@@ -401,7 +409,6 @@ func (muxer *Movmuxer) flushFragment() (err error) {
     mdat := BasicBox{Type: [4]byte{'m', 'd', 'a', 't'}}
     mdat.Size = 8
     _, mdatBox := mdat.Encode()
-    mdatlen := 8 + len(muxer.fmp4Writer.buffer)
 
     if muxer.movFlag.isDash() {
         stypBox := makeStypBox(mov_tag(msdh), 0, []uint32{mov_tag(msdh), mov_tag(msix)})
@@ -411,7 +418,7 @@ func (muxer *Movmuxer) flushFragment() (err error) {
         }
 
         for i := uint32(1); i < muxer.nextTrackId; i++ {
-            sidx := makeSidxBox(muxer.tracks[i], 52*(muxer.nextTrackId-1-i), uint32(mdatlen+len(moofBox))+52*(muxer.nextTrackId-i-1))
+            sidx := makeSidxBox(muxer.tracks[i], 52*(muxer.nextTrackId-1-i), uint32(mdatlen)+uint32(len(moofBox))+52*(muxer.nextTrackId-i-1))
             _, err := muxer.writer.Write(sidx)
             if err != nil {
                 return err
@@ -428,14 +435,16 @@ func (muxer *Movmuxer) flushFragment() (err error) {
     if err != nil {
         return err
     }
-    _, err = muxer.writer.Write(muxer.fmp4Writer.buffer)
-    if err != nil {
-        return err
-    }
-    muxer.fmp4Writer.buffer = muxer.fmp4Writer.buffer[:0]
-    muxer.fmp4Writer.offset = 0
-    for _, track := range muxer.tracks {
-        track.clearSamples()
+
+    for i := uint32(1); i < muxer.nextTrackId; i++ {
+        ws := muxer.tracks[i].writer.(*fmp4WriterSeeker)
+        _, err = muxer.writer.Write(ws.buffer)
+        if err != nil {
+            return err
+        }
+        ws.buffer = ws.buffer[:0]
+        ws.offset = 0
+        muxer.tracks[i].clearSamples()
     }
     return nil
 }
