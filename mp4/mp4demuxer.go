@@ -151,7 +151,7 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
             demuxer.tracks[len(demuxer.tracks)-1].cid = MP4_CODEC_H264
             demuxer.tracks[len(demuxer.tracks)-1].extra = new(h264ExtraData)
             err = decodeVisualSampleEntry(demuxer)
-        case mov_tag([4]byte{'h', 'v', 'c', '1'}):
+        case mov_tag([4]byte{'h', 'v', 'c', '1'}), mov_tag([4]byte{'h', 'e', 'v', '1'}):
             demuxer.tracks[len(demuxer.tracks)-1].cid = MP4_CODEC_H265
             demuxer.tracks[len(demuxer.tracks)-1].extra = newh265ExtraData()
             err = decodeVisualSampleEntry(demuxer)
@@ -461,7 +461,7 @@ func (demuxer *MovDemuxer) processH265(hvcc []byte, extra *h265ExtraData) []byte
     vcl := false
     spsppsvps := false
     h265 := hvcc
-    for len(hvcc) > 0 {
+    for len(h265) > 0 {
         nalusize := binary.BigEndian.Uint32(h265)
         codec.CovertAVCCToAnnexB(h265)
         nalType := codec.H265NaluType(h265)

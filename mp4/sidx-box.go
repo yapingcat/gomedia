@@ -29,7 +29,7 @@ import (
 //    }
 // }
 
-type sidxentry struct {
+type sidxEntry struct {
     ReferenceType      uint8
     ReferencedSize     uint32
     SubsegmentDuration uint32
@@ -45,7 +45,7 @@ type SegmentIndexBox struct {
     EarliestPresentationTime uint64
     FirstOffset              uint64
     ReferenceCount           uint16
-    Entrys                   []sidxentry
+    Entrys                   []sidxEntry
 }
 
 func NewSegmentIndexBox() *SegmentIndexBox {
@@ -85,7 +85,7 @@ func (sidx *SegmentIndexBox) Decode(r io.Reader) (offset int, err error) {
     n += 2
     sidx.ReferenceCount = binary.BigEndian.Uint16(buf[n:])
     n += 2
-    sidx.Entrys = make([]sidxentry, sidx.ReferenceCount)
+    sidx.Entrys = make([]sidxEntry, sidx.ReferenceCount)
     for i := 0; i < int(sidx.ReferenceCount); i++ {
         sidx.Entrys[i].ReferenceType = buf[n] >> 7
         buf[n] = buf[n] & 0x7F
@@ -131,8 +131,33 @@ func (sidx *SegmentIndexBox) Encode() (int, []byte) {
         binary.BigEndian.PutUint32(boxdata[offset:], sidx.Entrys[i].SubsegmentDuration)
         offset += 4
         binary.BigEndian.PutUint32(boxdata[offset:], sidx.Entrys[i].SAPDeltaTime)
-        boxdata[offset] = (boxdata[offset] & 0x0F) + sidx.Entrys[i].StartsWithSAP<<7 | (sidx.Entrys[i].SAPType&0x07)<<4
+        boxdata[offset] = (boxdata[offset] & 0xF0) + sidx.Entrys[i].StartsWithSAP<<7 | (sidx.Entrys[i].SAPType&0x07)<<4
         offset += 4
     }
     return offset, boxdata
+}
+
+func makeSidxBox(track *mp4track, totalSidxSize uint32, refsize uint32) []byte {
+    sidx := NewSegmentIndexBox()
+    sidx.ReferenceID = track.trackId
+    sidx.TimeScale = track.timescale
+    sidx.EarliestPresentationTime = track.startPts
+    sidx.ReferenceCount = 1
+    sidx.FirstOffset = 52 + uint64(totalSidxSize)
+    entry := sidxEntry{
+        ReferenceType:      0,
+        ReferencedSize:     refsize,
+        SubsegmentDuration: 0,
+        StartsWithSAP:      1,
+        SAPType:            0,
+        SAPDeltaTime:       0,
+    }
+
+    if len(track.samplelist) > 0 {
+        entry.SubsegmentDuration = uint32(track.samplelist[len(track.samplelist)-1].dts) - uint32(track.startDts)
+    }
+    sidx.Entrys = append(sidx.Entrys, entry)
+    sidx.Box.Box.Size = sidx.Size()
+    _, boxData := sidx.Encode()
+    return boxData
 }

@@ -133,11 +133,8 @@ func (co64 *ChunkLargeOffsetBox) Encode() (int, []byte) {
 }
 
 func makeStco(stco *movstco) (boxdata []byte) {
-    if stco.entryCount <= 0 {
-        panic("stco chunkoffset list is empty")
-    }
 
-    if stco.chunkOffsetlist[stco.entryCount-1] > 0xFFFFFFFF {
+    if stco.entryCount > 0 && stco.chunkOffsetlist[stco.entryCount-1] > 0xFFFFFFFF {
         co64 := NewChunkLargeOffsetBox()
         co64.stco = stco
         _, boxdata = co64.Encode()
