@@ -34,13 +34,13 @@ func main() {
 		if ci == codec.CODECID_AUDIO_AAC {
 			err := muxer.Write(atid, b, uint64(pts), uint64(dts))
 			if err != nil {
-				fmt.Println()
+				fmt.Println(err)
 			}
 
 		} else if ci == codec.CODECID_VIDEO_H264 {
 			err := muxer.Write(vtid, b, uint64(pts), uint64(dts))
 			if err != nil {
-				fmt.Println()
+				fmt.Println(err)
 			}
 		}
 	}

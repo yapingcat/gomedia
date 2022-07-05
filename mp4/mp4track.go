@@ -68,10 +68,10 @@ func (extra *h265ExtraData) export() []byte {
 }
 
 func (extra *h265ExtraData) load(data []byte) {
-    if extra.hvccExtra != nil {
-        extra.hvccExtra.Decode(data)
+    if extra.hvccExtra == nil {
+        panic("extra.hvccExtra must init")
     }
-    panic("extra.hvccExtra must init")
+    extra.hvccExtra.Decode(data)
 }
 
 type aacExtraData struct {
