@@ -230,6 +230,11 @@ func (muxer *Movmuxer) OnNewFragment(onFragment OnFragment) {
 }
 
 func (muxer *Movmuxer) WriteInitSegment(w io.Writer) error {
+    ftypBox := makeFtypBox(mov_tag(iso5), 0x200, []uint32{mov_tag(iso5), mov_tag(iso6), mov_tag(mp41)})
+    _, err := w.Write(ftypBox)
+    if err != nil {
+        return err
+    }
     return muxer.writeMoov(w)
 }
 
