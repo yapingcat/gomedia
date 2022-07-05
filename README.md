@@ -67,6 +67,15 @@ go get github.com/yapingcat/gomedia
     - G711A
     - G711U
 
+
+## fmp4
+  - mux 
+    - H264
+    - H265
+    - AAC
+    - G711A
+    - G711U
+
 ## ogg
   - demux 
     - OPUS
@@ -80,9 +89,6 @@ go get github.com/yapingcat/gomedia
   - support play/publish
   - support h264/h265/aac/g711a/g711u
  
-
-## fmp4
-  on the way...
 
 
 
