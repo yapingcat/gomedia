@@ -189,7 +189,6 @@ func (mux *TSMuxer) writePat(pat *Pat) {
     tshdr.PID = 0
     tshdr.Adaptation_field_control = 0x01
     tshdr.Continuity_counter = mux.pat.cc
-    mux.pat.cc++
     mux.pat.cc = (mux.pat.cc + 1) % 16
     bsw := codec.NewBitStreamWriter(TS_PAKCET_SIZE)
     tshdr.EncodeHeader(bsw)

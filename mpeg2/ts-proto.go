@@ -391,8 +391,10 @@ type Pat struct {
 
 func NewPat() *Pat {
     return &Pat{
-        Table_id: uint8(TS_TID_PAS),
-        Pmts:     make([]PmtPair, 0, 8),
+        Table_id:                 uint8(TS_TID_PAS),
+        Section_syntax_indicator: 1,
+        Current_next_indicator:   1,
+        Pmts:                     make([]PmtPair, 0, 8),
     }
 }
 
@@ -495,8 +497,10 @@ type Pmt struct {
 
 func NewPmt() *Pmt {
     return &Pmt{
-        Table_id: uint8(TS_TID_PMS),
-        Streams:  make([]StreamPair, 0, 8),
+        Table_id:                 uint8(TS_TID_PMS),
+        Section_syntax_indicator: 1,
+        Current_next_indicator:   1,
+        Streams:                  make([]StreamPair, 0, 8),
     }
 }
 
