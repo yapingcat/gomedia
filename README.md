@@ -69,6 +69,12 @@ go get github.com/yapingcat/gomedia
 
 
 ## fmp4
+  - demux 
+    - H264
+    - H265
+    - AAC
+    - G711A
+    - G711U
   - mux 
     - H264
     - H265
