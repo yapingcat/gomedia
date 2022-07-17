@@ -51,10 +51,15 @@ type MovDemuxer struct {
     reader        io.ReadSeeker
     mdatOffset    []uint64 //一个mp4文件可能存在多个mdatbox
     tracks        []*mp4track
-    stss          map[uint32][]uint32
     readSampleIdx []uint32
     mp4out        []byte
     mp4Info       Mp4Info
+
+    //for demux fmp4
+    isFragement  bool
+    currentTrack *mp4track
+    moofOffset   int64
+    dataOffset   uint32
 }
 
 // how to demux mp4 file
@@ -174,9 +179,24 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
         case mov_tag([4]byte{'e', 'd', 't', 's'}):
         case mov_tag([4]byte{'e', 'l', 's', 't'}):
             err = decodeElstBox(demuxer)
-        //case mov_tag([4]byte{'m', 'v', 'e', 'x'}):
+        case mov_tag([4]byte{'m', 'v', 'e', 'x'}):
+            demuxer.isFragement = true
+        case mov_tag([4]byte{'m', 'o', 'o', 'f'}):
+            if demuxer.moofOffset, err = demuxer.reader.Seek(0, io.SeekCurrent); err != nil {
+                break
+            }
+            demuxer.moofOffset -= 8
+            demuxer.dataOffset = uint32(basebox.Size) + 8
+        case mov_tag([4]byte{'m', 'f', 'h', 'd'}):
+            err = decodeMfhdBox(demuxer)
+        case mov_tag([4]byte{'t', 'r', 'a', 'f'}):
+        case mov_tag([4]byte{'t', 'f', 'h', 'd'}):
+            err = decodeTfhdBox(demuxer, uint32(basebox.Size))
+        case mov_tag([4]byte{'t', 'f', 'd', 't'}):
+            err = decodeTfdtBox(demuxer, uint32(basebox.Size))
+        case mov_tag([4]byte{'t', 'r', 'u', 'n'}):
+            err = decodeTrunBox(demuxer, uint32(basebox.Size))
         default:
-            //panic(1)
             _, err = demuxer.reader.Seek(int64(basebox.Size)-BasicBoxLen, io.SeekCurrent)
         }
         if err != nil {
@@ -186,7 +206,9 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
     if err != nil && err != io.EOF {
         return nil, err
     }
-    demuxer.buildSampleList()
+    if !demuxer.isFragement {
+        demuxer.buildSampleList()
+    }
     demuxer.readSampleIdx = make([]uint32, len(demuxer.tracks))
     for _, track := range demuxer.tracks {
         info := TrackInfo{}

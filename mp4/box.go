@@ -127,7 +127,7 @@ func (box *FullBox) Decode(r io.Reader) (int, error) {
         return n, err
     }
     box.Version = buf[0]
-    copy(box.Flags[:], buf[:])
+    copy(box.Flags[:], buf[1:])
     return 4, nil
 }
 

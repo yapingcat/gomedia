@@ -29,13 +29,12 @@ func (tfdt *TrackFragmentBaseMediaDecodeTimeBox) Size() uint64 {
     return tfdt.Box.Size() + 8
 }
 
-func (tfdt *TrackFragmentBaseMediaDecodeTimeBox) Decode(r io.Reader) (offset int, err error) {
+func (tfdt *TrackFragmentBaseMediaDecodeTimeBox) Decode(r io.Reader, size uint32) (offset int, err error) {
     if offset, err = tfdt.Box.Decode(r); err != nil {
         return
     }
 
-    needSize := tfdt.Box.Box.Size - 12
-    buf := make([]byte, needSize)
+    buf := make([]byte, size-12)
     if _, err = io.ReadFull(r, buf); err != nil {
         return 0, err
     }
@@ -54,6 +53,15 @@ func (tfdt *TrackFragmentBaseMediaDecodeTimeBox) Encode() (int, []byte) {
     offset, boxdata := tfdt.Box.Encode()
     binary.BigEndian.PutUint64(boxdata[offset:], tfdt.BaseMediaDecodeTime)
     return offset + 8, boxdata
+}
+
+func decodeTfdtBox(demuxer *MovDemuxer, size uint32) error {
+    tfdt := TrackFragmentBaseMediaDecodeTimeBox{Box: new(FullBox)}
+    _, err := tfdt.Decode(demuxer.reader, size)
+    if demuxer.currentTrack != nil {
+        demuxer.currentTrack.startDts = tfdt.BaseMediaDecodeTime
+    }
+    return err
 }
 
 func makeTfdtBox(track *mp4track) []byte {

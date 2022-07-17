@@ -396,7 +396,7 @@ func (muxer *Movmuxer) flushFragment() (err error) {
     mfhd = makeMfhdBox(muxer.nextFragmentId)
     trafs = make([][]byte, len(muxer.tracks))
     for i := uint32(1); i < muxer.nextTrackId; i++ {
-        traf := makeTraf(muxer.tracks[i], uint64(moofOffset), uint64(moofSize+8))
+        traf := makeTraf(muxer.tracks[i], uint64(moofOffset), uint64(moofSize+8)) //moofSize + 8(mdat box)
         trafs[i-1] = traf
     }
     muxer.nextFragmentId++

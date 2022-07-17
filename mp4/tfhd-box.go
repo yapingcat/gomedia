@@ -76,37 +76,41 @@ func (tfhd *TrackFragmentHeaderBox) Size() uint64 {
     return n
 }
 
-func (tfhd *TrackFragmentHeaderBox) Decode(r io.Reader) (offset int, err error) {
+func (tfhd *TrackFragmentHeaderBox) Decode(r io.Reader, size uint32, moofOffset uint64) (offset int, err error) {
     if offset, err = tfhd.Box.Decode(r); err != nil {
         return
     }
-
-    needSize := tfhd.Box.Box.Size - 12
-    buf := make([]byte, needSize)
+    buf := make([]byte, size-12)
     if _, err = io.ReadFull(r, buf); err != nil {
         return 0, err
     }
     n := 0
     tfhd.Track_ID = binary.BigEndian.Uint32(buf[n:])
     n += 4
-    thfdFlags := uint32(tfhd.Box.Flags[0])<<16 | uint32(tfhd.Box.Flags[1])<<8 | uint32(tfhd.Box.Flags[2])
-    if thfdFlags&uint32(TF_FLAG_BASE_DATA_OFFSET) > 0 {
+    tfhdFlags := uint32(tfhd.Box.Flags[0])<<16 | uint32(tfhd.Box.Flags[1])<<8 | uint32(tfhd.Box.Flags[2])
+    if tfhdFlags&uint32(TF_FLAG_BASE_DATA_OFFSET) > 0 {
         tfhd.BaseDataOffset = binary.BigEndian.Uint64(buf[n:])
         n += 8
+    } else if tfhdFlags&uint32(TF_FLAG_DEAAULT_BASE_IS_MOOF) > 0 {
+        tfhd.BaseDataOffset = moofOffset
+    } else {
+        //TODO,In some cases, it is wrong
+        tfhd.BaseDataOffset = moofOffset
     }
-    if thfdFlags&uint32(TF_FLAG_SAMPLE_DESCRIPTION_INDEX_PRESENT) > 0 {
+
+    if tfhdFlags&uint32(TF_FLAG_SAMPLE_DESCRIPTION_INDEX_PRESENT) > 0 {
         tfhd.SampleDescriptionIndex = binary.BigEndian.Uint32(buf[n:])
         n += 4
     }
-    if thfdFlags&uint32(TF_FLAG_DEFAULT_SAMPLE_DURATION_PRESENT) > 0 {
+    if tfhdFlags&uint32(TF_FLAG_DEFAULT_SAMPLE_DURATION_PRESENT) > 0 {
         tfhd.DefaultSampleDuration = binary.BigEndian.Uint32(buf[n:])
         n += 4
     }
-    if thfdFlags&uint32(TF_FLAG_DEFAULT_SAMPLE_SIZE_PRESENT) > 0 {
+    if tfhdFlags&uint32(TF_FLAG_DEFAULT_SAMPLE_SIZE_PRESENT) > 0 {
         tfhd.DefaultSampleSize = binary.BigEndian.Uint32(buf[n:])
         n += 4
     }
-    if thfdFlags&uint32(TF_FLAG_DEAAULT_SAMPLE_FLAGS_PRESENT) > 0 {
+    if tfhdFlags&uint32(TF_FLAG_DEAAULT_SAMPLE_FLAGS_PRESENT) > 0 {
         tfhd.DefaultSampleFlags = binary.BigEndian.Uint32(buf[n:])
         n += 4
     }
@@ -141,6 +145,21 @@ func (tfhd *TrackFragmentHeaderBox) Encode() (int, []byte) {
         offset += 4
     }
     return offset, buf
+}
+
+func decodeTfhdBox(demuxer *MovDemuxer, size uint32) error {
+    tfhd := &TrackFragmentHeaderBox{Box: new(FullBox)}
+    _, err := tfhd.Decode(demuxer.reader, size, uint64(demuxer.moofOffset))
+    for i := 0; i < len(demuxer.tracks); i++ {
+        if demuxer.tracks[i].trackId != tfhd.Track_ID {
+            continue
+        }
+        demuxer.currentTrack = demuxer.tracks[i]
+        demuxer.tracks[i].defaultDuration = tfhd.DefaultSampleDuration
+        demuxer.tracks[i].defaultSize = tfhd.DefaultSampleSize
+        demuxer.tracks[i].baseDataOffset = tfhd.BaseDataOffset
+    }
+    return err
 }
 
 func makeTfhdBox(track *mp4track, offset uint64) []byte {

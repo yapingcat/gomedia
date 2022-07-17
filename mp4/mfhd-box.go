@@ -44,6 +44,14 @@ func (mfhd *MovieFragmentHeaderBox) Encode() (int, []byte) {
     return offset + 4, boxdata
 }
 
+func decodeMfhdBox(demuxer *MovDemuxer) (err error) {
+    mfhd := MovieFragmentHeaderBox{Box: new(FullBox)}
+    if _, err = mfhd.Decode(demuxer.reader); err != nil {
+        return
+    }
+    return err
+}
+
 func makeMfhdBox(frament uint32) []byte {
     mfhd := NewMovieFragmentHeaderBox(frament)
     _, boxData := mfhd.Encode()

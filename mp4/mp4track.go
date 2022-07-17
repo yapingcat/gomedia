@@ -121,6 +121,7 @@ type mp4track struct {
     defaultSize        uint32
     defaultDuration    uint32
     defaultSampleFlags uint32
+    baseDataOffset     uint64
 }
 
 func newmp4track(cid MP4_CODEC_TYPE, writer io.WriteSeeker) *mp4track {

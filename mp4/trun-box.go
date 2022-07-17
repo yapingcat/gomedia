@@ -2,6 +2,7 @@ package mp4
 
 import (
     "encoding/binary"
+    "errors"
     "io"
 )
 
@@ -74,12 +75,11 @@ func (trun *TrackRunBox) Size() uint64 {
     return n
 }
 
-func (trun *TrackRunBox) Decode(r io.Reader) (offset int, err error) {
+func (trun *TrackRunBox) Decode(r io.Reader, size uint32, dataOffset uint32) (offset int, err error) {
     if offset, err = trun.Box.Decode(r); err != nil {
         return
     }
-    needSize := trun.Box.Box.Size - 12
-    buf := make([]byte, needSize)
+    buf := make([]byte, size-12)
     if _, err = io.ReadFull(r, buf); err != nil {
         return 0, err
     }
@@ -87,9 +87,12 @@ func (trun *TrackRunBox) Decode(r io.Reader) (offset int, err error) {
     trun.SampleCount = binary.BigEndian.Uint32(buf[n:])
     n += 4
     trunFlags := uint32(trun.Box.Flags[0])<<16 | uint32(trun.Box.Flags[1])<<8 | uint32(trun.Box.Flags[2])
+
     if trunFlags&uint32(TR_FLAG_DATA_OFFSET) > 0 {
         trun.Dataoffset = int32(binary.BigEndian.Uint32(buf[n:]))
         n += 4
+    } else {
+        trun.Dataoffset = int32(dataOffset)
     }
     if trunFlags&uint32(TR_FLAG_DATA_FIRST_SAMPLE_FLAGS) > 0 {
         trun.FirstSampleFlags = binary.BigEndian.Uint32(buf[n:])
@@ -154,6 +157,49 @@ func (trun *TrackRunBox) Encode() (int, []byte) {
         }
     }
     return offset, buf
+}
+
+func decodeTrunBox(demuxer *MovDemuxer, size uint32) (err error) {
+    trun := TrackRunBox{Box: new(FullBox)}
+    if _, err = trun.Decode(demuxer.reader, size, uint32(demuxer.dataOffset)); err != nil {
+        return err
+    }
+
+    if demuxer.currentTrack == nil {
+        return errors.New("current track is nil")
+    }
+
+    dataOffset := trun.Dataoffset
+    nextDts := demuxer.currentTrack.startDts
+    delta := 0
+    cts := 0
+    for _, entry := range trun.EntryList.entrys {
+        sample := sampleEntry{}
+        sample.offset = uint64(dataOffset) + demuxer.currentTrack.baseDataOffset
+        sample.dts = nextDts
+        if entry.sampleSize == 0 {
+            dataOffset += int32(demuxer.currentTrack.defaultSize)
+            sample.size = uint64(demuxer.currentTrack.defaultSize)
+        } else {
+            dataOffset += int32(entry.sampleSize)
+            sample.size = uint64(entry.sampleSize)
+        }
+
+        if entry.sampleDuration == 0 {
+            delta = int(demuxer.currentTrack.defaultDuration)
+        } else {
+            delta = int(entry.sampleDuration)
+        }
+
+        if entry.sampleCompositionTimeOffset != 0 {
+            cts = int(entry.sampleCompositionTimeOffset)
+        }
+        sample.pts = sample.dts + uint64(cts)
+        nextDts += uint64(delta)
+        demuxer.currentTrack.samplelist = append(demuxer.currentTrack.samplelist, sample)
+    }
+    demuxer.dataOffset = uint32(dataOffset)
+    return
 }
 
 func makeTrunBoxes(track *mp4track, moofSize uint64) []byte {
