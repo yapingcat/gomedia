@@ -147,7 +147,10 @@ func (demuxer *TSDemuxer) flush() {
                 continue
             }
 
-            if demuxer.OnFrame != nil {
+            if demuxer.OnFrame == nil {
+                continue
+            }
+            if stream.cid == TS_STREAM_H264 || stream.cid == TS_STREAM_H265 {
                 audLen := 0
                 codec.SplitFrameWithStartCode(stream.pkg.payload, func(nalu []byte) bool {
                     if stream.cid == TS_STREAM_H264 {
@@ -162,8 +165,10 @@ func (demuxer *TSDemuxer) flush() {
                     return false
                 })
                 demuxer.OnFrame(stream.cid, stream.pkg.payload[audLen:], stream.pkg.pts/90, stream.pkg.dts/90)
-                stream.pkg = nil
+            } else {
+                demuxer.OnFrame(stream.cid, stream.pkg.payload, stream.pkg.pts/90, stream.pkg.dts/90)
             }
+            stream.pkg = nil
         }
     }
 }
