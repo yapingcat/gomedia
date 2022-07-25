@@ -44,9 +44,8 @@ func main() {
     demuxer := mpeg2.NewTSDemuxer()
     demuxer.OnFrame = func(cid mpeg2.TS_STREAM_TYPE, frame []byte, pts uint64, dts uint64) {
         if cid == mpeg2.TS_STREAM_H264 {
-            if codec.H264NaluType(frame) == codec.H264_NAL_AUD {
-                return
-            }
+            naluType := codec.H264NaluType(frame)
+            fmt.Println("frame:", "naluType", naluType, "pts:", pts, "dts:", dts, "size:", len(frame))
             n, err := h264FileFd.Write(frame)
             if err != nil || n != len(frame) {
                 fmt.Println(err)
@@ -92,7 +91,6 @@ func main() {
                     fd3.WriteString("    ")
                 }
                 fd3.WriteString(fmt.Sprintf("0x%02x ", value[i]))
-
             }
         }
     }
