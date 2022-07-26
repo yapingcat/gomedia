@@ -5,7 +5,9 @@
 ```
 go get github.com/yapingcat/gomedia
 ```
- 
+
+⚠️ run `go get github.com/yapingcat/gomedia` first,and then run `go mod tidy`
+
 ## H264/H265/AAC/VP8/OPUS
  [USAGE](https://github.com/yapingcat/gomedia/blob/main/codec/README.md)
   - decode sps/pps/vps/slice header
