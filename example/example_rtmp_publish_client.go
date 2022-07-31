@@ -1,16 +1,16 @@
 package main
 
 import (
-    "flag"
-    "fmt"
-    "net"
-    "net/url"
-    "os"
-    "time"
+	"flag"
+	"fmt"
+	"net"
+	"net/url"
+	"os"
+	"time"
 
-    "github.com/yapingcat/gomedia/codec"
-    "github.com/yapingcat/gomedia/flv"
-    "github.com/yapingcat/gomedia/rtmp"
+	"github.com/yapingcat/gomedia/go-codec"
+	"github.com/yapingcat/gomedia/go-flv"
+	"github.com/yapingcat/gomedia/go-rtmp"
 )
 
 var rtmpUrl = flag.String("url", "rtmp://127.0.0.1/live/test", "publish rtmp url")

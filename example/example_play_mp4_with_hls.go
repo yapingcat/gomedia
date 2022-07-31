@@ -1,18 +1,18 @@
 package main
 
 import (
-    "bytes"
-    "fmt"
-    "io"
-    "math"
-    "net/http"
-    "os"
-    "strconv"
-    "strings"
-    "time"
+	"bytes"
+	"fmt"
+	"io"
+	"math"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+	"time"
 
-    "github.com/yapingcat/gomedia/mp4"
-    "github.com/yapingcat/gomedia/mpeg2"
+	"github.com/yapingcat/gomedia/go-mp4"
+	"github.com/yapingcat/gomedia/go-mpeg2"
 )
 
 type hlsSession struct {

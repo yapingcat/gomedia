@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/yapingcat/gomedia/mp4"
+	"github.com/yapingcat/gomedia/go-mp4"
 )
 
 var mp4filename = flag.String("mp4file", "test.mp4", "mp4 file you want to decode")

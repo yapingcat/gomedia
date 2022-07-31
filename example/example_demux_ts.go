@@ -1,13 +1,13 @@
 package main
 
 import (
-    "bytes"
-    "fmt"
-    "io/ioutil"
-    "os"
+	"bytes"
+	"fmt"
+	"io/ioutil"
+	"os"
 
-    "github.com/yapingcat/gomedia/codec"
-    "github.com/yapingcat/gomedia/mpeg2"
+	"github.com/yapingcat/gomedia/go-codec"
+	"github.com/yapingcat/gomedia/go-mpeg2"
 )
 
 func main() {

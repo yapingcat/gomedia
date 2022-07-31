@@ -1,14 +1,14 @@
 package main
 
 import (
-    "fmt"
-    "net/http"
-    "os"
-    "strings"
-    "time"
+	"fmt"
+	"net/http"
+	"os"
+	"strings"
+	"time"
 
-    "github.com/yapingcat/gomedia/codec"
-    "github.com/yapingcat/gomedia/flv"
+	"github.com/yapingcat/gomedia/go-codec"
+	"github.com/yapingcat/gomedia/go-flv"
 )
 
 func onHttpFlv(w http.ResponseWriter, r *http.Request) {

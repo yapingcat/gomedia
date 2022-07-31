@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/yapingcat/gomedia/mpeg2"
+	"github.com/yapingcat/gomedia/go-mpeg2"
 )
 
 const RTP_FIX_HEAD_LEN = 12

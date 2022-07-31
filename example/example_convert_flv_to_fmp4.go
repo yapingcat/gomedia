@@ -1,12 +1,12 @@
 package main
 
 import (
-    "fmt"
-    "os"
+	"fmt"
+	"os"
 
-    "github.com/yapingcat/gomedia/codec"
-    "github.com/yapingcat/gomedia/flv"
-    "github.com/yapingcat/gomedia/mp4"
+	"github.com/yapingcat/gomedia/go-codec"
+	"github.com/yapingcat/gomedia/go-flv"
+	"github.com/yapingcat/gomedia/go-mp4"
 )
 
 func main() {

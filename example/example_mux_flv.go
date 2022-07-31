@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/yapingcat/gomedia/flv"
-	"github.com/yapingcat/gomedia/codec"
+	"github.com/yapingcat/gomedia/go-codec"
+	"github.com/yapingcat/gomedia/go-flv"
 )
 
 func main() {

@@ -1,14 +1,14 @@
 package main
 
 import (
-    "flag"
-    "fmt"
-    "math/rand"
-    "net"
-    "sync"
+	"flag"
+	"fmt"
+	"math/rand"
+	"net"
+	"sync"
 
-    "github.com/yapingcat/gomedia/codec"
-    "github.com/yapingcat/gomedia/rtmp"
+	"github.com/yapingcat/gomedia/go-codec"
+	"github.com/yapingcat/gomedia/go-rtmp"
 )
 
 var port = flag.String("port", "1935", "rtmp server listen port")

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/yapingcat/gomedia/mp4"
+	"github.com/yapingcat/gomedia/go-mp4"
 )
 
 func main() {

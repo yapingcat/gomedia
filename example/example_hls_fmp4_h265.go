@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yapingcat/gomedia/mp4"
+	"github.com/yapingcat/gomedia/go-mp4"
 )
 
 type hlsSegment struct {

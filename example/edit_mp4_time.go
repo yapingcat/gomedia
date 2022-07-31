@@ -8,7 +8,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/yapingcat/gomedia/mp4"
+	"github.com/yapingcat/gomedia/go-mp4"
 )
 
 func mov_tag(tag [4]byte) uint32 {
