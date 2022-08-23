@@ -1,14 +1,14 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"math/rand"
-	"net"
-	"sync"
+    "flag"
+    "fmt"
+    "math/rand"
+    "net"
+    "sync"
 
-	"github.com/yapingcat/gomedia/go-codec"
-	"github.com/yapingcat/gomedia/go-rtmp"
+    "github.com/yapingcat/gomedia/go-codec"
+    "github.com/yapingcat/gomedia/go-rtmp"
 )
 
 var port = flag.String("port", "1935", "rtmp server listen port")
@@ -49,6 +49,17 @@ type MediaFrame struct {
     frame []byte
     pts   uint32
     dts   uint32
+}
+
+func (f *MediaFrame) clone() *MediaFrame {
+    tmp := &MediaFrame{
+        cid: f.cid,
+        pts: f.pts,
+        dts: f.dts,
+    }
+    tmp.frame = make([]byte, len(f.frame))
+    copy(tmp.frame, f.frame)
+    return tmp
 }
 
 type MediaProducer struct {
@@ -97,7 +108,8 @@ func (producer *MediaProducer) dispatch() {
             producer.mtx.Unlock()
             for _, c := range tmp {
                 if c.ready() {
-                    c.play(frame)
+                    tmp := frame.clone()
+                    c.play(tmp)
                 }
             }
         case <-producer.session.quit:
