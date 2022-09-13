@@ -1,11 +1,11 @@
 package mp4
 
 import (
-	"encoding/binary"
-	"errors"
-	"io"
+    "encoding/binary"
+    "errors"
+    "io"
 
-	"github.com/yapingcat/gomedia/go-codec"
+    "github.com/yapingcat/gomedia/go-codec"
 )
 
 type AVPacket struct {
@@ -196,6 +196,8 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
             err = decodeTfdtBox(demuxer, uint32(basebox.Size))
         case mov_tag([4]byte{'t', 'r', 'u', 'n'}):
             err = decodeTrunBox(demuxer, uint32(basebox.Size))
+        case mov_tag([4]byte{'w', 'a', 'v', 'e'}):
+            err = decodeWaveBox(demuxer)
         default:
             _, err = demuxer.reader.Seek(int64(basebox.Size)-BasicBoxLen, io.SeekCurrent)
         }

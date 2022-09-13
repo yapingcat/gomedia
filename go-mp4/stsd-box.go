@@ -67,6 +67,7 @@ type HintSampleEntry struct {
 
 type AudioSampleEntry struct {
     entry        *SampleEntry
+    version      uint16 // ffmpeg mov.c mov_parse_stsd_audio
     channelcount uint16
     samplesize   uint16
     samplerate   uint32
@@ -86,6 +87,8 @@ func (entry *AudioSampleEntry) Decode(r io.Reader) (offset int, err error) {
     if _, err = io.ReadFull(r, buf); err != nil {
         return
     }
+    offset = 0
+    entry.version = binary.BigEndian.Uint16(buf[offset:])
     offset = 8
     entry.channelcount = binary.BigEndian.Uint16(buf[offset:])
     offset += 2
@@ -127,6 +130,23 @@ func decodeAudioSampleEntry(demuxer *MovDemuxer) (err error) {
     track.chanelCount = uint8(entry.channelcount)
     track.sampleBits = uint8(entry.samplesize)
     track.sampleRate = entry.samplerate
+    quickTime := false
+    for _, brand := range demuxer.mp4Info.CompatibleBrands {
+        if brand == mov_tag([4]byte{'q', 't', ' ', ' '}) {
+            quickTime = true
+            break
+        }
+    }
+    //ffmpeg mov.c mov_parse_stsd_audio
+    if quickTime && entry.version == 1 {
+        if _, err = io.ReadFull(demuxer.reader, make([]byte, 16)); err != nil {
+            return
+        }
+    } else if quickTime && entry.version == 2 {
+        if _, err = io.ReadFull(demuxer.reader, make([]byte, 36)); err != nil {
+            return
+        }
+    }
     return
 }
 
@@ -400,4 +420,19 @@ func decodeEsdsBox(demuxer *MovDemuxer, size uint32) (err error) {
     track := demuxer.tracks[len(demuxer.tracks)-1]
     track.extra.load(vosdata)
     return nil
+}
+
+//ffmpeg mov_write_wave_tag
+//  avio_wb32(pb, 12);    /* size */
+//  ffio_wfourcc(pb, "frma");
+//  avio_wl32(pb, track->tag);
+
+// avio_wb32(pb, 12); /* size */
+// ffio_wfourcc(pb, "mp4a");
+// avio_wb32(pb, 0);
+func decodeWaveBox(demuxer *MovDemuxer) (err error) {
+    if _, err = io.ReadFull(demuxer.reader, make([]byte, 24)); err != nil {
+        return
+    }
+    return
 }
