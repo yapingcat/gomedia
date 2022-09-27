@@ -8,6 +8,21 @@ import (
 	"strings"
 )
 
+type CodecParamHandler interface {
+	Decode(string) error
+	Encode() string
+}
+
+func CreateParameterHandler(codecName string) CodecParamHandler {
+	switch codecName {
+	case "h264", "H264":
+		return new(FmtpH264)
+	case "h265", "H265":
+		return new(FmtpH265)
+	}
+	return nil
+}
+
 type FmtpH264 struct {
 	PayloadType       int
 	PacketizationMode int
@@ -42,7 +57,7 @@ func (fmtp *FmtpH264) Decode(fmtpAttr string) error {
 }
 
 func (fmtp *FmtpH264) Encode() string {
-	return fmt.Sprintf("%d packetization-mode=%d; sprop-parameter-sets=%s,%s; profile-level-id=%s", fmtp.PayloadType, fmtp.PacketizationMode,
+	return fmt.Sprintf("a=fmtp:%d packetization-mode=%d; sprop-parameter-sets=%s,%s; profile-level-id=%s", fmtp.PayloadType, fmtp.PacketizationMode,
 		base64.StdEncoding.EncodeToString(fmtp.Sps), base64.StdEncoding.EncodeToString(fmtp.Pps), strings.ToUpper(hex.EncodeToString(fmtp.Sps[1:4])))
 }
 
@@ -79,7 +94,7 @@ func (fmtp *FmtpH265) Decode(fmtpAttr string) error {
 }
 
 func (fmtp *FmtpH265) Encode() string {
-	return fmt.Sprintf("%d ;sprop-vps=%s;sprop-sps=%s;sprop-pps=%s", fmtp.PayloadType,
+	return fmt.Sprintf("a=fmtp:%d ;sprop-vps=%s;sprop-sps=%s;sprop-pps=%s", fmtp.PayloadType,
 		strings.ToUpper(base64.StdEncoding.EncodeToString(fmtp.Vps)),
 		strings.ToUpper(base64.StdEncoding.EncodeToString(fmtp.Sps)),
 		strings.ToUpper(base64.StdEncoding.EncodeToString(fmtp.Pps)))

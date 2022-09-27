@@ -42,6 +42,10 @@ func NewH264Packer(pt uint8, ssrc uint32, sequence uint16, mtu int) *H264Packer 
 	}
 }
 
+func (pack *H264Packer) SetMtu(mtu int) {
+	pack.mtu = mtu
+}
+
 func (pack *H264Packer) HookRtp(cb RTP_HOOK_FUNC) {
 	pack.cb = cb
 }

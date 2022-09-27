@@ -10,6 +10,7 @@ type RTP_HOOK_FUNC func(pkg *RtpPacket)
 type Packer interface {
 	Pack(data []byte, timestamp uint32) [][]byte
 	HookRtp(cb RTP_HOOK_FUNC)
+	SetMtu(mtu int)
 }
 
 type UnPacker interface {
@@ -71,5 +72,9 @@ func (pkg *RtpPacket) Encode() []byte {
 }
 
 func CreatePacker(encodeName string, pt uint8, ssrc uint32, sequence uint32) Packer {
+	switch encodeName {
+	case "H264", "h264":
+		return NewH264Packer(pt, ssrc, uint16(sequence), 1200)
+	}
 	return nil
 }
