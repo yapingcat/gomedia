@@ -1,12 +1,12 @@
 package mpeg2
 
 import (
-	"encoding/binary"
-	"errors"
-	"fmt"
-	"os"
+    "encoding/binary"
+    "errors"
+    "fmt"
+    "os"
 
-	"github.com/yapingcat/gomedia/go-codec"
+    "github.com/yapingcat/gomedia/go-codec"
 )
 
 //PID
@@ -34,9 +34,10 @@ const (
 type TS_STREAM_TYPE int
 
 const (
-    TS_STREAM_AAC  TS_STREAM_TYPE = 0x0F
-    TS_STREAM_H264 TS_STREAM_TYPE = 0x1B
-    TS_STREAM_H265 TS_STREAM_TYPE = 0x24
+    TS_STREAM_MPEG1 TS_STREAM_TYPE = 0x03
+    TS_STREAM_AAC   TS_STREAM_TYPE = 0x0F
+    TS_STREAM_H264  TS_STREAM_TYPE = 0x1B
+    TS_STREAM_H265  TS_STREAM_TYPE = 0x24
 )
 
 const (
@@ -519,10 +520,14 @@ func (pmt *Pmt) PrettyPrint(file *os.File) {
         file.WriteString(fmt.Sprintf("----stream %d\n", i))
         if stream.StreamType == uint8(TS_STREAM_AAC) {
             file.WriteString("    stream_type:AAC\n")
+        } else if stream.StreamType == uint8(TS_STREAM_MPEG1) {
+            file.WriteString("    stream_type:MPEG1\n")
         } else if stream.StreamType == uint8(TS_STREAM_H264) {
             file.WriteString("    stream_type:H264\n")
         } else if stream.StreamType == uint8(TS_STREAM_H265) {
             file.WriteString("    stream_type:H265\n")
+        } else {
+            file.WriteString(fmt.Sprintf("    stream_type:UnSupport streamtype:%d\n", stream.StreamType))
         }
         file.WriteString(fmt.Sprintf("    elementary_PID:%d\n", stream.Elementary_PID))
         file.WriteString(fmt.Sprintf("    ES_info_length:%d\n", stream.ES_Info_Length))
