@@ -1,13 +1,13 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
-	"io/ioutil"
-	"os"
+    "bytes"
+    "fmt"
+    "io/ioutil"
+    "os"
 
-	"github.com/yapingcat/gomedia/go-codec"
-	"github.com/yapingcat/gomedia/go-mpeg2"
+    "github.com/yapingcat/gomedia/go-codec"
+    "github.com/yapingcat/gomedia/go-mpeg2"
 )
 
 func main() {
@@ -33,6 +33,13 @@ func main() {
     }
     defer aacFileFd.Close()
 
+    mpaFileFd, err := os.OpenFile("audio.mpa", os.O_CREATE|os.O_RDWR, 0666)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    defer mpaFileFd.Close()
+
     fd3, err := os.OpenFile("ts_debug.log", os.O_CREATE|os.O_RDWR, 0666)
     if err != nil {
         fmt.Println(err)
@@ -55,6 +62,15 @@ func main() {
                 foundAudio = true
             }
             n, err := aacFileFd.Write(frame)
+            if err != nil || n != len(frame) {
+                fmt.Println(err)
+            }
+        } else if cid == mpeg2.TS_STREAM_MPEG1 {
+            if !foundAudio {
+                foundAudio = true
+            }
+            fmt.Println("get mpeg1 audio")
+            n, err := mpaFileFd.Write(frame)
             if err != nil || n != len(frame) {
                 fmt.Println(err)
             }
