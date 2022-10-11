@@ -1,10 +1,10 @@
 package mpeg2
 
 import (
-    "errors"
-    "io"
+	"errors"
+	"io"
 
-    "github.com/yapingcat/gomedia/go-codec"
+	"github.com/yapingcat/gomedia/go-codec"
 )
 
 type pakcet_t struct {
@@ -196,7 +196,7 @@ func (demuxer *TSDemuxer) doVideoPesPacket(stream *tsstream, start uint8) {
 }
 
 func (demuxer *TSDemuxer) doAudioPesPacket(stream *tsstream, start uint8) {
-    if stream.cid != TS_STREAM_AAC && stream.cid != TS_STREAM_MPEG1 {
+    if stream.cid != TS_STREAM_AAC && stream.cid != TS_STREAM_AUDIO_MPEG1 {
         return
     }
 

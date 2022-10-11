@@ -34,10 +34,10 @@ const (
 type TS_STREAM_TYPE int
 
 const (
-    TS_STREAM_MPEG1 TS_STREAM_TYPE = 0x03
-    TS_STREAM_AAC   TS_STREAM_TYPE = 0x0F
-    TS_STREAM_H264  TS_STREAM_TYPE = 0x1B
-    TS_STREAM_H265  TS_STREAM_TYPE = 0x24
+    TS_STREAM_AUDIO_MPEG1 TS_STREAM_TYPE = 0x03
+    TS_STREAM_AAC         TS_STREAM_TYPE = 0x0F
+    TS_STREAM_H264        TS_STREAM_TYPE = 0x1B
+    TS_STREAM_H265        TS_STREAM_TYPE = 0x24
 )
 
 const (
@@ -520,7 +520,7 @@ func (pmt *Pmt) PrettyPrint(file *os.File) {
         file.WriteString(fmt.Sprintf("----stream %d\n", i))
         if stream.StreamType == uint8(TS_STREAM_AAC) {
             file.WriteString("    stream_type:AAC\n")
-        } else if stream.StreamType == uint8(TS_STREAM_MPEG1) {
+        } else if stream.StreamType == uint8(TS_STREAM_AUDIO_MPEG1) {
             file.WriteString("    stream_type:MPEG1\n")
         } else if stream.StreamType == uint8(TS_STREAM_H264) {
             file.WriteString("    stream_type:H264\n")
