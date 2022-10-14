@@ -1,10 +1,10 @@
 package mpeg2
 
 import (
-	"fmt"
-	"os"
+    "fmt"
+    "os"
 
-	"github.com/yapingcat/gomedia/go-codec"
+    "github.com/yapingcat/gomedia/go-codec"
 )
 
 var H264_AUD_NALU []byte = []byte{0x00, 0x00, 0x00, 0x01, 0x09, 0xF0} //ffmpeg mpegtsenc.c mpegts_write_packet_internal
@@ -23,11 +23,13 @@ const (
 )
 
 func findPESIDByStreamType(cid TS_STREAM_TYPE) PES_STREMA_ID {
-    if cid == TS_STREAM_AAC || cid == TS_STREAM_AUDIO_MPEG1 {
+
+    switch cid {
+    case TS_STREAM_AAC, TS_STREAM_AUDIO_MPEG1, TS_STREAM_AUDIO_MPEG2:
         return PES_STREAM_AUDIO
-    } else if cid == TS_STREAM_H264 || cid == TS_STREAM_H265 {
+    case TS_STREAM_H264, TS_STREAM_H265:
         return PES_STREAM_VIDEO
-    } else {
+    default:
         return PES_STREAM_PRIVATE
     }
 }
