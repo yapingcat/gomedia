@@ -1,13 +1,13 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
-	"io/ioutil"
-	"os"
+    "bytes"
+    "fmt"
+    "io/ioutil"
+    "os"
 
-	"github.com/yapingcat/gomedia/go-codec"
-	"github.com/yapingcat/gomedia/go-mpeg2"
+    "github.com/yapingcat/gomedia/go-codec"
+    "github.com/yapingcat/gomedia/go-mpeg2"
 )
 
 func main() {
@@ -65,10 +65,14 @@ func main() {
             if err != nil || n != len(frame) {
                 fmt.Println(err)
             }
-        } else if cid == mpeg2.TS_STREAM_AUDIO_MPEG1 {
+        } else if cid == mpeg2.TS_STREAM_AUDIO_MPEG1 || cid == mpeg2.TS_STREAM_AUDIO_MPEG2 {
             if !foundAudio {
                 foundAudio = true
             }
+            codec.SplitMp3Frames(frame, func(head *codec.MP3FrameHead, frame []byte) {
+                fmt.Printf("mp3 frame head %+v\n", head)
+                fmt.Printf("mp3 bitrate:%d,samplerate:%d,channelcount:%d\n", head.GetBitRate(), head.GetSampleRate(), head.GetChannelCount())
+            })
             fmt.Println("get mpeg1 audio ", pts, dts)
             n, err := mpaFileFd.Write(frame)
             if err != nil || n != len(frame) {
