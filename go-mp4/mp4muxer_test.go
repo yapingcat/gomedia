@@ -13,7 +13,6 @@ import (
 	"github.com/yapingcat/gomedia/go-mpeg2"
 )
 
-
 func TestCreateMp4Reader(t *testing.T) {
 	f, err := os.Open("jellyfish-3-mbps-hd.h264.mp4")
 	if err != nil {
@@ -164,7 +163,7 @@ func TestMuxAAC(t *testing.T) {
 }
 
 func TestMuxMp4(t *testing.T) {
-	tsfilename := `demo.ts`     // input
+	tsfilename := `demo.ts` // input
 	tsfile, err := os.Open(tsfilename)
 	if err != nil {
 		fmt.Println(err)
@@ -186,7 +185,7 @@ func TestMuxMp4(t *testing.T) {
 		return
 	}
 	vtid := muxer.AddVideoTrack(MP4_CODEC_H264)
-	atid := muxer.AddAudioTrack(MP4_CODEC_AAC, 0, 16, 44100)
+	atid := muxer.AddAudioTrack(MP4_CODEC_AAC)
 
 	afile, err := os.OpenFile("r.aac", os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
