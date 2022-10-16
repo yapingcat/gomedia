@@ -7,7 +7,7 @@ go get github.com/yapingcat/gomedia
 ```
 
 
-## H264/H265/AAC/VP8/OPUS
+## H264/H265/AAC/VP8/OPUS/MP3
  [USAGE](https://github.com/yapingcat/gomedia/blob/main/go-codec/README.md)
   - decode sps/pps/vps/slice header
   - decode HEVCDecoderConfigurationRecord/AVCDecoderConfigurationRecord/AAC-ADTS/AudioSpecificConfiguration
@@ -15,16 +15,19 @@ go get github.com/yapingcat/gomedia
   - decode OPUS Extradata(ID Head "OpusHead") /OPUS Packet(TOC...)
   - encode OPUS Extradata
   - decode VP8 Frame Tag/Key Frame Head
+  - decode MP3 Frame head
 
 ## mpeg-ts
   - mux
     - H264
     - H265
     - AAC
+    - MP3
   - demux
     - H264
     - H265
     - AAC
+    - MP3
 
 ## mpeg-ps
   - mux 
@@ -61,12 +64,14 @@ go get github.com/yapingcat/gomedia
     - AAC
     - G711A
     - G711U
+    - MP3
   - mux 
     - H264
     - H265
     - AAC
     - G711A
     - G711U
+    - MP3
 
 
 ## fmp4
