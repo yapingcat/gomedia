@@ -494,6 +494,8 @@ func (track *mp4track) writeMP3(mp3 []byte, pts, dts uint64) (err error) {
     if track.sampleRate == 0 {
         codec.SplitMp3Frames(mp3, func(head *codec.MP3FrameHead, frame []byte) {
             track.sampleRate = uint32(head.GetSampleRate())
+            track.chanelCount = uint8(head.GetChannelCount())
+            track.sampleBits = 16
         })
         if track.sampleRate > 24000 {
             track.cid = MP4_CODEC_MP2
