@@ -1,7 +1,7 @@
 package mp4
 
 import (
-	"github.com/yapingcat/gomedia/go-codec"
+    "github.com/yapingcat/gomedia/go-codec"
 )
 
 type MP4_CODEC_TYPE int
@@ -13,6 +13,8 @@ const (
     MP4_CODEC_AAC MP4_CODEC_TYPE = iota + 100
     MP4_CODEC_G711A
     MP4_CODEC_G711U
+    MP4_CODEC_MP2
+    MP4_CODEC_MP3
 )
 
 func isVideo(cid MP4_CODEC_TYPE) bool {
@@ -20,7 +22,8 @@ func isVideo(cid MP4_CODEC_TYPE) bool {
 }
 
 func isAudio(cid MP4_CODEC_TYPE) bool {
-    return cid == MP4_CODEC_AAC || cid == MP4_CODEC_G711A || cid == MP4_CODEC_G711U
+    return cid == MP4_CODEC_AAC || cid == MP4_CODEC_G711A || cid == MP4_CODEC_G711U ||
+        cid == MP4_CODEC_MP2 || cid == MP4_CODEC_MP3
 }
 
 func getCodecNameWithCodecId(cid MP4_CODEC_TYPE) [4]byte {
@@ -29,7 +32,7 @@ func getCodecNameWithCodecId(cid MP4_CODEC_TYPE) [4]byte {
         return [4]byte{'a', 'v', 'c', '1'}
     case MP4_CODEC_H265:
         return [4]byte{'h', 'v', 'c', '1'}
-    case MP4_CODEC_AAC:
+    case MP4_CODEC_AAC, MP4_CODEC_MP2, MP4_CODEC_MP3:
         return [4]byte{'m', 'p', '4', 'a'}
     case MP4_CODEC_G711A:
         return [4]byte{'a', 'l', 'a', 'w'}
@@ -53,8 +56,31 @@ func getBojecttypeWithCodecId(cid MP4_CODEC_TYPE) uint8 {
         return 0xfd
     case MP4_CODEC_G711U:
         return 0xfe
+    case MP4_CODEC_MP2:
+        return 0x6b
+    case MP4_CODEC_MP3:
+        return 0x69
     default:
         panic("unsupport codec id")
+    }
+}
+
+func getCodecIdByObjectType(objType uint8) MP4_CODEC_TYPE {
+    switch objType {
+    case 0x21:
+        return MP4_CODEC_H264
+    case 0x23:
+        return MP4_CODEC_H265
+    case 0x40:
+        return MP4_CODEC_AAC
+    case 0xfd:
+        return MP4_CODEC_G711A
+    case 0xfe:
+        return MP4_CODEC_G711U
+    case 0x6b, 0x69:
+        return MP4_CODEC_MP3
+    default:
+        panic("unsupport object type")
     }
 }
 

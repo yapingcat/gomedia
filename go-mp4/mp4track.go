@@ -1,10 +1,10 @@
 package mp4
 
 import (
-	"errors"
-	"io"
+    "errors"
+    "io"
 
-	"github.com/yapingcat/gomedia/go-codec"
+    "github.com/yapingcat/gomedia/go-codec"
 )
 
 type sampleCache struct {
@@ -275,6 +275,8 @@ func (track *mp4track) writeSample(sample []byte, pts, dts uint64) (err error) {
         err = track.writeAAC(sample, pts, dts)
     case MP4_CODEC_G711A, MP4_CODEC_G711U:
         err = track.writeG711(sample, pts, dts)
+    case MP4_CODEC_MP2, MP4_CODEC_MP3:
+        err = track.writeMP3(sample, pts, dts)
     }
     return err
 }
@@ -486,6 +488,20 @@ func (track *mp4track) writeG711(g711 []byte, pts, dts uint64) (err error) {
     entry.size = uint64(n)
     track.addSampleEntry(entry)
     return
+}
+
+func (track *mp4track) writeMP3(mp3 []byte, pts, dts uint64) (err error) {
+    if track.sampleRate == 0 {
+        codec.SplitMp3Frames(mp3, func(head *codec.MP3FrameHead, frame []byte) {
+            track.sampleRate = uint32(head.GetSampleRate())
+        })
+        if track.sampleRate > 24000 {
+            track.cid = MP4_CODEC_MP2
+        } else {
+            track.cid = MP4_CODEC_MP3
+        }
+    }
+    return track.writeG711(mp3, pts, dts)
 }
 
 func (track *mp4track) flush() (err error) {

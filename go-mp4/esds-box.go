@@ -1,9 +1,9 @@
 package mp4
 
 import (
-	"encoding/binary"
+    "encoding/binary"
 
-	"github.com/yapingcat/gomedia/go-codec"
+    "github.com/yapingcat/gomedia/go-codec"
 )
 
 // abstract aligned(8) expandable(228-1) class BaseDescriptor : bit(8) tag=0 {
@@ -108,7 +108,7 @@ func makeSLDescriptor() []byte {
     return sldes
 }
 
-func decodeESDescriptor(esd []byte) (vosData []byte) {
+func decodeESDescriptor(esd []byte, track *mp4track) (vosData []byte) {
     for len(esd) > 0 {
         based := BaseDescriptor{}
         based.Decode(esd)
@@ -116,15 +116,19 @@ func decodeESDescriptor(esd []byte) (vosData []byte) {
         case 0x03:
             esd = esd[8:]
         case 0x04:
+            track.cid = getCodecIdByObjectType(esd[5])
             esd = esd[18:]
         case 0x05:
             vosData = esd[5 : 5+based.sizeOfInstance]
-            return
+            esd = esd[5+based.sizeOfInstance:]
         case 0x06:
             fallthrough
         default:
             esd = esd[5+based.sizeOfInstance:]
         }
     }
-    panic("no vosdata")
+    if track.cid == MP4_CODEC_AAC && len(vosData) == 0 {
+        panic("no vosdata")
+    }
+    return
 }

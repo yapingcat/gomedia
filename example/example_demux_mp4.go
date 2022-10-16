@@ -52,6 +52,8 @@ func main() {
 			vfile.Write(pkg.Data)
 		} else if pkg.Cid == mp4.MP4_CODEC_AAC {
 			afile.Write(pkg.Data)
+		} else if pkg.Cid == mp4.MP4_CODEC_MP3 {
+			afile.Write(pkg.Data)
 		}
 	}
 

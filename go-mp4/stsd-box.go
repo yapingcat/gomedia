@@ -314,10 +314,12 @@ func makeStsd(track *mp4track, handler_type HandlerType) []byte {
     var avbox []byte
     var extraData []byte
     if len(track.extraData) == 0 {
-        if track.extra == nil {
-            panic(fmt.Sprintf("track %d:extra is nil", track.trackId))
+        if track.cid != MP4_CODEC_MP2 && track.cid != MP4_CODEC_MP3 {
+            if track.extra == nil {
+                panic(fmt.Sprintf("track %d:extra is nil", track.trackId))
+            }
+            extraData = track.extra.export()
         }
-        extraData = track.extra.export()
     } else {
         extraData = track.extraData
     }
@@ -326,7 +328,7 @@ func makeStsd(track *mp4track, handler_type HandlerType) []byte {
         avbox = makeAvcCBox(extraData)
     } else if track.cid == MP4_CODEC_H265 {
         avbox = makeHvcCBox(extraData)
-    } else if track.cid == MP4_CODEC_AAC {
+    } else if track.cid == MP4_CODEC_AAC || track.cid == MP4_CODEC_MP2 || track.cid == MP4_CODEC_MP3 {
         avbox = makeEsdsBox(track.trackId, track.cid, extraData)
     }
 
@@ -416,8 +418,8 @@ func decodeEsdsBox(demuxer *MovDemuxer, size uint32) (err error) {
     if _, err = io.ReadFull(demuxer.reader, buf); err != nil {
         return
     }
-    vosdata := decodeESDescriptor(buf)
     track := demuxer.tracks[len(demuxer.tracks)-1]
+    vosdata := decodeESDescriptor(buf, track)
     track.extra.load(vosdata)
     return nil
 }

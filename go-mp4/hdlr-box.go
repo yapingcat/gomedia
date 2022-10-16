@@ -89,15 +89,10 @@ func (hdlr *HandlerBox) Encode() (int, []byte) {
 
 func getHandlerType(cid MP4_CODEC_TYPE) HandlerType {
     switch cid {
-    case MP4_CODEC_H264:
+    case MP4_CODEC_H264, MP4_CODEC_H265:
         return vide
-    case MP4_CODEC_H265:
-        return vide
-    case MP4_CODEC_AAC:
-        return soun
-    case MP4_CODEC_G711A:
-        return soun
-    case MP4_CODEC_G711U:
+    case MP4_CODEC_AAC, MP4_CODEC_G711A, MP4_CODEC_G711U,
+        MP4_CODEC_MP2, MP4_CODEC_MP3:
         return soun
     default:
         panic("unsupport codec id")
