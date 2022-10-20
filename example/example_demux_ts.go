@@ -19,6 +19,7 @@ func main() {
 		return
 	}
 	defer tsFd.Close()
+
 	h264FileFd, err := os.OpenFile("video.h264", os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
 		fmt.Println(err)
