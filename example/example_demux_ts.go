@@ -140,7 +140,6 @@ func main() {
 	buf, _ := ioutil.ReadAll(tsFd)
 	fmt.Printf("read %d size\n", len(buf))
 	fmt.Println(demuxer.Input(bytes.NewReader(buf)))
-	
 	/*
 	   if ts file is large,please use bufio.NewReader
 	   demuxer.Input(bufio.NewReader(tsFd))
