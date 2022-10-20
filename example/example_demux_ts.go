@@ -31,7 +31,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	defer h265ileFd.Close()
+	defer h265FileFd.Close()
 
 	aacFileFd, err := os.OpenFile("audio.aac", os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
