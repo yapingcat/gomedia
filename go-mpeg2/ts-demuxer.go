@@ -48,13 +48,12 @@ func NewTSDemuxer() *TSDemuxer {
 }
 
 func (demuxer *TSDemuxer) Input(r io.Reader) error {
-    buf := make([]byte, TS_PAKCET_SIZE)
-    _, err := io.ReadFull(r, buf)
+    buf, err := demuxer.probe(r)
     if err != nil {
         return err
     }
     for {
-        bs := codec.NewBitStream(buf)
+        bs := codec.NewBitStream(buf[:TS_PAKCET_SIZE])
         var pkg TSPacket
         if err := pkg.DecodeHeader(bs); err != nil {
             return err
@@ -128,16 +127,54 @@ func (demuxer *TSDemuxer) Input(r io.Reader) error {
         if demuxer.OnTSPacket != nil {
             demuxer.OnTSPacket(&pkg)
         }
-        _, err := io.ReadFull(r, buf)
-        if err != nil {
-            if errors.Is(err, io.EOF) {
+        if len(buf) > TS_PAKCET_SIZE {
+            buf = buf[TS_PAKCET_SIZE:]
+        } else {
+            if err != nil {
                 break
             }
-            return err
+            buf, err = demuxer.probe(r)
+            if err != nil && buf == nil {
+                break
+            }
         }
     }
     demuxer.flush()
     return nil
+}
+
+func (demuxer *TSDemuxer) probe(r io.Reader) ([]byte, error) {
+    buf := make([]byte, 2*TS_PAKCET_SIZE)
+    if n, err := io.ReadFull(r, buf); err != nil {
+        if n >= TS_PAKCET_SIZE {
+            return buf[:TS_PAKCET_SIZE], err
+        }
+        return nil, err
+    }
+
+LOOP:
+    i := 0
+    for ; i < TS_PAKCET_SIZE; i++ {
+        if buf[i] == 0x47 && buf[i+TS_PAKCET_SIZE] == 0x47 {
+            break
+        }
+    }
+    if i == 0 {
+        return buf, nil
+    } else if i < TS_PAKCET_SIZE {
+        copy(buf, buf[i:])
+        if _, err := io.ReadFull(r, buf[2*TS_PAKCET_SIZE-i:]); err != nil {
+            return buf[:TS_PAKCET_SIZE], err
+        } else {
+            return buf, nil
+        }
+    } else {
+        copy(buf, buf[TS_PAKCET_SIZE:])
+        if _, err := io.ReadFull(r, buf[TS_PAKCET_SIZE:]); err != nil {
+            return buf[:TS_PAKCET_SIZE], err
+        }
+        goto LOOP
+    }
 }
 
 func (demuxer *TSDemuxer) flush() {
