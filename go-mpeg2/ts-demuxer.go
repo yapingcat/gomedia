@@ -48,11 +48,27 @@ func NewTSDemuxer() *TSDemuxer {
 }
 
 func (demuxer *TSDemuxer) Input(r io.Reader) error {
-    buf, err := demuxer.probe(r)
-    if err != nil {
-        return err
-    }
+    var err error = nil
+    var buf []byte
     for {
+        if len(buf) > TS_PAKCET_SIZE {
+            buf = buf[TS_PAKCET_SIZE:]
+        } else {
+            if err != nil {
+                if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+                    break
+                }
+                return err
+            }
+            buf, err = demuxer.probe(r)
+            if err != nil && buf == nil {
+                if errors.Is(err, io.EOF) {
+                    break
+                }
+                return err
+            }
+        }
+
         bs := codec.NewBitStream(buf[:TS_PAKCET_SIZE])
         var pkg TSPacket
         if err := pkg.DecodeHeader(bs); err != nil {
@@ -126,17 +142,6 @@ func (demuxer *TSDemuxer) Input(r io.Reader) error {
         }
         if demuxer.OnTSPacket != nil {
             demuxer.OnTSPacket(&pkg)
-        }
-        if len(buf) > TS_PAKCET_SIZE {
-            buf = buf[TS_PAKCET_SIZE:]
-        } else {
-            if err != nil {
-                break
-            }
-            buf, err = demuxer.probe(r)
-            if err != nil && buf == nil {
-                break
-            }
         }
     }
     demuxer.flush()
