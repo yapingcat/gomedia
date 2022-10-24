@@ -1,11 +1,11 @@
 package flv
 
 import (
-	"encoding/binary"
-	"errors"
-	"io"
+    "encoding/binary"
+    "errors"
+    "io"
 
-	"github.com/yapingcat/gomedia/go-codec"
+    "github.com/yapingcat/gomedia/go-codec"
 )
 
 //  FLV File
@@ -217,7 +217,7 @@ func (f *FlvReader) createVideoTagDemuxer(cid FLV_VIDEO_CODEC_ID) error {
 
 func (f *FlvReader) createAudioTagDemuxer(formats FLV_SOUND_FORMAT) error {
     switch formats {
-    case FLV_G711A, FLV_G711U:
+    case FLV_G711A, FLV_G711U, FLV_MP3:
         f.audioDemuxer = NewG711Demuxer(formats)
     case FLV_AAC:
         f.audioDemuxer = NewAACTagDemuxer()
@@ -295,7 +295,7 @@ func (f *FlvWriter) WriteG711A(data []byte, pts uint32, dts uint32) error {
     if f.muxer.audioMuxer == nil {
         f.muxer.SetAudioCodeId(FLV_G711A)
     } else {
-        if _, ok := f.muxer.audioMuxer.(*AACMuxer); !ok {
+        if _, ok := f.muxer.audioMuxer.(*G711AMuxer); !ok {
             panic("audio codec change")
         }
     }
@@ -306,7 +306,18 @@ func (f *FlvWriter) WriteG711U(data []byte, pts uint32, dts uint32) error {
     if f.muxer.audioMuxer == nil {
         f.muxer.SetAudioCodeId(FLV_G711U)
     } else {
-        if _, ok := f.muxer.audioMuxer.(*AACMuxer); !ok {
+        if _, ok := f.muxer.audioMuxer.(*G711UMuxer); !ok {
+            panic("audio codec change")
+        }
+    }
+    return f.writeAudio(data, pts, dts)
+}
+
+func (f *FlvWriter) WriteMp3(data []byte, pts uint32, dts uint32) error {
+    if f.muxer.audioMuxer == nil {
+        f.muxer.SetAudioCodeId(FLV_MP3)
+    } else {
+        if _, ok := f.muxer.audioMuxer.(*Mp3Muxer); !ok {
             panic("audio codec change")
         }
     }

@@ -1,11 +1,11 @@
 package flv
 
 import (
-	"encoding/binary"
-	"errors"
-	"fmt"
+    "encoding/binary"
+    "errors"
+    "fmt"
 
-	"github.com/yapingcat/gomedia/go-codec"
+    "github.com/yapingcat/gomedia/go-codec"
 )
 
 type OnVideoFrameCallBack func(codecid codec.CodecID, frame []byte, cts int)
@@ -232,7 +232,7 @@ func (demuxer *G711Demuxer) OnFrame(onframe OnAudioFrameCallBack) {
 func (demuxer *G711Demuxer) Decode(data []byte) error {
 
     if len(data) < 1 {
-        return errors.New("g711 tag size < 1")
+        return errors.New("audio tag size < 1")
     }
 
     atag := AudioTag{}
@@ -250,7 +250,7 @@ func (demuxer *G711Demuxer) Decode(data []byte) error {
 
 func CreateAudioTagDemuxer(formats FLV_SOUND_FORMAT) (demuxer AudioTagDemuxer) {
     switch formats {
-    case FLV_G711A, FLV_G711U:
+    case FLV_G711A, FLV_G711U, FLV_MP3:
         demuxer = NewG711Demuxer(formats)
     case FLV_AAC:
         demuxer = NewAACTagDemuxer()

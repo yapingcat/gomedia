@@ -1,7 +1,7 @@
 package flv
 
 import (
-	"github.com/yapingcat/gomedia/go-codec"
+    "github.com/yapingcat/gomedia/go-codec"
 )
 
 func PutUint24(b []byte, v uint32) {
@@ -35,6 +35,8 @@ func CovertFlvAudioCodecId2MpegCodecId(cid FLV_SOUND_FORMAT) codec.CodecID {
         return codec.CODECID_AUDIO_G711A
     } else if cid == FLV_G711U {
         return codec.CODECID_AUDIO_G711U
+    } else if cid == FLV_MP3 {
+        return codec.CODECID_AUDIO_MP3
     }
     return codec.CODECID_UNRECOGNIZED
 }

@@ -60,6 +60,8 @@ func (format FLV_SOUND_FORMAT) ToMpegCodecId() codec.CodecID {
         return codec.CODECID_AUDIO_G711U
     case format == FLV_AAC:
         return codec.CODECID_AUDIO_AAC
+    case format == FLV_MP3:
+        return codec.CODECID_AUDIO_MP3
     default:
         panic("unsupport sound format")
     }
