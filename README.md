@@ -50,12 +50,14 @@ go get github.com/yapingcat/gomedia
     - AAC
     - G711A
     - G711U
+    - MP3
   - demux 
     - H264
     - H265
     - AAC
     - G711A
     - G711U
+    - MP3
   
 ## mp4
   - demux 
@@ -99,7 +101,7 @@ go get github.com/yapingcat/gomedia
   
   - support client/server
   - support play/publish
-  - support h264/h265/aac/g711a/g711u
+  - support h264/h265/aac/g711a/g711u/mp3
  
 
 
