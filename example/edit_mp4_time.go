@@ -31,6 +31,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
+	defer mp4Fd.Close()
 
 Loop:
 	for err == nil {

@@ -120,7 +120,9 @@ func generateH265M3U8(f string) {
 	muxer.FlushFragment()
 	m3u8Name := "test.m3u8"
 	m3u8, _ := os.OpenFile(m3u8Name, os.O_CREATE|os.O_RDWR, 0666)
+	defer m3u8.Close()
 	m3u8.WriteString(hls.makeM3u8())
+	mp4file.Close()
 }
 
 func onH265HLSVod(w http.ResponseWriter, r *http.Request) {
