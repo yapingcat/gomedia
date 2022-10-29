@@ -206,8 +206,7 @@ func (track *mp4track) makeStblTable() {
                 ctts.entryCount++
             }
         }
-
-        if sameSize && track.samplelist[i+1].size != track.samplelist[i].size {
+        if sameSize && i < len(track.samplelist)-1 && track.samplelist[i+1].size != track.samplelist[i].size {
             sameSize = false
         }
         if i > 0 && sample.offset == track.samplelist[i-1].offset+track.samplelist[i-1].size {

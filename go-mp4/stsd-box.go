@@ -314,7 +314,7 @@ func makeStsd(track *mp4track, handler_type HandlerType) []byte {
     var avbox []byte
     var extraData []byte
     if len(track.extraData) == 0 {
-        if track.cid != MP4_CODEC_MP2 && track.cid != MP4_CODEC_MP3 {
+        if track.cid == MP4_CODEC_AAC || track.cid == MP4_CODEC_H264 || track.cid == MP4_CODEC_H265 {
             if track.extra == nil {
                 panic(fmt.Sprintf("track %d:extra is nil", track.trackId))
             }
