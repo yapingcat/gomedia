@@ -7,13 +7,17 @@ import (
     "github.com/yapingcat/gomedia/go-codec"
 )
 
-func WriteAudioTag(data []byte, cid FLV_SOUND_FORMAT, sampleRate int, isSequenceHeader bool) []byte {
+func WriteAudioTag(data []byte, cid FLV_SOUND_FORMAT, sampleRate int, channelCount int, isSequenceHeader bool) []byte {
     var atag AudioTag
     atag.SoundFormat = uint8(cid)
     if cid == FLV_AAC {
         atag.SoundRate = uint8(FLV_SAMPLE_44000)
+        atag.SoundSize = 1
+        atag.SoundType = 1
     } else if cid == FLV_G711A || cid == FLV_G711U {
         atag.SoundRate = uint8(FLV_SAMPLE_5500)
+        atag.SoundSize = 1
+        atag.SoundType = 0
     } else {
         switch sampleRate {
         case 5500:
@@ -27,9 +31,14 @@ func WriteAudioTag(data []byte, cid FLV_SOUND_FORMAT, sampleRate int, isSequence
         default:
             atag.SoundRate = uint8(FLV_SAMPLE_44000)
         }
+        atag.SoundSize = 1
+        if channelCount > 1 {
+            atag.SoundType = 1
+        } else {
+            atag.SoundType = 0
+        }
     }
-    atag.SoundSize = 1
-    atag.SoundType = 1
+
     if isSequenceHeader {
         atag.AACPacketType = 0
     } else {
@@ -216,10 +225,10 @@ func (muxer *AACMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
         hdr.Decode(aac)
         if muxer.updateSequence {
             asc, _ := codec.ConvertADTSToASC(aac)
-            tags = append(tags, WriteAudioTag(asc.Encode(), FLV_AAC, 0, true))
+            tags = append(tags, WriteAudioTag(asc.Encode(), FLV_AAC, 0, 0, true))
             muxer.updateSequence = false
         }
-        tags = append(tags, WriteAudioTag(aac[7:], FLV_AAC, 0, false))
+        tags = append(tags, WriteAudioTag(aac[7:], FLV_AAC, 0, 0, false))
     })
     return tags
 }
@@ -233,7 +242,7 @@ func NewG711AMuxer() *G711AMuxer {
 
 func (muxer *G711AMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
     tags := make([][]byte, 1)
-    tags[0] = WriteAudioTag(frames, FLV_G711A, 0, true)
+    tags[0] = WriteAudioTag(frames, FLV_G711A, 0, 0, true)
     return tags
 }
 
@@ -246,7 +255,7 @@ func NewG711UMuxer() *G711UMuxer {
 
 func (muxer *G711UMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
     tags := make([][]byte, 1)
-    tags[0] = WriteAudioTag(frames, FLV_G711U, 0, true)
+    tags[0] = WriteAudioTag(frames, FLV_G711U, 0, 0, true)
     return tags
 }
 
@@ -256,7 +265,7 @@ type Mp3Muxer struct {
 func (muxer *Mp3Muxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
     tags := make([][]byte, 1)
     codec.SplitMp3Frames(frames, func(head *codec.MP3FrameHead, frame []byte) {
-        tags = append(tags, WriteAudioTag(frames, FLV_MP3, head.GetSampleRate(), true))
+        tags = append(tags, WriteAudioTag(frames, FLV_MP3, head.GetSampleRate(), head.GetChannelCount(), true))
     })
     return tags
 }
