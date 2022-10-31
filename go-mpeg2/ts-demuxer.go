@@ -268,8 +268,7 @@ func (demuxer *TSDemuxer) splitH264Frame(stream *tsstream) bool {
     needUpdate := false
     frameBeg := start
     for start < datalen {
-        end, sct2 := codec.FindStartCode(data, start+3)
-        if end < 0 {
+        if len(data)-start < int(sct)+1 {
             break
         }
         naluType := codec.H264NaluTypeWithoutStartCode(data[start+int(sct):])
@@ -309,6 +308,10 @@ func (demuxer *TSDemuxer) splitH264Frame(stream *tsstream) bool {
             vcl = 0
             newAcessUnit = false
         }
+        end, sct2 := codec.FindStartCode(data, start+3)
+        if end < 0 {
+            break
+        }
         start = end
         sct = sct2
     }
@@ -330,11 +333,9 @@ func (demuxer *TSDemuxer) splitH265Frame(stream *tsstream) bool {
     needUpdate := false
     frameBeg := start
     for start < datalen {
-        end, sct2 := codec.FindStartCode(data, start+3)
-        if end < 0 {
+        if len(data)-start < int(sct)+2 {
             break
         }
-
         naluType := codec.H265NaluTypeWithoutStartCode(data[start+int(sct):])
         switch naluType {
         case codec.H265_NAL_AUD, codec.H265_NAL_SPS,
@@ -377,6 +378,11 @@ func (demuxer *TSDemuxer) splitH265Frame(stream *tsstream) bool {
             needUpdate = true
             vcl = 0
             newAcessUnit = false
+        }
+
+        end, sct2 := codec.FindStartCode(data, start+3)
+        if end < 0 {
+            break
         }
         start = end
         sct = sct2
