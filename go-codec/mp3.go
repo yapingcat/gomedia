@@ -285,6 +285,9 @@ func (mp3 *MP3FrameHead) GetBitRate() int {
 }
 
 func (mp3 *MP3FrameHead) GetSampleRate() int {
+    if mp3.Version == LAYER_RESERVED {
+        return 0
+    }
     return SampleRateTable[mp3.Version-1][mp3.SampleRateIndex]
 }
 
