@@ -39,54 +39,54 @@ import "encoding/binary"
 // 			+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 type SenderReport struct {
-	Comm
-	RC              uint8
-	SSRC            uint32
-	NTP             uint64
-	RtpTimestamp    uint32
-	SendPacketCount uint32
-	SendOctetCount  uint32
-	Blocks          []ReportBlock
+    Comm
+    RC              uint8
+    SSRC            uint32
+    NTP             uint64
+    RtpTimestamp    uint32
+    SendPacketCount uint32
+    SendOctetCount  uint32
+    Blocks          []ReportBlock
 }
 
 func (pkt *SenderReport) Decode(data []byte) error {
-	if err := pkt.Comm.Decode(data); err != nil {
-		return err
-	}
-	pkt.RC = data[0] & 0x1f
-	pkt.SSRC = binary.BigEndian.Uint32(data[4:])
-	pkt.NTP = binary.BigEndian.Uint64(data[8:])
-	pkt.RtpTimestamp = binary.BigEndian.Uint32(data[16:])
-	pkt.SendPacketCount = binary.BigEndian.Uint32(data[20:])
-	pkt.SendOctetCount = binary.BigEndian.Uint32(data[24:])
-	offset := 28
-	for i := 0; i < int(pkt.RC); i++ {
-		block := ReportBlock{}
-		if err := block.Decode(data[offset:]); err != nil {
-			return err
-		}
-		pkt.Blocks = append(pkt.Blocks, block)
-	}
-	return nil
+    if err := pkt.Comm.Decode(data); err != nil {
+        return err
+    }
+    pkt.RC = data[0] & 0x1f
+    pkt.SSRC = binary.BigEndian.Uint32(data[4:])
+    pkt.NTP = binary.BigEndian.Uint64(data[8:])
+    pkt.RtpTimestamp = binary.BigEndian.Uint32(data[16:])
+    pkt.SendPacketCount = binary.BigEndian.Uint32(data[20:])
+    pkt.SendOctetCount = binary.BigEndian.Uint32(data[24:])
+    offset := 28
+    for i := 0; i < int(pkt.RC); i++ {
+        block := ReportBlock{}
+        if err := block.Decode(data[offset:]); err != nil {
+            return err
+        }
+        pkt.Blocks = append(pkt.Blocks, block)
+    }
+    return nil
 }
 
 func (pkt *SenderReport) Encode() []byte {
-	pkt.Comm.Length = pkt.calcLength()
-	data := pkt.Comm.Encode()
-	data[0] |= pkt.RC & 0x1f
-	binary.BigEndian.PutUint32(data[4:], pkt.SSRC)
-	binary.BigEndian.PutUint64(data[8:], pkt.NTP)
-	binary.BigEndian.PutUint32(data[16:], pkt.RtpTimestamp)
-	binary.BigEndian.PutUint32(data[20:], pkt.SendPacketCount)
-	binary.BigEndian.PutUint32(data[24:], pkt.SendOctetCount)
-	offset := 28
-	for _, block := range pkt.Blocks {
-		copy(data[offset:], block.Encode())
-		offset += 24
-	}
-	return data
+    pkt.Comm.Length = pkt.calcLength()
+    data := pkt.Comm.Encode()
+    data[0] |= pkt.RC & 0x1f
+    binary.BigEndian.PutUint32(data[4:], pkt.SSRC)
+    binary.BigEndian.PutUint64(data[8:], pkt.NTP)
+    binary.BigEndian.PutUint32(data[16:], pkt.RtpTimestamp)
+    binary.BigEndian.PutUint32(data[20:], pkt.SendPacketCount)
+    binary.BigEndian.PutUint32(data[24:], pkt.SendOctetCount)
+    offset := 28
+    for _, block := range pkt.Blocks {
+        copy(data[offset:], block.Encode())
+        offset += 24
+    }
+    return data
 }
 
 func (pkt *SenderReport) calcLength() uint16 {
-	return uint16(24 + (24*len(pkt.Blocks))/4)
+    return uint16(24 + (24*len(pkt.Blocks))/4)
 }
