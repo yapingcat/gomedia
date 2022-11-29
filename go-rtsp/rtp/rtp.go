@@ -6,14 +6,18 @@ import (
 )
 
 type RTP_HOOK_FUNC func(pkg *RtpPacket)
+type ON_RTP_PKT_FUNC func(pkt []byte) error
+type ON_FRAME_FUNC func(frame []byte, timestamp uint32, lost bool)
 
 type Packer interface {
-	Pack(data []byte, timestamp uint32) [][]byte
+	Pack(data []byte, timestamp uint32) error
 	HookRtp(cb RTP_HOOK_FUNC)
 	SetMtu(mtu int)
+	OnPacket(onPkt ON_RTP_PKT_FUNC)
 }
 
 type UnPacker interface {
+	OnFrame(onframe ON_FRAME_FUNC)
 	UnPack(pkt []byte) error
 }
 
@@ -43,7 +47,7 @@ func (pkg *RtpPacket) Decode(data []byte) error {
 		data = data[4+4*length:]
 	}
 	if pkg.Header.PaddingFlag > 0 {
-		if len(data) < 0 || int(data[len(data)-1]) > len(data) {
+		if len(data) == 0 || int(data[len(data)-1]) > len(data) {
 			return errors.New("rtp padding need more bytes")
 		}
 		pkg.Padding = data[len(data)-int(data[len(data)-1]):]
@@ -69,12 +73,4 @@ func (pkg *RtpPacket) Encode() []byte {
 	data = append(data, pkg.Payload...)
 	data = append(data, pkg.Padding...)
 	return data
-}
-
-func CreatePacker(encodeName string, pt uint8, ssrc uint32, sequence uint32) Packer {
-	switch encodeName {
-	case "H264", "h264":
-		return NewH264Packer(pt, ssrc, uint16(sequence), 1200)
-	}
-	return nil
 }

@@ -23,7 +23,8 @@ a=control:streamid=1`
 
 func TestParserSdp(t *testing.T) {
 	t.Run("parse_sdp", func(t *testing.T) {
-		sdp, err := ParserSdp([]byte(sdpstr))
+		sdp := &Sdp{}
+		err := sdp.ParserSdp([]byte(sdpstr))
 		fmt.Println(err)
 		fmt.Printf("%+v\n", sdp)
 		fmt.Printf("%+v\n", sdp.Medias[0])

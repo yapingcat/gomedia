@@ -1,8 +1,8 @@
 package sdp
 
 import (
-	"bytes"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -61,6 +61,52 @@ type Media struct {
 	Attrs        map[string]string
 }
 
+func (m *Media) Encode() string {
+	mediaTxt := "m=" + m.MediaType + " " + strconv.Itoa(int(m.Ports[0]))
+	if len(m.Ports) > 1 {
+		mediaTxt += "/" + strconv.Itoa(len(m.Ports))
+	}
+	mediaTxt += " "
+	mediaTxt += m.Proto
+	for _, pt := range m.Fmts {
+		mediaTxt += " " + strconv.Itoa(int(pt))
+	}
+	mediaTxt += "\r\n"
+
+	for attrKey, attrValue := range m.Attrs {
+		mediaTxt += "a=" + attrKey
+		if len(attrValue) > 0 {
+			mediaTxt += ":" + attrValue
+		}
+		mediaTxt += "\r\n"
+	}
+	return mediaTxt
+}
+
+// func (m *Media) Decode(mediaDes string) error {
+// 	lines := strings.FieldsFunc(mediaDes, func(r rune) bool {
+// 		if r == '\r' || r == '\n' {
+// 			return true
+// 		} else {
+// 			return false
+// 		}
+// 	})
+// 	m.ParseMLine(string(lines[0]))
+// 	for _, line := range lines[1:] {
+// 		nameValue := strings.SplitN(line, "=", 2)
+// 		if len(nameValue) < 2 {
+// 			return errors.New("parser sdp line failed")
+// 		}
+// 		name := nameValue[0]
+// 		value := nameValue[1]
+// 		if name != "a" {
+// 			continue
+// 		}
+
+// 	}
+
+// }
+
 func (m *Media) ParseMLine(mediaLine string) error {
 	strs := strings.SplitN(mediaLine, " ", 4)
 	m.MediaType = strs[0]
@@ -91,19 +137,38 @@ type Sdp struct {
 	Medias         []*Media
 }
 
-func ParserSdp(sdpContent []byte) (*Sdp, error) {
-	lines := bytes.FieldsFunc(sdpContent, func(r rune) bool {
+func (sdp *Sdp) Encode() string {
+	sdptxt := "v=0\r\n"
+	sdptxt += "o=- 0 0 IN IP4 0.0.0.0\r\n"
+	sdptxt += "s=gomedia rtsp\r\n"
+	sdptxt += "c=IN IP4 \r\n"
+	sdptxt += "t=0 0\r\n"
+	for attrName, attrValue := range sdp.Attrs {
+		sdptxt += "a=" + attrName
+		if len(attrValue) > 0 {
+			sdptxt += ":" + attrValue
+		}
+		sdptxt += "\r\n"
+	}
+
+	for _, m := range sdp.Medias {
+		sdptxt += m.Encode()
+	}
+	return sdptxt
+}
+
+func (sdp *Sdp) ParserSdp(sdpContent string) error {
+	lines := strings.FieldsFunc(sdpContent, func(r rune) bool {
 		if r == '\r' || r == '\n' {
 			return true
 		} else {
 			return false
 		}
 	})
-	sdp := &Sdp{}
 	for _, line := range lines {
-		nameValue := bytes.SplitN(line, []byte{'='}, 2)
+		nameValue := strings.SplitN(line, "=", 2)
 		if len(nameValue) < 2 {
-			return nil, errors.New("parser sdp line failed")
+			return errors.New("parser sdp line failed")
 		}
 		name := nameValue[0]
 		value := nameValue[1]
@@ -114,10 +179,10 @@ func ParserSdp(sdpContent []byte) (*Sdp, error) {
 			sdp.SessionInfo = string(value)
 		case 'c':
 			if err := sdp.ConnectionData.Decode(string(value)); err != nil {
-				return nil, err
+				return err
 			}
 		case 'a':
-			attribute := bytes.SplitN(value, []byte{':'}, 2)
+			attribute := strings.SplitN(value, ":", 2)
 			var attrName string = string(attribute[0])
 			var attrValue string = ""
 			if len(attribute) > 1 {
@@ -152,12 +217,13 @@ func ParserSdp(sdpContent []byte) (*Sdp, error) {
 					sdp.ControlUrl = attrValue
 				} else {
 					sdp.Medias[len(sdp.Medias)-1].ControlUrl = attrValue
+					fmt.Println("control url", attrValue)
 				}
 			}
 		case 'm':
 			m := &Media{}
 			if err := m.ParseMLine(string(value)); err != nil {
-				return nil, err
+				return err
 			}
 			sdp.Medias = append(sdp.Medias, m)
 		}
@@ -191,5 +257,5 @@ func ParserSdp(sdpContent []byte) (*Sdp, error) {
 			}
 		}
 	}
-	return sdp, nil
+	return nil
 }

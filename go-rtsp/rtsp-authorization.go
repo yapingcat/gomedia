@@ -3,23 +3,30 @@ package rtsp
 import (
 	"crypto/md5"
 	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"strings"
+	"sync/atomic"
+	"time"
 )
 
 type authenticate interface {
 	setUri(uri string)
 	setMethod(method string)
 	setUserInfo(userName, passwd string)
+	setRealm(realm string)
 	authenticateInfo() string
 	decode(string)
+	check(string) bool
+	wwwAuthenticate() string
 }
 
 func createAuthByAuthenticate(auth string) authenticate {
 	if strings.HasPrefix(auth, "Basic") {
 		return &basicAuth{}
 	} else if strings.HasPrefix(auth, "Digest") {
-		return &digestAuth{}
+		return &digestAuth{nonceCounter: 0}
 	} else {
 		panic("unsupport Authorization")
 	}
@@ -28,10 +35,12 @@ func createAuthByAuthenticate(auth string) authenticate {
 type basicAuth struct {
 	userName string
 	passwd   string
+	realm    string
 }
 
 func (basic *basicAuth) setUri(uri string)           {}
 func (basic *basicAuth) setMethod(method string)     {}
+func (basic *basicAuth) setRealm(realm string)       {}
 func (basic *basicAuth) decode(authorization string) {}
 
 func (basic *basicAuth) setUserInfo(userName, passwd string) {
@@ -43,13 +52,32 @@ func (basic *basicAuth) authenticateInfo() string {
 	return fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(basic.userName+":"+basic.passwd)))
 }
 
+func (basic *basicAuth) check(authorization string) bool {
+	parts := strings.SplitN(authorization, " ", 2)
+	if parts[0] != "Basic" {
+		return false
+	}
+	response := strings.TrimSpace(parts[1])
+	dst := base64.StdEncoding.EncodeToString([]byte(basic.userName + ":" + basic.passwd))
+	if response == dst {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (basic *basicAuth) wwwAuthenticate() string {
+	return "Basic realm=\"" + basic.realm + "\""
+}
+
 type digestAuth struct {
-	userName string
-	passwd   string
-	realm    string
-	nonce    string
-	uri      string
-	method   string
+	userName     string
+	passwd       string
+	realm        string
+	nonce        string
+	uri          string
+	method       string
+	nonceCounter int32
 }
 
 func (digest *digestAuth) setUri(url string) {
@@ -62,6 +90,25 @@ func (digest *digestAuth) setMethod(method string) {
 func (digest *digestAuth) setUserInfo(userName, passwd string) {
 	digest.userName = userName
 	digest.passwd = passwd
+}
+
+func (digest *digestAuth) setRealm(realm string) {
+	digest.realm = realm
+}
+
+func (digest *digestAuth) createNonce() string {
+	digest.nonceCounter = atomic.AddInt32(&digest.nonceCounter, 1)
+	t := time.Now().UnixMilli()
+	m := md5.New()
+	data := make([]byte, 12)
+	binary.BigEndian.PutUint32(data, uint32(digest.nonceCounter))
+	binary.BigEndian.PutUint64(data[4:], uint64(t))
+	result := m.Sum(data)
+	return hex.EncodeToString(result)
+}
+
+func (digest *digestAuth) wwwAuthenticate() string {
+	return "Digest realm=\"" + digest.realm + "\",nonce=\"" + digest.createNonce() + "\""
 }
 
 func (digest *digestAuth) decode(authorization string) {
@@ -80,6 +127,13 @@ func (digest *digestAuth) decode(authorization string) {
 
 //response=md5(md5(username:realm:password):nonce:md5(method:url));
 func (digest *digestAuth) authenticateInfo() string {
+	response := digest.makeResponse()
+	digestInfo := fmt.Sprintf("Digest username=\"%s\", realm=\"%s\", nonce=\"%s\", uri=\"%s\", response=\"%s\"",
+		digest.userName, digest.realm, digest.nonce, digest.uri, response)
+	return digestInfo
+}
+
+func (digest *digestAuth) makeResponse() string {
 	str1 := digest.userName + ":" + digest.realm + ":" + digest.passwd
 	str2 := digest.method + ":" + digest.uri
 	md5Bytes1 := md5.Sum([]byte(str1))
@@ -88,8 +142,38 @@ func (digest *digestAuth) authenticateInfo() string {
 	md5str2 := fmt.Sprintf("%x", md5Bytes2)
 	str3 := md5str1 + ":" + digest.nonce + ":" + md5str2
 	md5Bytes3 := md5.Sum([]byte(str3))
-	response := fmt.Sprintf("%x", md5Bytes3)
-	digestInfo := fmt.Sprintf("Digest username=\"%s\", realm=\"%s\", nonce=\"%s\", uri=\"%s\", response=\"%s\"",
-		digest.userName, digest.realm, digest.nonce, digest.uri, response)
-	return digestInfo
+	return fmt.Sprintf("%x", md5Bytes3)
+}
+
+func (digest *digestAuth) check(authorization string) bool {
+	parts := strings.SplitN(authorization, " ", 2)
+	if parts[0] != "Digest" {
+		return false
+	}
+	digestField := strings.TrimSpace(parts[1])
+	response := ""
+	items := strings.Split(digestField, ",")
+	for _, item := range items {
+		kv := strings.Split(strings.TrimSpace(item), "=")
+		switch kv[0] {
+		case "username":
+			if kv[1] != digest.userName {
+				return false
+			}
+		case "realm":
+		case "nonce":
+			if digest.nonce != kv[1] {
+				return false
+			}
+		case "uri":
+			digest.uri = kv[1]
+		case "response":
+			response = kv[1]
+		}
+	}
+	if response == digest.makeResponse() {
+		return true
+	} else {
+		return false
+	}
 }
