@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/url"
@@ -16,83 +15,121 @@ import (
 )
 
 var sendError error
+var flvFileName string
 
 type RtspRecordSession struct {
-	once          sync.Once
-	c             net.Conn
-	handShakeDone chan struct{}
+	once       sync.Once
+	c          net.Conn
+	die        chan struct{}
+	eof        chan struct{}
+	waitSend   sync.WaitGroup
+	sendChanel chan []byte
 }
 
 func NewRtspRecordSession(c net.Conn) *RtspRecordSession {
-	return &RtspRecordSession{c: c, handShakeDone: make(chan struct{})}
+	return &RtspRecordSession{c: c, die: make(chan struct{}), eof: make(chan struct{}), sendChanel: make(chan []byte, 100)}
 }
 
 func (cli *RtspRecordSession) Destory() {
 	cli.once.Do(func() {
+		close(cli.die)
+		cli.waitSend.Wait()
+		for b := range cli.sendChanel {
+			_, err := cli.c.Write(b)
+			if err != nil {
+				return
+			}
+		}
 		cli.c.Close()
 	})
 }
 
-func (cli *RtspRecordSession) HandleOption(res rtsp.RtspResponse, public []string) error {
+func (cli *RtspRecordSession) HandleOption(client *rtsp.RtspClient, res rtsp.RtspResponse, public []string) error {
 	fmt.Println("rtsp server public ", public)
 	return nil
 }
 
-func (cli *RtspRecordSession) HandleDescribe(res rtsp.RtspResponse, sdp *sdp.Sdp, tracks map[string]*rtsp.RtspTrack) error {
+func (cli *RtspRecordSession) HandleDescribe(client *rtsp.RtspClient, res rtsp.RtspResponse, sdp *sdp.Sdp, tracks map[string]*rtsp.RtspTrack) error {
 	return nil
 }
 
-func (cli *RtspRecordSession) HandleSetup(res rtsp.RtspResponse, tracks map[string]*rtsp.RtspTrack, sessionId string, timeout int) error {
+func (cli *RtspRecordSession) HandleSetup(client *rtsp.RtspClient, res rtsp.RtspResponse, tracks map[string]*rtsp.RtspTrack, sessionId string, timeout int) error {
 	fmt.Println("HandleSetup sessionid:", sessionId, " timeout:", timeout)
 	return nil
 }
 
-func (cli *RtspRecordSession) HandleAnnounce(res rtsp.RtspResponse) error {
+func (cli *RtspRecordSession) HandleAnnounce(client *rtsp.RtspClient, res rtsp.RtspResponse) error {
 	fmt.Println("Handle Announce", res.StatusCode)
 	return nil
 }
 
-func (cli *RtspRecordSession) HandlePlay(res rtsp.RtspResponse, timeRange *rtsp.RangeTime, info *rtsp.RtpInfo) error {
+func (cli *RtspRecordSession) HandlePlay(client *rtsp.RtspClient, res rtsp.RtspResponse, timeRange *rtsp.RangeTime, info *rtsp.RtpInfo) error {
 	return nil
 }
 
-func (cli *RtspRecordSession) HandlePause(res rtsp.RtspResponse) error {
+func (cli *RtspRecordSession) HandlePause(client *rtsp.RtspClient, res rtsp.RtspResponse) error {
 	return nil
 }
 
-func (cli *RtspRecordSession) HandleTeardown(res rtsp.RtspResponse) error {
+func (cli *RtspRecordSession) HandleTeardown(client *rtsp.RtspClient, res rtsp.RtspResponse) error {
 	return nil
 }
 
-func (cli *RtspRecordSession) HandleGetParameter(res rtsp.RtspResponse) error {
+func (cli *RtspRecordSession) HandleGetParameter(client *rtsp.RtspClient, res rtsp.RtspResponse) error {
 	return nil
 }
 
-func (cli *RtspRecordSession) HandleSetParameter(res rtsp.RtspResponse) error {
+func (cli *RtspRecordSession) HandleSetParameter(client *rtsp.RtspClient, res rtsp.RtspResponse) error {
 	return nil
 }
 
-func (cli *RtspRecordSession) HandleRedirect(req rtsp.RtspRequest, location string, timeRange *rtsp.RangeTime) error {
+func (cli *RtspRecordSession) HandleRedirect(client *rtsp.RtspClient, req rtsp.RtspRequest, location string, timeRange *rtsp.RangeTime) error {
 	return nil
 }
 
-func (cli *RtspRecordSession) HandleRecord(res rtsp.RtspResponse, timeRange *rtsp.RangeTime, info *rtsp.RtpInfo) error {
+func (cli *RtspRecordSession) HandleRecord(client *rtsp.RtspClient, res rtsp.RtspResponse, timeRange *rtsp.RangeTime, info *rtsp.RtpInfo) error {
 	fmt.Println("hand Record ", res.StatusCode)
-	close(cli.handShakeDone)
+	videoTrack, _ := client.GetTrack("video")
+	go func() {
+		flvfilereader, _ := os.Open(flvFileName)
+		defer flvfilereader.Close()
+		fr := flv.CreateFlvReader()
+		fr.OnFrame = func(ci codec.CodecID, b []byte, pts, dts uint32) {
+			if ci == codec.CODECID_VIDEO_H264 {
+				err := videoTrack.WriteSample(rtsp.RtspSample{Sample: b, Timestamp: pts})
+				if err != nil {
+					fmt.Println(err)
+				}
+				time.Sleep(time.Millisecond * 20)
+			}
+		}
+		cache := make([]byte, 4096)
+		for {
+			n, err := flvfilereader.Read(cache)
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
+			fr.Input(cache[0:n])
+		}
+		cli.Destory()
+	}()
 	return nil
 }
 
-func (cli *RtspRecordSession) HandleRequest(req rtsp.RtspRequest) error {
+func (cli *RtspRecordSession) HandleRequest(client *rtsp.RtspClient, req rtsp.RtspRequest) error {
 	return nil
 }
 
-func loopSend(ctx context.Context, channel chan []byte, c net.Conn) {
+func (cli *RtspRecordSession) loopSend() {
+	cli.waitSend.Add(1)
+	defer cli.waitSend.Done()
 	for {
 		select {
-		case <-ctx.Done():
+		case <-cli.die:
 			return
-		case b := <-channel:
-			_, sendError = c.Write(b)
+		case b := <-cli.sendChanel:
+			_, sendError = cli.c.Write(b)
 			if sendError != nil {
 				return
 			}
@@ -100,37 +137,8 @@ func loopSend(ctx context.Context, channel chan []byte, c net.Conn) {
 	}
 }
 
-func readFlv(ctx context.Context, fileName string, done chan struct{}, track *rtsp.RtspTrack) {
-	select {
-	case <-done:
-		break
-	case <-ctx.Done():
-		return
-	}
-	flvfilereader, _ := os.Open(fileName)
-	defer flvfilereader.Close()
-	fr := flv.CreateFlvReader()
-	fr.OnFrame = func(ci codec.CodecID, b []byte, pts, dts uint32) {
-		if ci == codec.CODECID_VIDEO_H264 {
-			err := track.WriteSample(rtsp.RtspSample{Sample: b, Timestamp: pts})
-			if err != nil {
-				fmt.Println(err)
-			}
-			time.Sleep(time.Millisecond * 20)
-		}
-	}
-	cache := make([]byte, 4096)
-	for {
-		n, err := flvfilereader.Read(cache)
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
-		fr.Input(cache[0:n])
-	}
-}
-
 func main() {
+
 	u, err := url.Parse(os.Args[1])
 	if err != nil {
 		panic(err)
@@ -139,6 +147,8 @@ func main() {
 	if u.Port() == "" {
 		host += ":554"
 	}
+	flvFileName = os.Args[2]
+
 	c, err := net.Dial("tcp4", host)
 	if err != nil {
 		fmt.Println(err)
@@ -149,19 +159,16 @@ func main() {
 	client, _ := rtsp.NewRtspClient(os.Args[1], sess, rtsp.WithEnableRecord())
 	videoTrack := rtsp.NewVideoTrack(rtsp.RtspCodec{Cid: rtsp.RTSP_CODEC_H264, PayloadType: 96, SampleRate: 90000})
 	client.AddTrack(videoTrack)
-	sc := make(chan []byte, 100)
-	ctx, cancel := context.WithCancel(context.Background())
 	client.SetOutput(func(b []byte) error {
 		if sendError != nil {
 			return sendError
 		}
-		sc <- b
+		sess.sendChanel <- b
 		return nil
 	})
-	go loopSend(ctx, sc, c)
-	go readFlv(ctx, os.Args[2], sess.handShakeDone, videoTrack)
-	client.Start()
 
+	go sess.loopSend()
+	client.Start()
 	buf := make([]byte, 4096)
 	for {
 		n, err := c.Read(buf)
@@ -174,7 +181,5 @@ func main() {
 			break
 		}
 	}
-
-	cancel()
 	sess.Destory()
 }

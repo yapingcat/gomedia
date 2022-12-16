@@ -162,7 +162,7 @@ func NewRtspServerSession(c net.Conn) *RtspServerSession {
 }
 
 func (sess *RtspServerSession) Start() {
-	svr := rtsp.NewRtspServer(&ServerHandleImpl{sess: sess})
+	svr := rtsp.NewRtspServer(&ServerHandleImpl{sess: sess}, rtsp.WithUserInfo("test", "test123"))
 	svr.SetOutput(func(b []byte) (err error) {
 		_, err = sess.c.Write(b)
 		return

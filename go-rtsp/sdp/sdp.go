@@ -1,10 +1,9 @@
 package sdp
 
 import (
-    "errors"
-    "fmt"
-    "strconv"
-    "strings"
+	"errors"
+	"strconv"
+	"strings"
 )
 
 //c=<nettype> <addrtype> <connection-address>
@@ -217,7 +216,6 @@ func (sdp *Sdp) ParserSdp(sdpContent string) error {
                     sdp.ControlUrl = attrValue
                 } else {
                     sdp.Medias[len(sdp.Medias)-1].ControlUrl = attrValue
-                    fmt.Println("control url", attrValue)
                 }
             }
         case 'm':

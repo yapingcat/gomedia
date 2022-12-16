@@ -17,6 +17,7 @@ type RtspServer struct {
     tracks      map[string]*RtspTrack
     userName    string
     passwd      string
+    realm       string
     auth        authenticate
     output      OutPutCallBack
     handle      ServerHandle
@@ -41,10 +42,17 @@ func WithAuthType(authType string) ServerOption {
     }
 }
 
+func WithRealm(realm string) ServerOption {
+    return func(rs *RtspServer) {
+        rs.realm = realm
+    }
+}
+
 func NewRtspServer(handle ServerHandle, opt ...ServerOption) *RtspServer {
     server := &RtspServer{
         handle:     handle,
         auth:       nil,
+        realm:      "gomedia server",
         tracks:     make(map[string]*RtspTrack),
         sdpContext: &sdp.Sdp{},
         isRecord:   false,
@@ -52,9 +60,10 @@ func NewRtspServer(handle ServerHandle, opt ...ServerOption) *RtspServer {
     for _, o := range opt {
         o(server)
     }
-    if server.auth == nil {
+    if server.auth == nil && server.userName != "" && server.passwd != "" {
         server.auth = createAuthByAuthenticate("Digest")
         server.auth.setUserInfo(server.userName, server.passwd)
+        server.auth.setRealm(server.realm)
     }
     server.sdpContext.Attrs = make(map[string]string)
     server.sdpContext.Attrs["control"] = "*"
@@ -126,7 +135,6 @@ func (server *RtspServer) hanleRtpOverRtsp(packet []byte) (int, error) {
         if track.transport.Interleaved[1] == int(channel) {
             isRtcp = true
         }
-        //fmt.Println("process ", track.TrackName, "rtp packet")
         if track.transport.Interleaved[0] == int(channel) || isRtcp {
             return 4 + int(length), track.input(packet[4:4+length], isRtcp)
         }
@@ -204,10 +212,7 @@ func (server *RtspServer) handleRequest(req []byte) (ret int, err error) {
         }
     case SETUP:
         foundTrack := false
-        fmt.Println("handle setup")
         for _, track := range server.tracks {
-            fmt.Println("track uri", track.uri)
-            fmt.Println(request.Uri, track.uri)
             if !strings.Contains(request.Uri, track.uri) {
                 continue
             }
@@ -242,7 +247,6 @@ func (server *RtspServer) handleRequest(req []byte) (ret int, err error) {
                         return server.output(interleavedPacket)
                     })
                 }
-                fmt.Println("set transport")
                 res.Fileds[Transport] = transport.EncodeString()
                 res.Fileds[Session] = server.sessionId
                 track.SetTransport(transport)
@@ -337,7 +341,7 @@ func (server *RtspServer) handleRequest(req []byte) (ret int, err error) {
 }
 
 func (server *RtspServer) handleUnAuth(request RtspRequest) error {
-    response := RtspResponse{}
+    response := RtspResponse{Fileds: make(HeadFiled)}
     response.StatusCode = 401
     response.Fileds[WWWAuthenticate] = server.auth.wwwAuthenticate()
     return server.sendRespones(request, response)

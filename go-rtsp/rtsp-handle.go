@@ -3,18 +3,18 @@ package rtsp
 import "github.com/yapingcat/gomedia/go-rtsp/sdp"
 
 type ClientHandle interface {
-    HandleOption(res RtspResponse, public []string) error
-    HandleDescribe(res RtspResponse, sdp *sdp.Sdp, tracks map[string]*RtspTrack) error
-    HandleSetup(res RtspResponse, tracks map[string]*RtspTrack, sessionId string, timeout int) error
-    HandleAnnounce(res RtspResponse) error
-    HandlePlay(res RtspResponse, timeRange *RangeTime, info *RtpInfo) error
-    HandlePause(res RtspResponse) error
-    HandleTeardown(res RtspResponse) error
-    HandleGetParameter(res RtspResponse) error
-    HandleSetParameter(res RtspResponse) error
-    HandleRedirect(req RtspRequest, location string, timeRange *RangeTime) error
-    HandleRecord(res RtspResponse, timeRange *RangeTime, info *RtpInfo) error
-    HandleRequest(req RtspRequest) error
+    HandleOption(cli *RtspClient, res RtspResponse, public []string) error
+    HandleDescribe(cli *RtspClient, res RtspResponse, sdp *sdp.Sdp, tracks map[string]*RtspTrack) error
+    HandleSetup(cli *RtspClient, res RtspResponse, tracks map[string]*RtspTrack, sessionId string, timeout int) error
+    HandleAnnounce(cli *RtspClient, res RtspResponse) error
+    HandlePlay(cli *RtspClient, res RtspResponse, timeRange *RangeTime, info *RtpInfo) error
+    HandlePause(cli *RtspClient, res RtspResponse) error
+    HandleTeardown(cli *RtspClient, res RtspResponse) error
+    HandleGetParameter(cli *RtspClient, res RtspResponse) error
+    HandleSetParameter(cli *RtspClient, res RtspResponse) error
+    HandleRedirect(cli *RtspClient, req RtspRequest, location string, timeRange *RangeTime) error
+    HandleRecord(cli *RtspClient, res RtspResponse, timeRange *RangeTime, info *RtpInfo) error
+    HandleRequest(cli *RtspClient, req RtspRequest) error
 }
 
 type ServerHandle interface {

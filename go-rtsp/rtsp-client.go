@@ -122,6 +122,11 @@ func (client *RtspClient) AddTrack(track *RtspTrack) {
     client.sdpContext.ParserSdp(track.mediaDescripe())
 }
 
+func (client *RtspClient) GetTrack(trackName string) (track *RtspTrack, found bool) {
+    track, found = client.tracks[trackName]
+    return
+}
+
 func (client *RtspClient) SetOutput(output OutPutCallBack) {
     client.output = output
 }
@@ -318,7 +323,7 @@ func (client *RtspClient) handleRequest(req []byte) (ret int, err error) {
         return ret, client.handleRedirect(&request)
     default:
         if client.handle != nil {
-            return ret, client.handle.HandleRequest(request)
+            return ret, client.handle.HandleRequest(client, request)
         } else {
             return ret, nil
         }
@@ -356,7 +361,7 @@ func (client *RtspClient) handleOption(res *RtspResponse) error {
     }
 
     if client.handle != nil {
-        if err := client.handle.HandleOption(*res, client.serverCapability); err != nil {
+        if err := client.handle.HandleOption(client, *res, client.serverCapability); err != nil {
             return err
         }
     }
@@ -392,7 +397,7 @@ func (client *RtspClient) handleDescribe(res *RtspResponse) (err error) {
 
     if res.StatusCode != 200 {
         if client.handle != nil {
-            return client.handle.HandleDescribe(*res, nil, nil)
+            return client.handle.HandleDescribe(client, *res, nil, nil)
         } else {
             return nil
         }
@@ -456,7 +461,7 @@ func (client *RtspClient) handleDescribe(res *RtspResponse) (err error) {
     }
 
     if client.handle != nil {
-        if err := client.handle.HandleDescribe(*res, client.sdpContext, client.tracks); err != nil {
+        if err := client.handle.HandleDescribe(client, *res, client.sdpContext, client.tracks); err != nil {
             return err
         }
     }
@@ -491,7 +496,7 @@ func (client *RtspClient) handleSetup(res *RtspResponse) error {
             return nil
         }
         proto := lastTrack.transport.Proto
-        err := client.handle.HandleSetup(*res, client.tracks, "", -1)
+        err := client.handle.HandleSetup(client, *res, client.tracks, "", -1)
         if res.StatusCode == 461 {
             if lastTrack.transport.Proto != proto {
                 req := makeSetup(client.sdpContext.Medias[client.setupStep].ControlUrl, client.cseq)
@@ -528,7 +533,7 @@ func (client *RtspClient) handleSetup(res *RtspResponse) error {
             client.sessionId = sessionId
             client.timeout = timeout
         }
-        if err := client.handle.HandleSetup(*res, client.tracks, client.sessionId, client.timeout); err != nil {
+        if err := client.handle.HandleSetup(client, *res, client.tracks, client.sessionId, client.timeout); err != nil {
             return err
         }
         if !client.isRecord {
@@ -592,7 +597,7 @@ func (client *RtspClient) handlePlay(res *RtspResponse) (err error) {
 
     if res.StatusCode != 200 {
         if client.handle != nil {
-            return client.handle.HandlePlay(*res, nil, nil)
+            return client.handle.HandlePlay(client, *res, nil, nil)
         } else {
             return nil
         }
@@ -612,21 +617,21 @@ func (client *RtspClient) handlePlay(res *RtspResponse) (err error) {
     }
 
     if client.handle != nil {
-        return client.handle.HandlePlay(*res, tr, info)
+        return client.handle.HandlePlay(client, *res, tr, info)
     }
     return nil
 }
 
 func (client *RtspClient) handleTeardown(res *RtspResponse) error {
     if client.handle != nil {
-        return client.handle.HandleTeardown(*res)
+        return client.handle.HandleTeardown(client, *res)
     }
     return nil
 }
 
 func (client *RtspClient) handlePause(res *RtspResponse) error {
     if client.handle != nil {
-        return client.handle.HandlePause(*res)
+        return client.handle.HandlePause(client, *res)
     }
     return nil
 }
@@ -634,14 +639,14 @@ func (client *RtspClient) handlePause(res *RtspResponse) error {
 func (client *RtspClient) handleAnnounce(res *RtspResponse) error {
     if res.StatusCode != 200 {
         if client.handle != nil {
-            return client.handle.HandleAnnounce(*res)
+            return client.handle.HandleAnnounce(client, *res)
         } else {
             return nil
         }
     }
 
     if client.handle != nil {
-        client.handle.HandleAnnounce(*res)
+        client.handle.HandleAnnounce(client, *res)
     }
 
     for _, media := range client.sdpContext.Medias {
@@ -654,7 +659,6 @@ func (client *RtspClient) handleAnnounce(res *RtspResponse) error {
     if client.setupStep >= len(client.sdpContext.Medias) {
         return errors.New("need track")
     }
-    fmt.Println("send setup")
     track := client.tracks[client.sdpContext.Medias[client.setupStep].MediaType]
     req := makeSetup(client.sdpContext.Medias[client.setupStep].ControlUrl, client.cseq)
     if track.transport == nil {
@@ -674,7 +678,7 @@ func (client *RtspClient) handleAnnounce(res *RtspResponse) error {
 func (client *RtspClient) handleRecord(res *RtspResponse) error {
     if res.StatusCode != 200 {
         if client.handle != nil {
-            return client.handle.HandleRecord(*res, nil, nil)
+            return client.handle.HandleRecord(client, *res, nil, nil)
         } else {
             return nil
         }
@@ -695,7 +699,7 @@ func (client *RtspClient) handleRecord(res *RtspResponse) error {
     }
 
     if client.handle != nil {
-        return client.handle.HandleRecord(*res, tr, info)
+        return client.handle.HandleRecord(client, *res, tr, info)
     }
     return nil
 }
@@ -703,13 +707,13 @@ func (client *RtspClient) handleRecord(res *RtspResponse) error {
 func (client *RtspClient) handleGetParameter(res *RtspResponse) error {
     if res.StatusCode != 200 {
         if client.handle != nil {
-            return client.handle.HandleGetParameter(*res)
+            return client.handle.HandleGetParameter(client, *res)
         } else {
             return nil
         }
     }
     if client.handle != nil {
-        return client.handle.HandleGetParameter(*res)
+        return client.handle.HandleGetParameter(client, *res)
     }
     return nil
 }
@@ -717,13 +721,13 @@ func (client *RtspClient) handleGetParameter(res *RtspResponse) error {
 func (client *RtspClient) handleSetParameter(res *RtspResponse) error {
     if res.StatusCode != 200 {
         if client.handle != nil {
-            return client.handle.HandleSetParameter(*res)
+            return client.handle.HandleSetParameter(client, *res)
         } else {
             return nil
         }
     }
     if client.handle != nil {
-        return client.handle.HandleSetParameter(*res)
+        return client.handle.HandleSetParameter(client, *res)
     }
     return nil
 }
@@ -739,7 +743,7 @@ func (client *RtspClient) handleRedirect(req *RtspRequest) error {
         tr, _ = parseRange(req.Fileds[Range])
     }
     if client.handle != nil {
-        return client.handle.HandleRedirect(*req, location, tr)
+        return client.handle.HandleRedirect(client, *req, location, tr)
     }
     return nil
 }

@@ -136,7 +136,6 @@ func (aac *AACUnPacker) UnPack(pkt []byte) error {
     }
 
     for i := 0; i < len(tmp); i++ {
-        //fmt.Println("aac payload size", tmp[i], headLength, auNum)
         var adts []byte
         if len(aac.asc) > 0 {
             adtsHdr, _ := codec.ConvertASCToADTS(aac.asc, tmp[i]+7)

@@ -2,7 +2,6 @@ package rtsp
 
 import (
     "errors"
-    "fmt"
     "strconv"
     "strings"
     "time"
@@ -63,7 +62,6 @@ func hasPlayAbility(capset []string) bool {
 
 func hasRecordAbility(capset []string) bool {
     score := 0
-    fmt.Println("hasrecord", capset)
     for _, method := range capset {
         switch method {
         case SETUP:
@@ -383,7 +381,10 @@ func (res *RtspResponse) Encode() string {
         response += "RTSP/1.0 "
     } else if res.Version == RTSP_2_0 {
         response += "RTSP/2.0 "
+    } else {
+        response += "RTSP/1.0 "
     }
+
     if res.Reason == "" {
         res.Reason = getReasonByStatusCode(res.StatusCode)
     }

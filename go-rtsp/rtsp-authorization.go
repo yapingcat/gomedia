@@ -84,7 +84,7 @@ func (digest *digestAuth) setUri(url string) {
     digest.uri = url
 }
 func (digest *digestAuth) setMethod(method string) {
-    digest.uri = method
+    digest.method = method
 }
 
 func (digest *digestAuth) setUserInfo(userName, passwd string) {
@@ -97,14 +97,15 @@ func (digest *digestAuth) setRealm(realm string) {
 }
 
 func (digest *digestAuth) createNonce() string {
-    digest.nonceCounter = atomic.AddInt32(&digest.nonceCounter, 1)
+    atomic.AddInt32(&digest.nonceCounter, 1)
     t := time.Now().UnixMilli()
-    m := md5.New()
+
     data := make([]byte, 12)
     binary.BigEndian.PutUint32(data, uint32(digest.nonceCounter))
     binary.BigEndian.PutUint64(data[4:], uint64(t))
-    result := m.Sum(data)
-    return hex.EncodeToString(result)
+    result := md5.Sum(data)
+    digest.nonce = hex.EncodeToString(result[:])
+    return digest.nonce
 }
 
 func (digest *digestAuth) wwwAuthenticate() string {
@@ -154,21 +155,25 @@ func (digest *digestAuth) check(authorization string) bool {
     response := ""
     items := strings.Split(digestField, ",")
     for _, item := range items {
-        kv := strings.Split(strings.TrimSpace(item), "=")
+        kv := strings.SplitN(strings.TrimSpace(item), "=", 2)
+        if len(kv) < 2 {
+            continue
+        }
+        v := strings.Trim(kv[1], "\"")
         switch kv[0] {
         case "username":
-            if kv[1] != digest.userName {
+            if v != digest.userName {
                 return false
             }
         case "realm":
         case "nonce":
-            if digest.nonce != kv[1] {
+            if digest.nonce != v {
                 return false
             }
         case "uri":
-            digest.uri = kv[1]
+            digest.uri = v
         case "response":
-            response = kv[1]
+            response = v
         }
     }
     if response == digest.makeResponse() {

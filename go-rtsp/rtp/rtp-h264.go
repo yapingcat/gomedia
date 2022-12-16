@@ -258,7 +258,7 @@ func (unpacker *H264UnPacker) UnPack(pkt []byte) error {
         }
         unpacker.frameBuffer.Truncate(4)
     case packType == 24:
-        fallthrough
+        return unpacker.unpackStapa(pkg)
     case packType == 25:
         fallthrough
     case packType == 26:
@@ -298,6 +298,23 @@ func (unpacker *H264UnPacker) unpackFuA(pkt *RtpPacket) error {
         if unpacker.onFrame != nil {
             unpacker.onFrame(unpacker.frameBuffer.Bytes(), unpacker.timestamp, unpacker.lost)
         }
+        unpacker.frameBuffer.Truncate(4)
+    }
+    return nil
+}
+
+func (unpacker *H264UnPacker) unpackStapa(pkt *RtpPacket) error {
+    nalus := pkt.Payload[1:]
+    for len(nalus) > 0 {
+        naluLength := binary.BigEndian.Uint16(nalus)
+        if len(nalus)-2 < int(naluLength) {
+            return errors.New("need more bytes")
+        }
+        unpacker.frameBuffer.Write(nalus[2 : 2+naluLength])
+        if unpacker.onFrame != nil {
+            unpacker.onFrame(unpacker.frameBuffer.Bytes(), pkt.Header.Timestamp, false)
+        }
+        nalus = nalus[2+naluLength:]
         unpacker.frameBuffer.Truncate(4)
     }
     return nil
