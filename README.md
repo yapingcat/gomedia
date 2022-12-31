@@ -102,6 +102,14 @@ go get github.com/yapingcat/gomedia
   - support client/server
   - support play/publish
   - support h264/h265/aac/g711a/g711u/mp3
+  
+  
+## rtsp
+
+  - support client/server(rfc2326)
+  - support basic/digest
+  - support rtp(rfc3550)
+  - support g711/aac/h264/h265
  
 
 
