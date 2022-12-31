@@ -5,33 +5,19 @@ import (
 )
 
 type G711Packer struct {
+    CommPacker
     pt       uint8
     ssrc     uint32
     sequence uint16
-    mtu      int
-    onpkt    ON_RTP_PKT_FUNC
-    onRtp    RTP_HOOK_FUNC
 }
 
 func NewG711Packer(pt uint8, ssrc uint32, sequence uint16, mtu int) *G711Packer {
     return &G711Packer{
-        pt:       pt,
-        ssrc:     ssrc,
-        sequence: sequence,
-        mtu:      mtu,
+        pt:         pt,
+        ssrc:       ssrc,
+        sequence:   sequence,
+        CommPacker: CommPacker{mtu: mtu},
     }
-}
-
-func (g711 *G711Packer) HookRtp(cb RTP_HOOK_FUNC) {
-    g711.onRtp = cb
-}
-
-func (g711 *G711Packer) SetMtu(mtu int) {
-    g711.mtu = mtu
-}
-
-func (g711 *G711Packer) OnPacket(onPkt ON_RTP_PKT_FUNC) {
-    g711.onpkt = onPkt
 }
 
 func (g711 *G711Packer) Pack(data []byte, timestamp uint32) error {
@@ -49,22 +35,18 @@ func (g711 *G711Packer) Pack(data []byte, timestamp uint32) error {
     if g711.onRtp != nil {
         g711.onRtp(&pkg)
     }
-    if g711.onpkt != nil {
-        return g711.onpkt(pkg.Encode())
+    if g711.onPacket != nil {
+        return g711.onPacket(pkg.Encode())
     }
     return nil
 }
 
 type G711UnPacker struct {
-    onFrame ON_FRAME_FUNC
+    CommUnPacker
 }
 
 func NewG711UnPacker() *G711UnPacker {
     return &G711UnPacker{}
-}
-
-func (g711 *G711UnPacker) OnFrame(onframe ON_FRAME_FUNC) {
-    g711.onFrame = onframe
 }
 
 func (g711 *G711UnPacker) UnPack(pkt []byte) error {

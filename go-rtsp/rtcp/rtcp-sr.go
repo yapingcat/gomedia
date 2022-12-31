@@ -1,6 +1,8 @@
 package rtcp
 
-import "encoding/binary"
+import (
+    "encoding/binary"
+)
 
 // 0                   1                   2                   3
 // 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -49,6 +51,12 @@ type SenderReport struct {
     Blocks          []ReportBlock
 }
 
+func NewSenderReport() *SenderReport {
+    return &SenderReport{
+        Comm: Comm{PT: RTCP_SR},
+    }
+}
+
 func (pkt *SenderReport) Decode(data []byte) error {
     if err := pkt.Comm.Decode(data); err != nil {
         return err
@@ -88,5 +96,5 @@ func (pkt *SenderReport) Encode() []byte {
 }
 
 func (pkt *SenderReport) calcLength() uint16 {
-    return uint16(24 + (24*len(pkt.Blocks))/4)
+    return uint16(24+(24*len(pkt.Blocks))) / 4
 }

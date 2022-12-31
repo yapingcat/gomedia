@@ -6,6 +6,7 @@ import (
     "time"
 
     "github.com/yapingcat/gomedia/go-codec"
+    "github.com/yapingcat/gomedia/go-rtsp/rtcp"
     "github.com/yapingcat/gomedia/go-rtsp/rtp"
     "github.com/yapingcat/gomedia/go-rtsp/sdp"
 )
@@ -36,6 +37,10 @@ type RtspTrack struct {
     extra        interface{}
     paramHandler sdp.FmtpCodecParamParser
     initSequence uint16
+    ssrc         uint32
+    recvCtx      *rtcp.RtcpContext
+    sendCtx      *rtcp.RtcpContext
+    autoSendRR   bool
 }
 
 type PacketCallBack func(b []byte, isRtcp bool) error
@@ -44,6 +49,12 @@ type TrackOption func(t *RtspTrack)
 func WithCodecParamHandler(handler sdp.FmtpCodecParamParser) TrackOption {
     return func(t *RtspTrack) {
         t.paramHandler = handler
+    }
+}
+
+func WithDisableRtcpRR() TrackOption {
+    return func(t *RtspTrack) {
+        t.autoSendRR = false
     }
 }
 
@@ -64,12 +75,24 @@ func newTrack(name string, codec RtspCodec, opt ...TrackOption) *RtspTrack {
         TrackName:    name,
         Codec:        codec,
         initSequence: uint16(rand.Uint32()),
+        autoSendRR:   true,
     }
     for _, o := range opt {
         o(track)
     }
+    track.ssrc = rand.Uint32()
     track.unpack = track.createUnpacker()
     track.pack = track.createPacker()
+    track.sendCtx = rtcp.NewRtcpContext(track.ssrc, track.initSequence, track.Codec.SampleRate)
+    track.unpack.HookRtp(func(pkg *rtp.RtpPacket) {
+        if track.recvCtx == nil {
+            track.recvCtx = rtcp.NewRtcpContext(track.ssrc, pkg.Header.SequenceNumber, track.Codec.SampleRate)
+        }
+        track.recvCtx.ReceivedRtp(pkg)
+    })
+    track.pack.HookRtp(func(pkg *rtp.RtpPacket) {
+        track.sendCtx.SendRtp(pkg)
+    })
     return track
 }
 
@@ -79,6 +102,10 @@ func (track *RtspTrack) EnableTCP() {
 
 func (track *RtspTrack) SetCodecParamHandle(handle sdp.FmtpCodecParamParser) {
     track.paramHandler = handle
+}
+
+func (track *RtspTrack) GetTransport() *RtspTransport {
+    return track.transport
 }
 
 func (track *RtspTrack) SetTransport(transport *RtspTransport) {
@@ -98,7 +125,7 @@ func (track *RtspTrack) OnSample(onsample OnSampleCallBack) {
         sample := RtspSample{
             Cid:       track.Codec.Cid,
             Sample:    frame,
-            Timestamp: timestamp * 1000 / track.Codec.SampleRate,
+            Timestamp: timestamp, //uint32(uint64() * 1000 / uint64(track.Codec.SampleRate)),
             Completed: !lost,
         }
         if sample.Cid == RTSP_CODEC_H264 {
@@ -125,7 +152,7 @@ func (track *RtspTrack) OnSample(onsample OnSampleCallBack) {
                     }
                 }
             }
-        } else {
+        } else if sample.Cid == RTSP_CODEC_H265 {
             nalu_type := codec.H265NaluType(frame)
             switch nalu_type {
             case codec.H265_NAL_PPS:
@@ -166,12 +193,40 @@ func (track *RtspTrack) OnPacket(f PacketCallBack) {
 }
 
 func (track *RtspTrack) WriteSample(sample RtspSample) error {
-    return track.pack.Pack(sample.Sample, sample.Timestamp*track.Codec.SampleRate/1000)
-
+    return track.pack.Pack(sample.Sample, sample.Timestamp)
 }
 
 func (track *RtspTrack) OpenTrack() {
     track.isOpen = true
+}
+
+func (track *RtspTrack) GetRtcpSendContext() *rtcp.RtcpContext {
+    return track.sendCtx
+}
+
+func (track *RtspTrack) GetRtcpRecvContext() *rtcp.RtcpContext {
+    return track.recvCtx
+}
+
+func (track *RtspTrack) SendReport() {
+    sr := track.sendCtx.GenerateSR()
+    track.onPacket(sr.Encode(), true)
+}
+
+func (track *RtspTrack) ReceiveReport() {
+    //fmt.Println(track.recvCtx, track.onPacket)
+    rr := track.recvCtx.GenerateRR()
+    track.onPacket(rr.Encode(), true)
+}
+
+func (track *RtspTrack) Bye() {
+    bye := track.sendCtx.GenerateBye()
+    track.onPacket(bye.Encode(), true)
+}
+
+func (track *RtspTrack) SourceDescription(sdesType uint8, content string) {
+    sdes := track.sendCtx.GenerateSDES(sdesType, content)
+    track.onPacket(sdes.Encode(), true)
 }
 
 func (track *RtspTrack) mediaDescripe() string {
@@ -188,12 +243,29 @@ func (track *RtspTrack) mediaDescripe() string {
     return md
 }
 
-func (track *RtspTrack) input(data []byte, isRtcp bool) error {
+func (track *RtspTrack) Input(data []byte, isRtcp bool) error {
     //TODO
     if isRtcp {
-        return nil
+        return track.inputRtcp(data)
     }
     return track.unpack.UnPack(data)
+}
+
+func (track *RtspTrack) inputRtcp(data []byte) error {
+    pkt := rtcp.Comm{}
+    pkt.Decode(data)
+    switch pkt.PT {
+    case rtcp.RTCP_SR:
+        sr := rtcp.NewSenderReport()
+        sr.Decode(data)
+        if track.recvCtx != nil {
+            track.recvCtx.ReceivedSR(sr)
+            if track.autoSendRR {
+                track.ReceiveReport()
+            }
+        }
+    }
+    return nil
 }
 
 func (track *RtspTrack) createUnpacker() rtp.UnPacker {
@@ -218,13 +290,13 @@ func (track *RtspTrack) createUnpacker() rtp.UnPacker {
 func (track *RtspTrack) createPacker() rtp.Packer {
     switch track.Codec.Cid {
     case RTSP_CODEC_AAC:
-        return rtp.NewAACPacker(track.Codec.PayloadType, rand.Uint32(), track.initSequence, 1400)
+        return rtp.NewAACPacker(track.Codec.PayloadType, track.ssrc, track.initSequence, 1400)
     case RTSP_CODEC_H264:
-        return rtp.NewH264Packer(track.Codec.PayloadType, rand.Uint32(), track.initSequence, 1400)
+        return rtp.NewH264Packer(track.Codec.PayloadType, track.ssrc, track.initSequence, 1400)
     case RTSP_CODEC_H265:
-        return rtp.NewH265Packer(track.Codec.PayloadType, rand.Uint32(), track.initSequence, 1400)
+        return rtp.NewH265Packer(track.Codec.PayloadType, track.ssrc, track.initSequence, 1400)
     case RTSP_CODEC_G711U, RTSP_CODEC_G711A:
-        return rtp.NewG711Packer(track.Codec.PayloadType, rand.Uint32(), track.initSequence, 1400)
+        return rtp.NewG711Packer(track.Codec.PayloadType, track.ssrc, track.initSequence, 1400)
     case RTSP_CODEC_PS:
         return nil
     case RTSP_CODEC_TS:

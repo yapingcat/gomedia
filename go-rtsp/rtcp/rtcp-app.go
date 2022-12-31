@@ -25,6 +25,12 @@ type App struct {
     AppData []byte
 }
 
+func NewApp() *App {
+    return &App{
+        Comm: Comm{PT: RTCP_APP},
+    }
+}
+
 func (pkt *App) Decode(data []byte) error {
     if err := pkt.Comm.Decode(data); err != nil {
         return err
@@ -54,5 +60,5 @@ func (pkt *App) Encode() []byte {
 }
 
 func (pkt *App) calcLength() uint16 {
-    return uint16((8 + len(pkt.AppData) + len(pkt.PaddingData) + 1) / 4)
+    return uint16((8 + len(pkt.AppData) + 3) / 4)
 }

@@ -42,20 +42,18 @@ import (
 // +---------------------------------------+
 
 type AACPacker struct {
+    CommPacker
     pt       uint8
     ssrc     uint32
     sequence uint16
-    mtu      int
-    onpkt    ON_RTP_PKT_FUNC
-    onRtp    RTP_HOOK_FUNC
 }
 
 func NewAACPacker(pt uint8, ssrc uint32, sequence uint16, mtu int) *AACPacker {
     return &AACPacker{
-        pt:       pt,
-        ssrc:     ssrc,
-        sequence: sequence,
-        mtu:      mtu,
+        pt:         pt,
+        ssrc:       ssrc,
+        sequence:   sequence,
+        CommPacker: CommPacker{mtu: mtu},
     }
 }
 
@@ -75,29 +73,19 @@ func (aac *AACPacker) Pack(data []byte, timestamp uint32) error {
     pkg.Payload[2] = uint8(size >> 5)
     pkg.Payload[3] = uint8((size & 0x1F) << 3)
     copy(pkg.Payload[4:], data)
+    aac.sequence++
     if aac.onRtp != nil {
         aac.onRtp(&pkg)
     }
-    if aac.onpkt != nil {
-        return aac.onpkt(pkg.Encode())
+    if aac.onPacket != nil {
+        return aac.onPacket(pkg.Encode())
     }
+
     return nil
 }
 
-func (aac *AACPacker) HookRtp(cb RTP_HOOK_FUNC) {
-    aac.onRtp = cb
-}
-
-func (aac *AACPacker) SetMtu(mtu int) {
-    aac.mtu = mtu
-}
-
-func (aac *AACPacker) OnPacket(onPkt ON_RTP_PKT_FUNC) {
-    aac.onpkt = onPkt
-}
-
 type AACUnPacker struct {
-    onFrame     ON_FRAME_FUNC
+    CommUnPacker
     sizeLenth   int
     indexLength int
     asc         []byte
@@ -113,10 +101,6 @@ func NewAACUnPacker(sizeLength int, indexLength int, asc []byte) *AACUnPacker {
     return unpacker
 }
 
-func (aac *AACUnPacker) OnFrame(onframe ON_FRAME_FUNC) {
-    aac.onFrame = onframe
-}
-
 func (aac *AACUnPacker) UnPack(pkt []byte) error {
     pkg := &RtpPacket{}
     if err := pkg.Decode(pkt); err != nil {
@@ -125,6 +109,11 @@ func (aac *AACUnPacker) UnPack(pkt []byte) error {
     if len(pkg.Payload) < 4 {
         return errors.New("aac rtp pakcet less than 4 byte")
     }
+
+    if aac.onRtp != nil {
+        aac.onRtp(pkg)
+    }
+
     headLength := (binary.BigEndian.Uint16(pkg.Payload) + 7) / 8
     auNum := headLength / 2
     pkg.Payload = pkg.Payload[2:]

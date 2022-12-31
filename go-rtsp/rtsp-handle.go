@@ -5,7 +5,7 @@ import "github.com/yapingcat/gomedia/go-rtsp/sdp"
 type ClientHandle interface {
     HandleOption(cli *RtspClient, res RtspResponse, public []string) error
     HandleDescribe(cli *RtspClient, res RtspResponse, sdp *sdp.Sdp, tracks map[string]*RtspTrack) error
-    HandleSetup(cli *RtspClient, res RtspResponse, tracks map[string]*RtspTrack, sessionId string, timeout int) error
+    HandleSetup(cli *RtspClient, res RtspResponse, currentTrack *RtspTrack, tracks map[string]*RtspTrack, sessionId string, timeout int) error
     HandleAnnounce(cli *RtspClient, res RtspResponse) error
     HandlePlay(cli *RtspClient, res RtspResponse, timeRange *RangeTime, info *RtpInfo) error
     HandlePause(cli *RtspClient, res RtspResponse) error

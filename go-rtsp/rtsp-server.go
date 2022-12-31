@@ -136,7 +136,7 @@ func (server *RtspServer) hanleRtpOverRtsp(packet []byte) (int, error) {
             isRtcp = true
         }
         if track.transport.Interleaved[0] == int(channel) || isRtcp {
-            return 4 + int(length), track.input(packet[4:4+length], isRtcp)
+            return 4 + int(length), track.Input(packet[4:4+length], isRtcp)
         }
     }
     //improve compatibility
@@ -230,7 +230,7 @@ func (server *RtspServer) handleRequest(req []byte) (ret int, err error) {
                     }
                     server.sessionId = string(b)
                 }
-                if transport.Proto == TCP && !server.isRecord {
+                if transport.Proto == TCP {
                     transport.Interleaved[0] = server.interleaved
                     transport.Interleaved[1] = server.interleaved + 1
                     server.interleaved = server.interleaved + 2

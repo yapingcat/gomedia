@@ -21,7 +21,8 @@ func (pkt *Comm) Decode(data []byte) error {
     if v != 2 {
         return errors.New("unsupport rtcp version")
     }
-    if (data[0] >> 5) > 0 {
+    p := (data[0] >> 5) & 0x01
+    if p > 0 {
         pkt.Padding = true
     } else {
         pkt.Padding = false

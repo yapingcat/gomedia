@@ -32,13 +32,13 @@ import (
 // 			+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 type ReportBlock struct {
-    SSRC     uint32
-    Fraction uint8
-    Lost     uint32
-    LastSeq  uint32
-    Jitter   uint32
-    Lsr      uint32
-    Dlsr     uint32
+    SSRC             uint32
+    Fraction         uint8
+    Lost             uint32
+    ExtendHighestSeq uint32
+    Jitter           uint32
+    Lsr              uint32
+    Dlsr             uint32
 }
 
 func (rb *ReportBlock) Decode(data []byte) error {
@@ -48,7 +48,7 @@ func (rb *ReportBlock) Decode(data []byte) error {
     rb.SSRC = binary.BigEndian.Uint32(data)
     rb.Fraction = data[4]
     rb.Lost = uint32(data[5])<<16 | uint32(data[6])<<6 | uint32(data[7])
-    rb.LastSeq = binary.BigEndian.Uint32(data[8:])
+    rb.ExtendHighestSeq = binary.BigEndian.Uint32(data[8:])
     rb.Jitter = binary.BigEndian.Uint32(data[12:])
     rb.Lsr = binary.BigEndian.Uint32(data[16:])
     rb.Dlsr = binary.BigEndian.Uint32(data[20:])
@@ -62,7 +62,7 @@ func (rb *ReportBlock) Encode() []byte {
     data[5] = byte(rb.Lost >> 16)
     data[6] = byte(rb.Lost >> 8)
     data[7] = byte(rb.Lost)
-    binary.BigEndian.PutUint32(data[8:], rb.LastSeq)
+    binary.BigEndian.PutUint32(data[8:], rb.ExtendHighestSeq)
     binary.BigEndian.PutUint32(data[12:], rb.Jitter)
     binary.BigEndian.PutUint32(data[16:], rb.Lsr)
     binary.BigEndian.PutUint32(data[20:], rb.Dlsr)
@@ -74,6 +74,12 @@ type ReceiverReport struct {
     RC     uint8
     SSRC   uint32
     Blocks []ReportBlock
+}
+
+func NewReceiverReport() *ReceiverReport {
+    return &ReceiverReport{
+        Comm: Comm{PT: RTCP_RR},
+    }
 }
 
 func (pkt *ReceiverReport) Decode(data []byte) error {

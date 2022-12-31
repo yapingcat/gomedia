@@ -126,7 +126,7 @@ func (transport *RtspTransport) EncodeString() string {
     if transport.Proto == TCP {
         str += "RTP/AVP/TCP"
     } else {
-        str += "RTP/AVP"
+        str += "RTP/AVP/UDP"
     }
     if transport.IsMultiCast {
         str += ";multicast"

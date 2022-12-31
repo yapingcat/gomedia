@@ -22,6 +22,12 @@ type Bye struct {
     SSRCS     []uint32
 }
 
+func NewBye() *Bye {
+    return &Bye{
+        Comm: Comm{PT: RTCP_BYE},
+    }
+}
+
 func (pkt *Bye) Decode(data []byte) error {
 
     if err := pkt.Comm.Decode(data); err != nil {
@@ -57,9 +63,9 @@ func (pkt *Bye) Encode() []byte {
 }
 
 func (pkt *Bye) calcLength() uint16 {
-    length := 4 + len(pkt.SSRCS)*4 + len(pkt.PaddingData) + 1
-    if len(pkt.Reason)%4 == 0 {
-        length += len(pkt.Reason)
+    length := len(pkt.SSRCS) * 4
+    if (len(pkt.Reason)+1)%4 == 0 {
+        length += len(pkt.Reason) + 1
     } else {
         length += (len(pkt.Reason) + 4) / 4 * 4
     }

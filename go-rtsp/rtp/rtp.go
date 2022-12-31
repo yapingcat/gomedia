@@ -16,9 +16,41 @@ type Packer interface {
     OnPacket(onPkt ON_RTP_PKT_FUNC)
 }
 
+type CommPacker struct {
+    onPacket ON_RTP_PKT_FUNC
+    onRtp    RTP_HOOK_FUNC
+    mtu      int
+}
+
+func (pack *CommPacker) OnPacket(onPkt ON_RTP_PKT_FUNC) {
+    pack.onPacket = onPkt
+}
+
+func (pack *CommPacker) SetMtu(mtu int) {
+    pack.mtu = mtu
+}
+
+func (pack *CommPacker) HookRtp(cb RTP_HOOK_FUNC) {
+    pack.onRtp = cb
+}
+
 type UnPacker interface {
     OnFrame(onframe ON_FRAME_FUNC)
     UnPack(pkt []byte) error
+    HookRtp(cb RTP_HOOK_FUNC)
+}
+
+type CommUnPacker struct {
+    onFrame ON_FRAME_FUNC
+    onRtp   RTP_HOOK_FUNC
+}
+
+func (unpack *CommUnPacker) OnFrame(onframe ON_FRAME_FUNC) {
+    unpack.onFrame = onframe
+}
+
+func (unpack *CommUnPacker) HookRtp(cb RTP_HOOK_FUNC) {
+    unpack.onRtp = cb
 }
 
 type RtpPacket struct {

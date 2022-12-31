@@ -36,33 +36,19 @@ import (
 // +---------------+
 
 type H265Packer struct {
+    CommPacker
     pt       uint8
     ssrc     uint32
     sequence uint16
-    mtu      int
-    onpkt    ON_RTP_PKT_FUNC
-    onRtp    RTP_HOOK_FUNC
 }
 
 func NewH265Packer(pt uint8, ssrc uint32, sequence uint16, mtu int) *H265Packer {
     return &H265Packer{
-        pt:       pt,
-        ssrc:     ssrc,
-        sequence: sequence,
-        mtu:      mtu,
+        pt:         pt,
+        ssrc:       ssrc,
+        sequence:   sequence,
+        CommPacker: CommPacker{mtu: mtu},
     }
-}
-
-func (h265 *H265Packer) HookRtp(cb RTP_HOOK_FUNC) {
-    h265.onRtp = cb
-}
-
-func (h265 *H265Packer) SetMtu(mtu int) {
-    h265.mtu = mtu
-}
-
-func (h265 *H265Packer) OnPacket(onPkt ON_RTP_PKT_FUNC) {
-    h265.onpkt = onPkt
 }
 
 func (h265 *H265Packer) Pack(data []byte, timestamp uint32) error {
@@ -78,6 +64,7 @@ func (h265 *H265Packer) Pack(data []byte, timestamp uint32) error {
 }
 
 func (h265 *H265Packer) packSingleNalu(nalu []byte, timestamp uint32) error {
+    //fmt.Println("pack single nalu")
     pkg := RtpPacket{}
     pkg.Header.PayloadType = h265.pt
     pkg.Header.SequenceNumber = h265.sequence
@@ -89,9 +76,10 @@ func (h265 *H265Packer) packSingleNalu(nalu []byte, timestamp uint32) error {
     if h265.onRtp != nil {
         h265.onRtp(&pkg)
     }
-    if h265.onpkt != nil {
-        h265.onpkt(pkg.Encode())
+    if h265.onPacket != nil {
+        h265.onPacket(pkg.Encode())
     }
+    h265.sequence++
     return nil
 }
 
@@ -111,7 +99,7 @@ func (h265 *H265Packer) packFu(nalu []byte, timestamp uint32) error {
         pkg.Header.SSRC = h265.ssrc
         pkg.Header.Timestamp = timestamp
         length := 0
-        if len(nalu)+RTP_FIX_HEAD_LEN+3 < h265.mtu {
+        if len(nalu)+RTP_FIX_HEAD_LEN+3 <= h265.mtu {
             end = true
             length = len(nalu)
             pkg.Header.Marker = 1
@@ -123,6 +111,7 @@ func (h265 *H265Packer) packFu(nalu []byte, timestamp uint32) error {
         pkg.Payload[1] = payloadHdr[1]
         if start {
             pkg.Payload[2] = fuHeader | 0x80
+            start = false
         }
         if end {
             pkg.Payload[2] = fuHeader | 0x40
@@ -131,16 +120,17 @@ func (h265 *H265Packer) packFu(nalu []byte, timestamp uint32) error {
         if h265.onRtp != nil {
             h265.onRtp(&pkg)
         }
-        if h265.onpkt != nil {
-            h265.onpkt(pkg.Encode())
+        if h265.onPacket != nil {
+            h265.onPacket(pkg.Encode())
         }
         nalu = nalu[length:]
+        h265.sequence++
     }
     return nil
 }
 
 type H265UnPacker struct {
-    onFrame      ON_FRAME_FUNC
+    CommUnPacker
     timestamp    uint32
     lastSequence uint16
     lost         bool
@@ -156,17 +146,17 @@ func NewH265UnPacker() *H265UnPacker {
     return unpacker
 }
 
-func (unpacker *H265UnPacker) OnFrame(onframe ON_FRAME_FUNC) {
-    unpacker.onFrame = onframe
-}
-
 func (unpacker *H265UnPacker) UnPack(pkt []byte) error {
     pkg := &RtpPacket{}
     if err := pkg.Decode(pkt); err != nil {
         return err
     }
 
-    packType := pkg.Payload[0] & 0x1f
+    if unpacker.onRtp != nil {
+        unpacker.onRtp(pkg)
+    }
+
+    packType := (pkg.Payload[0] >> 1 & 0x3f)
     switch {
     case 0 < packType && packType < 40:
         unpacker.frameBuffer.Write(pkg.Payload)

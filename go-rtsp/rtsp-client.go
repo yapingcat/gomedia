@@ -273,7 +273,7 @@ func (client *RtspClient) handlRtpOverRtsp(packet []byte) (ret int, err error) {
         }
 
         if track.transport.Interleaved[0] == int(channel) || isRtcp {
-            return 4 + int(length), track.input(packet[4:4+length], isRtcp)
+            return 4 + int(length), track.Input(packet[4:4+length], isRtcp)
         }
     }
     //improve compatibility
@@ -294,7 +294,6 @@ func (client *RtspClient) handleRtspMessage(msg []byte) (int, error) {
     if bytes.HasPrefix(msg, []byte{'R', 'T', 'S', 'P'}) {
         return client.handleResponse(msg)
     } else {
-        fmt.Println("hand rtsp request ")
         return client.handleRequest(msg)
     }
 }
@@ -369,12 +368,10 @@ func (client *RtspClient) handleOption(res *RtspResponse) error {
     if client.state != STATE_Init {
         return nil
     }
-    fmt.Println("hand option", client.isRecord)
     if client.isRecord {
         if !hasRecordAbility(client.serverCapability) {
             return fmt.Errorf("server capability:%s ,unsupport Record mode ", res.Fileds[Public])
         }
-        fmt.Println("send announce")
         announce := makeAnnounce(client.uri, client.cseq)
         announce.Body = client.SessionDescribe()
         client.reponseHandler = client.handleAnnounce
@@ -383,7 +380,6 @@ func (client *RtspClient) handleOption(res *RtspResponse) error {
         if !hasPlayAbility(client.serverCapability) {
             return fmt.Errorf("server capability:%s ,unsupport Play mode ", res.Fileds[Public])
         }
-        fmt.Println("send describe")
         describe := makeDescribe(client.uri, client.cseq)
         client.reponseHandler = client.handleDescribe
         return client.sendRtspRequest(&describe)
@@ -414,19 +410,19 @@ func (client *RtspClient) handleDescribe(res *RtspResponse) (err error) {
     } else if res.Fileds.Has(ContentLocation) {
         baseUrl = res.Fileds[ContentLocation]
     }
-    if !strings.HasSuffix(baseUrl, "/") {
-        baseUrl += "/"
+
+    if strings.HasSuffix(baseUrl, "/") {
+        baseUrl = baseUrl[:len(baseUrl)-1]
     }
 
     getControlUrl := func(url string) string {
-        fmt.Println("Get control url", url, "base url", baseUrl)
         if url == "*" {
             return baseUrl
         } else if !strings.HasPrefix(url, "rtsp://") {
             if strings.HasPrefix(url, "/") {
-                return baseUrl + url[1:]
-            } else {
                 return baseUrl + url
+            } else {
+                return baseUrl + "/" + url
             }
         } else {
             return url
@@ -443,9 +439,7 @@ func (client *RtspClient) handleDescribe(res *RtspResponse) (err error) {
             fmtpHandle.Load(media.Attrs["fmtp"])
         }
         var track *RtspTrack = nil
-        fmt.Println(media.MediaType)
         if media.MediaType == "audio" {
-            fmt.Println("create audio track ", media.EncodeName)
             track = NewAudioTrack(NewAudioCodec(media.EncodeName, uint8(media.PayloadType), uint32(media.ClockRate), media.ChannelCount), WithCodecParamHandler(fmtpHandle))
         } else if media.MediaType == "video" {
             track = NewVideoTrack(NewVideoCodec(media.EncodeName, uint8(media.PayloadType), uint32(media.ClockRate)), WithCodecParamHandler(fmtpHandle))
@@ -467,7 +461,6 @@ func (client *RtspClient) handleDescribe(res *RtspResponse) (err error) {
     }
     interleaved := 0
     for i := client.setupStep; i < len(client.sdpContext.Medias); i++ {
-        fmt.Println("setup step ", client.setupStep, " media type", client.sdpContext.Medias[client.setupStep].MediaType)
         track, found := client.tracks[client.sdpContext.Medias[client.setupStep].MediaType]
         if !found || !track.isOpen {
             continue
@@ -496,7 +489,7 @@ func (client *RtspClient) handleSetup(res *RtspResponse) error {
             return nil
         }
         proto := lastTrack.transport.Proto
-        err := client.handle.HandleSetup(client, *res, client.tracks, "", -1)
+        err := client.handle.HandleSetup(client, *res, lastTrack, client.tracks, "", -1)
         if res.StatusCode == 461 {
             if lastTrack.transport.Proto != proto {
                 req := makeSetup(client.sdpContext.Medias[client.setupStep].ControlUrl, client.cseq)
@@ -533,11 +526,9 @@ func (client *RtspClient) handleSetup(res *RtspResponse) error {
             client.sessionId = sessionId
             client.timeout = timeout
         }
-        if err := client.handle.HandleSetup(client, *res, client.tracks, client.sessionId, client.timeout); err != nil {
+        lastTrack.transport.DecodeString(res.Fileds[Transport])
+        if err := client.handle.HandleSetup(client, *res, lastTrack, client.tracks, client.sessionId, client.timeout); err != nil {
             return err
-        }
-        if !client.isRecord {
-            lastTrack.transport.DecodeString(res.Fileds[Transport])
         }
     }
 

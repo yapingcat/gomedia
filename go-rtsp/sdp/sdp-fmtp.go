@@ -196,7 +196,7 @@ func (param *H265FmtpParam) Load(fmtp string) {
 
     codecParams := strings.Split(items[1], ";")
     for _, p := range codecParams {
-        kv := strings.Split(strings.TrimSpace(p), "=")
+        kv := strings.SplitN(strings.TrimSpace(p), "=", 2)
         if len(kv) < 2 {
             continue
         }
@@ -215,8 +215,8 @@ func (param *H265FmtpParam) Save() string {
     if len(param.pps) == 0 || len(param.vps) == 0 || len(param.sps) == 0 {
         return ""
     }
-    return fmt.Sprintf("sprop-vps=%s;sprop-sps=%s;sprop-pps=%s", strings.ToUpper(base64.StdEncoding.EncodeToString(param.vps)),
-        strings.ToUpper(base64.StdEncoding.EncodeToString(param.sps)), strings.ToUpper(base64.StdEncoding.EncodeToString(param.pps)))
+    return fmt.Sprintf("sprop-vps=%s; sprop-sps=%s; sprop-pps=%s", base64.StdEncoding.EncodeToString(param.vps),
+        base64.StdEncoding.EncodeToString(param.sps), base64.StdEncoding.EncodeToString(param.pps))
 }
 
 // m=audio 49230 RTP/AVP 96

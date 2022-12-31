@@ -62,6 +62,12 @@ type SourceDescription struct {
     Chunks []SDESChunk
 }
 
+func NewSourceDescription() *SourceDescription {
+    return &SourceDescription{
+        Comm: Comm{PT: RTCP_SDES},
+    }
+}
+
 func (pkt *SourceDescription) Decode(data []byte) error {
     if err := pkt.Comm.Decode(data); err != nil {
         return err
@@ -102,9 +108,10 @@ func (pkt *SourceDescription) Encode() []byte {
 func (pkt *SourceDescription) calcLength() uint16 {
     length := 0
     for _, chk := range pkt.Chunks {
-        length += int(chk.SSRC)
+        length += 4
         length += int(chk.Item.Length) + 2
     }
+    length += 1
     if length%4 == 0 {
         return uint16(length) / 4
     } else {

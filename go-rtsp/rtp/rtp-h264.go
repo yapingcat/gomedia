@@ -25,12 +25,10 @@ import (
 //
 
 type H264Packer struct {
+    CommPacker
     ssrc     uint32
     pt       uint8
     sequence uint16
-    mtu      int
-    cb       RTP_HOOK_FUNC
-    onPkt    ON_RTP_PKT_FUNC
     stap_a   bool
     sps      []byte
     pps      []byte
@@ -38,28 +36,16 @@ type H264Packer struct {
 
 func NewH264Packer(pt uint8, ssrc uint32, sequence uint16, mtu int) *H264Packer {
     return &H264Packer{
-        pt:       pt,
-        ssrc:     ssrc,
-        sequence: sequence,
-        mtu:      mtu,
-        stap_a:   false,
+        pt:         pt,
+        ssrc:       ssrc,
+        sequence:   sequence,
+        stap_a:     false,
+        CommPacker: CommPacker{mtu: mtu},
     }
-}
-
-func (pack *H264Packer) OnPacket(onPkt ON_RTP_PKT_FUNC) {
-    pack.onPkt = onPkt
 }
 
 func (pack *H264Packer) EnableStapA() {
     pack.stap_a = true
-}
-
-func (pack *H264Packer) SetMtu(mtu int) {
-    pack.mtu = mtu
-}
-
-func (pack *H264Packer) HookRtp(cb RTP_HOOK_FUNC) {
-    pack.cb = cb
 }
 
 func (pack *H264Packer) Pack(frame []byte, timestamp uint32) (err error) {
@@ -100,11 +86,11 @@ func (pack *H264Packer) packSingleNalu(nalu []byte, timestamp uint32) error {
     pkg.Header.Marker = 1
     pkg.Payload = nalu
     pack.sequence++
-    if pack.cb != nil {
-        pack.cb(&pkg)
+    if pack.onRtp != nil {
+        pack.onRtp(&pkg)
     }
-    if pack.onPkt != nil {
-        return pack.onPkt(pkg.Encode())
+    if pack.onPacket != nil {
+        return pack.onPacket(pkg.Encode())
     }
     return nil
 }
@@ -152,11 +138,11 @@ func (pack *H264Packer) packFuA(nalu []byte, timestamp uint32) (err error) {
             pkg.Payload = append(pkg.Payload, fuIndicator)
             pkg.Payload = append(pkg.Payload, fuHeader)
             pkg.Payload = append(pkg.Payload, nalu...)
-            if pack.cb != nil {
-                pack.cb(&pkg)
+            if pack.onRtp != nil {
+                pack.onRtp(&pkg)
             }
-            if pack.onPkt != nil {
-                err = pack.onPkt(pkg.Encode())
+            if pack.onPacket != nil {
+                err = pack.onPacket(pkg.Encode())
             }
             pack.sequence++
             return
@@ -169,8 +155,11 @@ func (pack *H264Packer) packFuA(nalu []byte, timestamp uint32) (err error) {
         }
         pkg.Payload = append(pkg.Payload, nalu[:pack.mtu-2-RTP_FIX_HEAD_LEN]...)
         nalu = nalu[pack.mtu-2-RTP_FIX_HEAD_LEN:]
-        if pack.onPkt != nil {
-            err = pack.onPkt(pkg.Encode())
+        if pack.onRtp != nil {
+            pack.onRtp(&pkg)
+        }
+        if pack.onPacket != nil {
+            err = pack.onPacket(pkg.Encode())
         }
         pack.sequence++
         if err != nil {
@@ -216,14 +205,17 @@ func (pack *H264Packer) packStapA(nalus [][]byte, timestamp uint32) error {
         pkg.Payload = append(pkg.Payload, tmp...)
         pkg.Payload = append(pkg.Payload, nalu...)
     }
-    if pack.onPkt != nil {
-        return pack.onPkt(pkg.Encode())
+    if pack.onRtp != nil {
+        pack.onRtp(&pkg)
+    }
+    if pack.onPacket != nil {
+        return pack.onPacket(pkg.Encode())
     }
     return nil
 }
 
 type H264UnPacker struct {
-    onFrame      ON_FRAME_FUNC
+    CommUnPacker
     timestamp    uint32
     lastSequence uint16
     lost         bool
@@ -239,14 +231,14 @@ func NewH264UnPacker() *H264UnPacker {
     return unpacker
 }
 
-func (unpacker *H264UnPacker) OnFrame(onframe ON_FRAME_FUNC) {
-    unpacker.onFrame = onframe
-}
-
 func (unpacker *H264UnPacker) UnPack(pkt []byte) error {
     pkg := &RtpPacket{}
     if err := pkg.Decode(pkt); err != nil {
         return err
+    }
+
+    if unpacker.onRtp != nil {
+        unpacker.onRtp(pkg)
     }
 
     packType := pkg.Payload[0] & 0x1f
