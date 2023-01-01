@@ -268,9 +268,10 @@ func (demuxer *TSDemuxer) splitH264Frame(stream *tsstream) bool {
     needUpdate := false
     frameBeg := start
     for start < datalen {
-        if len(data)-start < int(sct)+1 {
+        if len(data)-start <= int(sct)+1 {
             break
         }
+
         naluType := codec.H264NaluTypeWithoutStartCode(data[start+int(sct):])
         switch naluType {
         case codec.H264_NAL_AUD, codec.H264_NAL_SPS,
@@ -281,10 +282,10 @@ func (demuxer *TSDemuxer) splitH264Frame(stream *tsstream) bool {
         case codec.H264_NAL_I_SLICE, codec.H264_NAL_P_SLICE,
             codec.H264_NAL_SLICE_A, codec.H264_NAL_SLICE_B, codec.H264_NAL_SLICE_C:
             if vcl > 0 {
-                bs := codec.NewBitStream(data[start+int(sct)+1:])
-                sliceHdr := &codec.SliceHeader{}
-                sliceHdr.Decode(bs)
-                if sliceHdr.First_mb_in_slice == 0 {
+                // bs := codec.NewBitStream(data[start+int(sct)+1:])
+                // sliceHdr := &codec.SliceHeader{}
+                // sliceHdr.Decode(bs)
+                if data[start+int(sct)+1]&0x80 > 0 {
                     newAcessUnit = true
                 }
             } else {
@@ -333,7 +334,7 @@ func (demuxer *TSDemuxer) splitH265Frame(stream *tsstream) bool {
     needUpdate := false
     frameBeg := start
     for start < datalen {
-        if len(data)-start < int(sct)+2 {
+        if len(data)-start <= int(sct)+2 {
             break
         }
         naluType := codec.H265NaluTypeWithoutStartCode(data[start+int(sct):])
@@ -352,10 +353,13 @@ func (demuxer *TSDemuxer) splitH265Frame(stream *tsstream) bool {
             codec.H265_NAL_SLICE_BLA_N_LP, codec.H265_NAL_SLICE_IDR_W_RADL,
             codec.H265_NAL_SLICE_IDR_N_LP, codec.H265_NAL_SLICE_CRA:
             if vcl > 0 {
-                bs := codec.NewBitStream(data[start+int(sct)+2:])
-                sliceHdr := &codec.SliceHeader{}
-                sliceHdr.Decode(bs)
-                if sliceHdr.First_mb_in_slice == 0 {
+                // bs := codec.NewBitStream(data[start+int(sct)+2:])
+                // sliceHdr := &codec.SliceHeader{}
+                // sliceHdr.Decode(bs)
+                // if sliceHdr.First_mb_in_slice == 0 {
+                //     newAcessUnit = true
+                // }
+                if data[start+int(sct)+2]&0x80 > 0 {
                     newAcessUnit = true
                 }
             } else {
