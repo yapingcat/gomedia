@@ -101,6 +101,12 @@ func (cli *RtspUdpPlaySession) HandleSetup(client *rtsp.RtspClient, res rtsp.Rts
     rtpUdpsess, _ := net.DialUDP("udp4", laddr, raddr)
     rtcpUdpsess, _ := net.DialUDP("udp4", laddr2, raddr2)
     cli.sesss[track.TrackName] = &UdpPairSession{rtpSess: rtpUdpsess, rtcpSess: rtcpUdpsess}
+    track.OnPacket(func(b []byte, isRtcp bool) (err error) {
+        if isRtcp {
+            _, err = rtcpUdpsess.Write(b)
+        }
+        return
+    })
     go func() {
         buf := make([]byte, 1500)
         for {
@@ -126,6 +132,7 @@ func (cli *RtspUdpPlaySession) HandleSetup(client *rtsp.RtspClient, res rtsp.Rts
                 fmt.Println(err)
                 break
             }
+            fmt.Println("read rtcp")
             err = track.Input(buf[:r], true)
             if err != nil {
                 fmt.Println(err)
