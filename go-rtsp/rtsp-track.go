@@ -208,25 +208,25 @@ func (track *RtspTrack) GetRtcpRecvContext() *rtcp.RtcpContext {
     return track.recvCtx
 }
 
-func (track *RtspTrack) SendReport() {
+func (track *RtspTrack) SendReport() error {
     sr := track.sendCtx.GenerateSR()
-    track.onPacket(sr.Encode(), true)
+    return track.onPacket(sr.Encode(), true)
 }
 
-func (track *RtspTrack) ReceiveReport() {
-    //fmt.Println(track.recvCtx, track.onPacket)
+func (track *RtspTrack) ReceiveReport() error {
+    fmt.Println("ReceiveReport")
     rr := track.recvCtx.GenerateRR()
-    track.onPacket(rr.Encode(), true)
+    return track.onPacket(rr.Encode(), true)
 }
 
-func (track *RtspTrack) Bye() {
+func (track *RtspTrack) Bye() error {
     bye := track.sendCtx.GenerateBye()
-    track.onPacket(bye.Encode(), true)
+    return track.onPacket(bye.Encode(), true)
 }
 
-func (track *RtspTrack) SourceDescription(sdesType uint8, content string) {
+func (track *RtspTrack) SourceDescription(sdesType uint8, content string) error {
     sdes := track.sendCtx.GenerateSDES(sdesType, content)
-    track.onPacket(sdes.Encode(), true)
+    return track.onPacket(sdes.Encode(), true)
 }
 
 func (track *RtspTrack) mediaDescripe() string {

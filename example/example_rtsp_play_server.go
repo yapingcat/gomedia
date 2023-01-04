@@ -5,6 +5,7 @@ import (
     "net"
     "os"
     "strings"
+    "sync"
     "time"
 
     "github.com/yapingcat/gomedia/go-codec"
@@ -28,6 +29,8 @@ type RtspPlaySeverSession struct {
     remoteAddr   string
     tracks       map[string]*rtsp.RtspTrack
     senders      map[string]*RtspUdpSender
+    die          sync.Once
+    completed    chan struct{}
 }
 
 func NewRtspPlayServerSession(conn net.Conn) *RtspPlaySeverSession {
@@ -36,6 +39,7 @@ func NewRtspPlayServerSession(conn net.Conn) *RtspPlaySeverSession {
         startUdpPort: 20000,
         tracks:       make(map[string]*rtsp.RtspTrack),
         senders:      make(map[string]*RtspUdpSender),
+        completed:    make(chan struct{}),
     }
 }
 
@@ -45,6 +49,7 @@ func (server *RtspPlaySeverSession) Start() {
         _, err = server.c.Write(b)
         return
     })
+    defer server.Stop()
     server.remoteAddr = server.c.RemoteAddr().String()
     buf := make([]byte, 65535)
     for {
@@ -55,8 +60,14 @@ func (server *RtspPlaySeverSession) Start() {
         }
         svr.Input(buf[:n])
     }
-    server.c.Close()
     return
+}
+
+func (server *RtspPlaySeverSession) Stop() {
+    server.die.Do(func() {
+        server.c.Close()
+        close(server.completed)
+    })
 }
 
 func (server *RtspPlaySeverSession) HandleOption(svr *rtsp.RtspServer, req rtsp.RtspRequest, res *rtsp.RtspResponse) {
@@ -94,6 +105,7 @@ func (server *RtspPlaySeverSession) HandleSetup(svr *rtsp.RtspServer, req rtsp.R
         track.OpenTrack()
         track.OnPacket(func(b []byte, isRtcp bool) (err error) {
             if isRtcp {
+                fmt.Println("send rtcp packet")
                 _, err = server.senders[track.TrackName].rtcp.Write(b)
             } else {
                 _, err = server.senders[track.TrackName].rtp.Write(b)
@@ -137,8 +149,43 @@ func (server *RtspPlaySeverSession) HandlePlay(svr *rtsp.RtspServer, req rtsp.Rt
                 break
             }
         }
+        server.Stop()
     }()
 
+    go func() {
+        rtcpTimer := time.NewTicker(time.Duration(time.Second * 3))
+        defer rtcpTimer.Stop()
+        for {
+            select {
+            case <-rtcpTimer.C:
+                for _, sender := range server.senders {
+                    err := sender.track.SendReport()
+                    fmt.Println("send report")
+                    if err != nil {
+                        fmt.Println(err)
+                        return
+                    }
+                }
+            case <-server.completed:
+                break
+            }
+        }
+    }()
+
+    for _, sender := range server.senders {
+        go func() {
+            buf := make([]byte, 4096)
+            for {
+                n, err := sender.rtcp.Read(buf)
+                if err != nil {
+                    fmt.Println(err)
+                    break
+                }
+                fmt.Println("read rtcp packet")
+                sender.track.Input(buf[:n], true)
+            }
+        }()
+    }
 }
 
 func (server *RtspPlaySeverSession) HandleAnnounce(svr *rtsp.RtspServer, req rtsp.RtspRequest, tracks map[string]*rtsp.RtspTrack) {
