@@ -50,7 +50,7 @@ func main() {
 		}
 
 		if n == 0 {
-			fmt.Println("read err: ", err)
+			fmt.Println("read n=0")
 			break
 		}
 
