@@ -14,6 +14,7 @@ const (
 	HTTPOK = 200
 )
 
+//.example_http_flv_client -i url -o out.flv
 func main() {
 	flvurl, flvfilename := parseFlag()
 	flvfile, err := os.Create(flvfilename)
@@ -49,7 +50,6 @@ func main() {
 		}
 
 		if n == 0 {
-			//读取到EOF也不要退出
 			fmt.Println("read err: ", err)
 			break
 		}
