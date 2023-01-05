@@ -63,3 +63,26 @@ const (
     H265_NAL_SEI H265_NAL_TYPE = iota + 19
     H265_NAL_SEI_SUFFIX
 )
+
+func CodecString(codecid CodecID) string {
+    switch codecid {
+    case CODECID_VIDEO_H264:
+        return "H264"
+    case CODECID_VIDEO_H265:
+        return "H265"
+    case CODECID_VIDEO_VP8:
+        return "VP8"
+    case CODECID_AUDIO_AAC:
+        return "AAC"
+    case CODECID_AUDIO_G711A:
+        return "G711A"
+    case CODECID_AUDIO_G711U:
+        return "G711U"
+    case CODECID_AUDIO_OPUS:
+        return "OPUS"
+    case CODECID_AUDIO_MP3:
+        return "MP3"
+    default:
+        return "UNRECOGNIZED"
+   }
+}
