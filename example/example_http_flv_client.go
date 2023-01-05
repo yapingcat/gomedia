@@ -60,6 +60,8 @@ func main() {
 		}
 	}
 
+	resp.Body.Close()
+
 	fmt.Println("http flv client end")
 }
 
