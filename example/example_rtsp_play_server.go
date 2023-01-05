@@ -93,15 +93,11 @@ func (server *RtspPlaySeverSession) HandleSetup(svr *rtsp.RtspServer, req rtsp.R
         server.senders[track.TrackName].remoteRtcpPort = int(transport.Client_ports[1])
 
         srcAddr := net.UDPAddr{IP: net.IPv4zero, Port: server.senders[track.TrackName].rtpPort}
-        laddr, _ := net.ResolveUDPAddr("udp4", srcAddr.String())
         srcAddr2 := net.UDPAddr{IP: net.IPv4zero, Port: server.senders[track.TrackName].rtcpPort}
-        laddr2, _ := net.ResolveUDPAddr("udp4", srcAddr2.String())
         dstAddr := net.UDPAddr{IP: net.ParseIP(server.remoteAddr), Port: server.senders[track.TrackName].remoteRtpPort}
-        raddr, _ := net.ResolveUDPAddr("udp4", dstAddr.String())
         dstAddr2 := net.UDPAddr{IP: net.ParseIP(server.remoteAddr), Port: server.senders[track.TrackName].remoteRtcpPort}
-        raddr2, _ := net.ResolveUDPAddr("udp4", dstAddr2.String())
-        server.senders[track.TrackName].rtp, _ = net.DialUDP("udp4", laddr, raddr)
-        server.senders[track.TrackName].rtcp, _ = net.DialUDP("udp4", laddr2, raddr2)
+        server.senders[track.TrackName].rtp, _ = net.DialUDP("udp4", &srcAddr, &dstAddr)
+        server.senders[track.TrackName].rtcp, _ = net.DialUDP("udp4", &srcAddr2, &dstAddr2)
         track.OpenTrack()
         track.OnPacket(func(b []byte, isRtcp bool) (err error) {
             if isRtcp {
@@ -113,7 +109,6 @@ func (server *RtspPlaySeverSession) HandleSetup(svr *rtsp.RtspServer, req rtsp.R
             return
         })
         server.senders[track.TrackName].track = track
-        fmt.Println(server.senders[track.TrackName])
         return
     } else {
         res.StatusCode = rtsp.Unsupported_Transport
@@ -167,7 +162,7 @@ func (server *RtspPlaySeverSession) HandlePlay(svr *rtsp.RtspServer, req rtsp.Rt
                     }
                 }
             case <-server.completed:
-                break
+                return
             }
         }
     }()
@@ -181,7 +176,7 @@ func (server *RtspPlaySeverSession) HandlePlay(svr *rtsp.RtspServer, req rtsp.Rt
                     fmt.Println(err)
                     break
                 }
-                fmt.Println("read rtcp packet")
+                fmt.Println("read rtcp packet ", n)
                 sender.track.Input(buf[:n], true)
             }
         }()
@@ -196,7 +191,6 @@ func (server *RtspPlaySeverSession) HandlePause(svr *rtsp.RtspServer, req rtsp.R
 }
 
 func (server *RtspPlaySeverSession) HandleTeardown(svr *rtsp.RtspServer, req rtsp.RtspRequest, res *rtsp.RtspResponse) {
-
 }
 
 func (server *RtspPlaySeverSession) HandleGetParameter(svr *rtsp.RtspServer, req rtsp.RtspRequest, res *rtsp.RtspResponse) {

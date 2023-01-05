@@ -152,7 +152,6 @@ type RtspServerSession struct {
     readChan   chan *RtspFrame
     c          net.Conn
     tracks     map[string]*rtsp.RtspTrack
-    server     *rtsp.RtspServer
     isProducer bool
     name       string
 }

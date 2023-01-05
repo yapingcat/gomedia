@@ -18,6 +18,19 @@ type UdpPairSession struct {
     rtcpSess *net.UDPConn
 }
 
+func makeUdpPairSession(localRtpPort, localRtcpPort uint16, remoteAddr string, remoteRtpPort, remoteRtcpPort uint16) *UdpPairSession {
+    srcAddr := net.UDPAddr{IP: net.IPv4zero, Port: int(localRtpPort)}
+    srcAddr2 := net.UDPAddr{IP: net.IPv4zero, Port: int(localRtcpPort)}
+    dstAddr := net.UDPAddr{IP: net.ParseIP(remoteAddr), Port: int(remoteRtpPort)}
+    dstAddr2 := net.UDPAddr{IP: net.ParseIP(remoteAddr), Port: int(remoteRtcpPort)}
+    rtpUdpsess, _ := net.DialUDP("udp4", &srcAddr, &dstAddr)
+    rtcpUdpsess, _ := net.DialUDP("udp4", &srcAddr2, &dstAddr2)
+    return &UdpPairSession{
+        rtpSess:  rtpUdpsess,
+        rtcpSess: rtcpUdpsess,
+    }
+}
+
 type RtspUdpPlaySession struct {
     udpport    uint16
     videoFile  *os.File
@@ -90,31 +103,22 @@ func (cli *RtspUdpPlaySession) HandleSetup(client *rtsp.RtspClient, res rtsp.Rts
     if res.StatusCode == rtsp.Unsupported_Transport {
         return errors.New("unsupport udp transport")
     }
-    srcAddr := net.UDPAddr{IP: net.IPv4zero, Port: int(track.GetTransport().Client_ports[0])}
-    laddr, _ := net.ResolveUDPAddr("udp4", srcAddr.String())
-    srcAddr2 := net.UDPAddr{IP: net.IPv4zero, Port: int(track.GetTransport().Client_ports[1])}
-    laddr2, _ := net.ResolveUDPAddr("udp4", srcAddr2.String())
-    dstAddr := net.UDPAddr{IP: net.ParseIP(cli.c.RemoteAddr().String()), Port: int(track.GetTransport().Server_ports[0])}
-    raddr, _ := net.ResolveUDPAddr("udp4", dstAddr.String())
-    dstAddr2 := net.UDPAddr{IP: net.ParseIP(cli.c.RemoteAddr().String()), Port: int(track.GetTransport().Server_ports[1])}
-    raddr2, _ := net.ResolveUDPAddr("udp4", dstAddr2.String())
-    rtpUdpsess, _ := net.DialUDP("udp4", laddr, raddr)
-    rtcpUdpsess, _ := net.DialUDP("udp4", laddr2, raddr2)
-    cli.sesss[track.TrackName] = &UdpPairSession{rtpSess: rtpUdpsess, rtcpSess: rtcpUdpsess}
+    cli.sesss[track.TrackName] = makeUdpPairSession(track.GetTransport().Client_ports[0], track.GetTransport().Client_ports[1], cli.c.RemoteAddr().String(), track.GetTransport().Server_ports[0], track.GetTransport().Server_ports[1]) //&UdpPairSession{rtpSess: rtpUdpsess, rtcpSess: rtcpUdpsess}
     track.OnPacket(func(b []byte, isRtcp bool) (err error) {
         if isRtcp {
-            _, err = rtcpUdpsess.Write(b)
+            _, err = cli.sesss[track.TrackName].rtcpSess.Write(b)
         }
         return
     })
     go func() {
         buf := make([]byte, 1500)
         for {
-            r, err := rtpUdpsess.Read(buf)
+            r, err := cli.sesss[track.TrackName].rtpSess.Read(buf)
             if err != nil {
                 fmt.Println(err)
                 break
             }
+            //fmt.Println("read rtp")
             err = track.Input(buf[:r], false)
             if err != nil {
                 fmt.Println(err)
@@ -127,7 +131,7 @@ func (cli *RtspUdpPlaySession) HandleSetup(client *rtsp.RtspClient, res rtsp.Rts
     go func() {
         buf := make([]byte, 1500)
         for {
-            r, err := rtcpUdpsess.Read(buf)
+            r, err := cli.sesss[track.TrackName].rtcpSess.Read(buf)
             if err != nil {
                 fmt.Println(err)
                 break
