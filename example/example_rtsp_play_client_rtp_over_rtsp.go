@@ -22,7 +22,7 @@ const (
 type RtspPlaySession struct {
     videoFile *os.File
     audioFile *os.File
-    tsFile *os.File
+    tsFile    *os.File
     timeout   int
     once      sync.Once
     die       chan struct{}
