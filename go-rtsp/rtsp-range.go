@@ -36,10 +36,10 @@ func (rt RangeTime) EncodeString() string {
         return npt
     case RANGE_UTC:
         clock := "clock="
-        beg := time.UnixMilli(rt.begin)
+        beg := time.Unix(rt.begin/1000, rt.begin%1000*1000000)
         clock += beg.Format("20060102T150405.999Z-")
         if rt.end != -1 {
-            end := time.UnixMilli(rt.end)
+            end := time.Unix(rt.end/1000, rt.end%1000*1000000)
             clock += end.Format("20060102T150405.999Z")
         }
         return clock
@@ -85,10 +85,10 @@ func parseRange(str string) (*RangeTime, error) {
         layout := "20060102T150405Z"
         tp := strings.Split(timestr[1], "-")
         t, _ := time.Parse(layout, tp[0])
-        rt.begin = t.UTC().UnixMilli()
+        rt.begin = t.UTC().UnixNano() / 1000000
         if len(tp) > 1 {
             t, _ = time.Parse(layout, tp[0])
-            rt.end = t.UTC().UnixMilli()
+            rt.end = t.UTC().UnixNano() / 1000000
         }
         return rt, nil
     default:

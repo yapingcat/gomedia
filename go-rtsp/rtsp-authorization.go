@@ -98,7 +98,7 @@ func (digest *digestAuth) setRealm(realm string) {
 
 func (digest *digestAuth) createNonce() string {
     atomic.AddInt32(&digest.nonceCounter, 1)
-    t := time.Now().UnixMilli()
+    t := time.Now().UnixNano()
 
     data := make([]byte, 12)
     binary.BigEndian.PutUint32(data, uint32(digest.nonceCounter))
