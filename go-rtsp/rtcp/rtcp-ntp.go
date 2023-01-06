@@ -9,7 +9,7 @@ func NTP2UtcClock(ntp uint64) time.Time {
 }
 
 func UtcClockToNTP(t time.Time) uint64 {
-    ntp := (t.UnixMicro()/1000000 + 0x83AA7E80) << 32
-    ntp = ntp | ((t.UnixMicro() % 1000000) << 26 / 15625)
+    ntp := (t.UnixNano()/1000000000 + 0x83AA7E80) << 32
+    ntp = ntp | ((t.UnixNano() % 1000000000 / 1000) << 26 / 15625)
     return uint64(ntp)
 }

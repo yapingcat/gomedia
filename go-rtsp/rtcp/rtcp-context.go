@@ -1,9 +1,9 @@
 package rtcp
 
 import (
-	"time"
+    "time"
 
-	"github.com/yapingcat/gomedia/go-rtsp/rtp"
+    "github.com/yapingcat/gomedia/go-rtsp/rtp"
 )
 
 //https://www.rfc-editor.org/rfc/rfc3550#section-17
@@ -94,7 +94,7 @@ func (ctx *RtcpContext) GenerateRR() *ReceiverReport {
 }
 
 func (ctx *RtcpContext) ReceivedSR(sr *SenderReport) {
-    ctx.srClockTime = uint64(time.Now().UnixMicro())
+    ctx.srClockTime = uint64(time.Now().UnixNano() / 1000)
     ctx.srNtpLsr = sr.NTP
     ctx.senderSSRC = sr.SSRC
 }
@@ -116,9 +116,9 @@ func (ctx *RtcpContext) ReceivedRtp(pkt *rtp.RtpPacket) {
     if ctx.updateSeq(pkt.Header.SequenceNumber) == 0 {
         return
     }
-    rtpClock := uint64(time.Now().UnixMicro())
+    rtpClock := uint64(time.Now().UnixNano() / 1000)
     if ctx.lastRtpClock == 0 {
-        ctx.lastRtpClock = uint64(time.Now().UnixMicro())
+        ctx.lastRtpClock = uint64(time.Now().UnixNano() / 1000)
         ctx.lastRtpTimestamp = pkt.Header.Timestamp
         ctx.jitter = 0
     } else {
@@ -184,7 +184,7 @@ func (ctx *RtcpContext) getReportBlock() ReportBlock {
         fraction = (lostInterval << 8) / expectedInterval
     }
 
-    delay := time.Now().UnixMicro() - int64(ctx.srClockTime)
+    delay := time.Now().UnixNano()/1000 - int64(ctx.srClockTime)
     lsr := ctx.srNtpLsr >> 8 & 0xFFFFFFFF
     dlsr := uint32(float32(delay) / 1000000 * 65536)
 
