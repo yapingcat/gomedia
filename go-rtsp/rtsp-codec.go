@@ -36,6 +36,8 @@ func GetCodecIdByEncodeName(name string) RTSP_CODEC_ID {
         return RTSP_CODEC_G711A
     case "pcma":
         return RTSP_CODEC_G711U
+    case "mp2t":
+        return RTSP_CODEC_TS
     }
     panic("unsupport codec")
 }
