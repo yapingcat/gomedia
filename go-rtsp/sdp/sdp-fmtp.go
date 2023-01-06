@@ -305,10 +305,16 @@ func (param *AACFmtpParam) Load(fmtp string) {
 
 func (param *AACFmtpParam) Save() string {
 
-    paramstr := fmt.Sprintf("streamtype=5;profile-level-id=%d;mode=%s;sizeLength=%d;indexLength=%d;indexDeltaLength=%d",
-        param.profileLevelId, param.mode, param.sizeLength, param.indexLength, param.indexDeltaLength)
+    paramstr := fmt.Sprintf("streamtype=5;mode=%s;sizeLength=%d;indexLength=%d;indexDeltaLength=%d",
+        param.mode, param.sizeLength, param.indexLength, param.indexDeltaLength)
+
+    if param.profileLevelId > 0 {
+        paramstr += ";profile-level-id=" + strconv.Itoa(param.profileLevelId)
+    }
+
     if len(param.asc) > 0 {
         paramstr += ";config=" + hex.EncodeToString(param.asc)
     }
+
     return paramstr
 }

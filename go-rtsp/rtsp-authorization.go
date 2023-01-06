@@ -117,8 +117,7 @@ func (digest *digestAuth) decode(authorization string) {
     for i := 0; i < len(elems); i++ {
         elem := strings.TrimSpace(elems[i])
         if strings.Contains(elem, "realm") {
-            fmt.Sscanf(elem, "realm=\"%s\"", &digest.realm)
-            digest.realm = digest.realm[:len(digest.realm)-1]
+            digest.realm = strings.Trim(strings.TrimPrefix(elem, "realm="), "\"")
         } else if strings.Contains(elem, "nonce") {
             fmt.Sscanf(elem, "nonce=\"%s\"", &digest.nonce)
             digest.nonce = digest.nonce[:len(digest.nonce)-1]

@@ -355,8 +355,12 @@ func (impl *ServerHandleImpl) HandleResponse(svr *rtsp.RtspServer, res rtsp.Rtsp
 
 func main() {
     addr := "0.0.0.0:554"
-    listen, _ := net.Listen("tcp4", addr)
-    fmt.Println(g_manager)
+    listen, err := net.Listen("tcp4", addr)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    defer listen.Close()
     for {
         conn, _ := listen.Accept()
         sess := NewRtspServerSession(conn)

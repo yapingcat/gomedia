@@ -103,7 +103,7 @@ func (cli *RtspUdpPlaySession) HandleSetup(client *rtsp.RtspClient, res rtsp.Rts
     if res.StatusCode == rtsp.Unsupported_Transport {
         return errors.New("unsupport udp transport")
     }
-    cli.sesss[track.TrackName] = makeUdpPairSession(track.GetTransport().Client_ports[0], track.GetTransport().Client_ports[1], cli.c.RemoteAddr().String(), track.GetTransport().Server_ports[0], track.GetTransport().Server_ports[1]) //&UdpPairSession{rtpSess: rtpUdpsess, rtcpSess: rtcpUdpsess}
+    cli.sesss[track.TrackName] = makeUdpPairSession(track.GetTransport().Client_ports[0], track.GetTransport().Client_ports[1], cli.c.RemoteAddr().String(), track.GetTransport().Server_ports[0], track.GetTransport().Server_ports[1])
     track.OnPacket(func(b []byte, isRtcp bool) (err error) {
         if isRtcp {
             _, err = cli.sesss[track.TrackName].rtcpSess.Write(b)

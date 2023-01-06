@@ -118,6 +118,7 @@ func NewRtspClient(uri string, handle ClientHandle, opt ...ClientOption) (*RtspC
 
 func (client *RtspClient) AddTrack(track *RtspTrack) {
     track.uri = fmt.Sprintf("track%d", len(client.tracks))
+    track.OpenTrack()
     client.tracks[track.TrackName] = track
     client.sdpContext.ParserSdp(track.mediaDescripe())
 }
@@ -241,6 +242,8 @@ func (client *RtspClient) sendRtspRequest(req *RtspRequest) error {
     client.lastRequest = req
     atomic.AddInt32(&client.cseq, 1)
     if client.auth != nil {
+        client.auth.setMethod(req.Method)
+        client.auth.setUri(req.Uri)
         req.Fileds[Authorization] = client.auth.authenticateInfo()
     }
     if client.sessionId != "" {

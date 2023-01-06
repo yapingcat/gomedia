@@ -146,6 +146,8 @@ func (filed HeadFiled) Add(key string, value interface{}) {
     switch v := value.(type) {
     case int:
         filed[key] = strconv.Itoa(v)
+    case int32:
+        filed[key] = strconv.FormatInt(int64(v), 10)
     case string:
         filed[key] = v
     }
