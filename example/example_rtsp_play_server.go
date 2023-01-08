@@ -10,6 +10,7 @@ import (
 
     "github.com/yapingcat/gomedia/go-codec"
     "github.com/yapingcat/gomedia/go-flv"
+    "github.com/yapingcat/gomedia/go-mpeg2"
     "github.com/yapingcat/gomedia/go-rtsp"
 )
 
@@ -77,7 +78,8 @@ func (server *RtspPlaySeverSession) HandleOption(svr *rtsp.RtspServer, req rtsp.
 func (server *RtspPlaySeverSession) HandleDescribe(svr *rtsp.RtspServer, req rtsp.RtspRequest, res *rtsp.RtspResponse) {
     fmt.Println("handle describe")
     fmt.Println("add video track")
-    videoTrack := rtsp.NewVideoTrack(rtsp.RtspCodec{Cid: rtsp.RTSP_CODEC_H264, PayloadType: 96, SampleRate: 90000})
+    //rfc1890 MP2T payload type is 33
+    videoTrack := rtsp.NewVideoTrack(rtsp.RtspCodec{Cid: rtsp.RTSP_CODEC_TS, PayloadType: 33, SampleRate: 90000})
     svr.AddTrack(videoTrack)
     server.tracks["video"] = videoTrack
     server.senders["video"] = &RtspUdpSender{rtpPort: server.startUdpPort, rtcpPort: server.startUdpPort + 1}
@@ -123,12 +125,35 @@ func (server *RtspPlaySeverSession) HandlePlay(svr *rtsp.RtspServer, req rtsp.Rt
         flvfilereader, _ := os.Open(fileName)
         defer flvfilereader.Close()
         fr := flv.CreateFlvReader()
+
+        var currentTs uint32 = 0
+        newFrame := false
+        rtpPkgs := make([]byte, 0, 1400)
+        var muxer *mpeg2.TSMuxer = nil
+        var pid uint16 = 0
         fr.OnFrame = func(ci codec.CodecID, b []byte, pts, dts uint32) {
-            if ci == codec.CODECID_VIDEO_H264 {
-                err := server.senders["video"].track.WriteSample(rtsp.RtspSample{Sample: b, Timestamp: pts * 90})
-                if err != nil {
-                    fmt.Println(err)
+            if muxer == nil {
+                muxer = mpeg2.NewTSMuxer()
+                muxer.OnPacket = func(pkg []byte) {
+                    if newFrame || (len(rtpPkgs)+len(pkg) > 1400) {
+                        err := server.senders["video"].track.WriteSample(rtsp.RtspSample{Sample: rtpPkgs, Timestamp: currentTs * 90})
+                        if err != nil {
+                            fmt.Println(err)
+                        }
+                        rtpPkgs = rtpPkgs[:0]
+                        if newFrame {
+                            newFrame = false
+                        }
+                    }
+                    rtpPkgs = append(rtpPkgs, pkg...)
                 }
+                pid = muxer.AddStream(mpeg2.TS_STREAM_H264)
+            }
+
+            if ci == codec.CODECID_VIDEO_H264 {
+                newFrame = true
+                currentTs = dts
+                muxer.Write(pid, b, uint64(pts), uint64(dts))
                 time.Sleep(time.Millisecond * 20)
             }
         }

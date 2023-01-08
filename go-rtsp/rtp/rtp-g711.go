@@ -20,24 +20,25 @@ func NewG711Packer(pt uint8, ssrc uint32, sequence uint16, mtu int) *G711Packer 
     }
 }
 
-func (g711 *G711Packer) Pack(data []byte, timestamp uint32) error {
-    if len(data)+4+RTP_FIX_HEAD_LEN > g711.mtu {
-        return errors.New("unsupport fragment g711 into multi rtp packet")
+func (packer *G711Packer) Pack(data []byte, timestamp uint32) error {
+    if len(data)+RTP_FIX_HEAD_LEN > packer.mtu {
+        return errors.New("g711 frame size too large than mtu")
     }
     pkg := RtpPacket{}
-    pkg.Header.PayloadType = g711.pt
-    pkg.Header.SequenceNumber = g711.sequence
-    pkg.Header.SSRC = g711.ssrc
+    pkg.Header.PayloadType = packer.pt
+    pkg.Header.SequenceNumber = packer.sequence
+    pkg.Header.SSRC = packer.ssrc
     pkg.Header.Timestamp = timestamp
     pkg.Header.Marker = 1
     pkg.Payload = make([]byte, len(data))
     copy(pkg.Payload, data)
-    if g711.onRtp != nil {
-        g711.onRtp(&pkg)
+    if packer.onRtp != nil {
+        packer.onRtp(&pkg)
     }
-    if g711.onPacket != nil {
-        return g711.onPacket(pkg.Encode())
+    if packer.onPacket != nil {
+        return packer.onPacket(pkg.Encode())
     }
+    packer.sequence++
     return nil
 }
 
@@ -49,13 +50,18 @@ func NewG711UnPacker() *G711UnPacker {
     return &G711UnPacker{}
 }
 
-func (g711 *G711UnPacker) UnPack(pkt []byte) error {
+func (unpacker *G711UnPacker) UnPack(pkt []byte) error {
     pkg := &RtpPacket{}
     if err := pkg.Decode(pkt); err != nil {
         return err
     }
-    if g711.onFrame != nil {
-        g711.onFrame(pkg.Payload, pkg.Header.Timestamp, false)
+
+    if unpacker.onRtp != nil {
+        unpacker.onRtp(pkg)
+    }
+
+    if unpacker.onFrame != nil {
+        unpacker.onFrame(pkg.Payload, pkg.Header.Timestamp, false)
     }
     return nil
 }

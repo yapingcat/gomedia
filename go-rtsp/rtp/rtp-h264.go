@@ -211,6 +211,7 @@ func (pack *H264Packer) packStapA(nalus [][]byte, timestamp uint32) error {
     if pack.onPacket != nil {
         return pack.onPacket(pkg.Encode())
     }
+    pack.sequence++
     return nil
 }
 
@@ -279,6 +280,7 @@ func (unpacker *H264UnPacker) unpackFuA(pkt *RtpPacket) error {
         }
         unpacker.timestamp = pkt.Header.Timestamp
         unpacker.frameBuffer.WriteByte((pkt.Payload[0] & 0xE0) | (pkt.Payload[1] & 0x1F))
+        unpacker.lost = false
     } else {
         if unpacker.lastSequence+1 != pkt.Header.SequenceNumber {
             unpacker.lost = true

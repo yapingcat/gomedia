@@ -185,6 +185,7 @@ func (unpacker *H265UnPacker) unpackFu(pkt *RtpPacket) error {
         unpacker.timestamp = pkt.Header.Timestamp
         unpacker.frameBuffer.WriteByte(pkt.Payload[0]&0x81 | ((pkt.Payload[2] & 0x3F) << 1))
         unpacker.frameBuffer.WriteByte(pkt.Payload[1])
+        unpacker.lost = false
     } else {
         if unpacker.lastSequence+1 != pkt.Header.SequenceNumber {
             unpacker.lost = true
