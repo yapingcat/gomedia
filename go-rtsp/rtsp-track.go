@@ -283,6 +283,8 @@ func (track *RtspTrack) createUnpacker() rtp.UnPacker {
         }
     case RTSP_CODEC_G711A, RTSP_CODEC_G711U:
         return rtp.NewG711UnPacker()
+    case RTSP_CODEC_TS:
+        return rtp.NewTsUnPacker()
     }
     return nil
 }
@@ -300,7 +302,7 @@ func (track *RtspTrack) createPacker() rtp.Packer {
     case RTSP_CODEC_PS:
         return nil
     case RTSP_CODEC_TS:
-        return nil
+        return rtp.NewTsPacker(track.Codec.PayloadType, track.ssrc, track.initSequence, 1400)
     default:
         return nil
     }

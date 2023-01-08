@@ -35,6 +35,7 @@ type RtspUdpPlaySession struct {
     udpport    uint16
     videoFile  *os.File
     audioFile  *os.File
+    tsFile     *os.File
     timeout    int
     once       sync.Once
     die        chan struct{}
@@ -55,6 +56,9 @@ func (cli *RtspUdpPlaySession) Destory() {
         }
         if cli.audioFile != nil {
             cli.audioFile.Close()
+        }
+        if cli.tsFile != nil {
+            cli.tsFile.Close()
         }
         cli.c.Close()
         close(cli.die)
@@ -92,6 +96,13 @@ func (cli *RtspUdpPlaySession) HandleDescribe(client *rtsp.RtspClient, res rtsp.
             t.OnSample(func(sample rtsp.RtspSample) {
                 fmt.Println("Got AAC Frame size:", len(sample.Sample), " timestamp:", sample.Timestamp)
                 cli.audioFile.Write(sample.Sample)
+            })
+        } else if t.Codec.Cid == rtsp.RTSP_CODEC_TS {
+            if cli.tsFile == nil {
+                cli.tsFile, _ = os.OpenFile("mp2t.ts", os.O_CREATE|os.O_RDWR, 0666)
+            }
+            t.OnSample(func(sample rtsp.RtspSample) {
+                cli.tsFile.Write(sample.Sample)
             })
         }
     }
