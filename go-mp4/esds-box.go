@@ -130,8 +130,8 @@ func decodeESDescriptor(esd []byte, track *mp4track) (vosData []byte) {
 			esd = bs.RemainData()
 		case 0x04:
 			track.cid = getCodecIdByObjectType(bs.Uint8(8))
-			bs.Uint8(64)
 			bs.Uint8(32)
+			bs.Uint8(64)
 			esd = bs.RemainData()
 		case 0x05:
 			vosData = bs.GetBytes(int(based.sizeOfInstance))
