@@ -24,7 +24,7 @@ type BaseDescriptor struct {
     sizeOfInstance uint32
 }
 
-func (base *BaseDescriptor) Decode(data []byte) {
+func (base *BaseDescriptor) Decode(data []byte) *codec.BitStream {
     bs := codec.NewBitStream(data)
     base.tag = bs.Uint8(8)
     nextbit := uint8(1)
@@ -32,6 +32,7 @@ func (base *BaseDescriptor) Decode(data []byte) {
         nextbit = bs.GetBit()
         base.sizeOfInstance = base.sizeOfInstance<<7 | bs.Uint32(7)
     }
+	return bs
 }
 
 func (base *BaseDescriptor) Encode() []byte {
@@ -109,26 +110,41 @@ func makeSLDescriptor() []byte {
 }
 
 func decodeESDescriptor(esd []byte, track *mp4track) (vosData []byte) {
-    for len(esd) > 0 {
-        based := BaseDescriptor{}
-        based.Decode(esd)
-        switch based.tag {
-        case 0x03:
-            esd = esd[8:]
-        case 0x04:
-            track.cid = getCodecIdByObjectType(esd[5])
-            esd = esd[18:]
-        case 0x05:
-            vosData = esd[5 : 5+based.sizeOfInstance]
-            esd = esd[5+based.sizeOfInstance:]
-        case 0x06:
-            fallthrough
-        default:
-            esd = esd[5+based.sizeOfInstance:]
-        }
-    }
-    if track.cid == MP4_CODEC_AAC && len(vosData) == 0 {
-        panic("no vosdata")
-    }
-    return
+	var bs *codec.BitStream
+	for len(esd) > 0 {
+		based := BaseDescriptor{}
+		bs = based.Decode(esd)
+		switch based.tag {
+		case 0x03:
+			_ = bs.Uint8(16) // esId
+			streamDependenceFlag := bs.Uint8(1)
+			_ = bs.Uint8(1) // urlFlag
+			oCRstreamFlag := bs.Uint8(1)
+			_ = bs.Uint8(5) //streamPriority
+			if streamDependenceFlag == 1 {
+				_ = bs.Uint8(16) // dependsOnEsId
+			}
+			if oCRstreamFlag == 1 {
+				_ = bs.Uint8(16) // oCREsId
+			}
+			esd = bs.RemainData()
+		case 0x04:
+			track.cid = getCodecIdByObjectType(bs.Uint8(8))
+			bs.Uint8(32)
+			bs.Uint8(64)
+			esd = bs.RemainData()
+		case 0x05:
+			vosData = bs.GetBytes(int(based.sizeOfInstance))
+			esd = bs.RemainData()
+		case 0x06:
+			fallthrough
+		default:
+			bs.SkipBits(int(based.sizeOfInstance) * 8)
+			esd = bs.RemainData()
+		}
+	}
+	if track.cid == MP4_CODEC_AAC && len(vosData) == 0 {
+		panic("no vosdata")
+	}
+	return
 }
