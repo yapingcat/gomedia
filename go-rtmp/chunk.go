@@ -232,10 +232,11 @@ func (cs *chunkStreamWriter) writeData(data []byte, msgType MessageType, streamI
 }
 
 type chunkStream struct {
-    timestamp uint32
-    pkt       *chunkPacket
-    hdr       []byte
-    message   []byte
+    firstChunkFmt uint8
+    timestamp     uint32
+    pkt           *chunkPacket
+    hdr           []byte
+    message       []byte
 }
 
 func newChunkStream() *chunkStream {
@@ -295,6 +296,9 @@ func (reader *chunkStreamReader) readRtmpMessage(data []byte, onMsg func(*rtmpMe
             reader.current.pkt.basic = basic
             reader.headCache = reader.headCache[:0]
             reader.state = S_MSG_HEAD
+            if len(reader.current.message) == 0 {
+                reader.current.firstChunkFmt = reader.current.pkt.basic.fmt
+            }
             if basic.fmt == 3 {
                 if reader.current.pkt.msgHdr.timestamp == 0x00ffffff {
                     reader.state = S_EXTEND_TS
@@ -354,7 +358,7 @@ func (reader *chunkStreamReader) readRtmpMessage(data []byte, onMsg func(*rtmpMe
             }
 
             if int(reader.current.pkt.msgHdr.msgLen) <= len(reader.current.message) {
-                if reader.current.pkt.basic.fmt == 0 {
+                if reader.current.firstChunkFmt == 0 {
                     reader.current.timestamp = reader.current.pkt.msgHdr.timestamp
                 } else {
                     reader.current.timestamp += reader.current.pkt.msgHdr.timestamp
