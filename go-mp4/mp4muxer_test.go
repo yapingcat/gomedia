@@ -143,7 +143,7 @@ func TestMuxAAC(t *testing.T) {
 		return
 	}
 
-	tid := muxer.AddAudioTrack(MP4_CODEC_AAC, 2, 16, 44100)
+	tid := muxer.AddAudioTrack(MP4_CODEC_AAC)
 	codec.SplitAACFrame(aac, func(aac []byte) {
 		samples += 1024
 		pts = samples * 1000 / 44100
