@@ -92,7 +92,11 @@ func (amf *amf0Item) decode(data []byte) int {
         return 9
     case AMF0_BOOLEAN:
         amf.length = 1
-        amf.value = data[1]
+        if data[1] == 1 {
+            amf.value = true
+        } else {
+            amf.value = false
+        }
         return 2
     case AMF0_STRING:
         amf.length = int(binary.BigEndian.Uint16(data[1:]))
