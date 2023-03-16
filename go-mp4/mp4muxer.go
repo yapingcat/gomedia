@@ -363,19 +363,6 @@ func (muxer *Movmuxer) flushFragment() (err error) {
         if len(muxer.tracks[i].samplelist) == 0 {
             continue
         }
-        firstPts := muxer.tracks[i].samplelist[0].pts
-        firstDts := muxer.tracks[i].samplelist[0].dts
-        lastPts := muxer.tracks[i].samplelist[len(muxer.tracks[i].samplelist)-1].pts
-        lastDts := muxer.tracks[i].samplelist[len(muxer.tracks[i].samplelist)-1].dts
-        frag := movFragment{
-            offset:   uint64(moofOffset),
-            duration: muxer.tracks[i].duration,
-            firstDts: firstDts,
-            firstPts: firstPts,
-            lastPts:  lastPts,
-            lastDts:  lastDts,
-        }
-        muxer.tracks[i].fragments = append(muxer.tracks[i].fragments, frag)
         for j := 0; j < len(muxer.tracks[i].samplelist); j++ {
             muxer.tracks[i].samplelist[j].offset += mdatlen
         }
@@ -445,6 +432,21 @@ func (muxer *Movmuxer) flushFragment() (err error) {
     }
 
     for i := uint32(1); i < muxer.nextTrackId; i++ {
+        if len(muxer.tracks[i].samplelist) > 0 {
+            firstPts := muxer.tracks[i].samplelist[0].pts
+            firstDts := muxer.tracks[i].samplelist[0].dts
+            lastPts := muxer.tracks[i].samplelist[len(muxer.tracks[i].samplelist)-1].pts
+            lastDts := muxer.tracks[i].samplelist[len(muxer.tracks[i].samplelist)-1].dts
+            frag := movFragment{
+                offset:   uint64(moofOffset),
+                duration: muxer.tracks[i].duration,
+                firstDts: firstDts,
+                firstPts: firstPts,
+                lastPts:  lastPts,
+                lastDts:  lastDts,
+            }
+            muxer.tracks[i].fragments = append(muxer.tracks[i].fragments, frag)
+        }
         ws := muxer.tracks[i].writer.(*fmp4WriterSeeker)
         _, err = muxer.writer.Write(ws.buffer)
         if err != nil {
