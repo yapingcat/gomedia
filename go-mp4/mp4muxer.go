@@ -291,7 +291,7 @@ func (muxer *Movmuxer) writeMoov(w io.Writer) (err error) {
     moovsize := len(mvhd) + len(mvex)
     traks := make([][]byte, len(muxer.tracks))
     for i := uint32(1); i < muxer.nextTrackId; i++ {
-        if len(muxer.tracks[i].samplelist) == 0 {
+        if len(muxer.tracks[i].samplelist) == 0 && !muxer.tracks[i].lastSample.hasVcl {
             continue
         }
         traks[i-1] = makeTrak(muxer.tracks[i], muxer.movFlag)
