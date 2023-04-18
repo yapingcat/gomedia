@@ -29,11 +29,13 @@ const (
     AAC_SAMPLE_24000
     AAC_SAMPLE_22050
     AAC_SAMPLE_16000
+    AAC_SAMPLE_12000
     AAC_SAMPLE_11025
     AAC_SAMPLE_8000
+    AAC_SAMPLE_7350
 )
 
-var AAC_Sampling_Idx [11]int = [11]int{96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 11025, 8000}
+var AAC_Sampling_Idx [13]int = [13]int{96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350}
 
 // Table 4 – Syntax of adts_sequence()
 // adts_sequence() {
