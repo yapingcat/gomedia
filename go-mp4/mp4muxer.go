@@ -178,12 +178,11 @@ func (muxer *Movmuxer) Write(track uint32, data []byte, pts uint64, dts uint64) 
 
     // isCustion := muxer.movFlag.has(MP4_FLAG_CUSTOM)
     isKeyFrag := muxer.movFlag.has(MP4_FLAG_KEYFRAME)
-
     if isKeyFrag {
         if mp4track.lastSample.isKey && mp4track.duration > 0 {
             muxer.flushFragment()
             if muxer.onNewFragment != nil {
-                muxer.onNewFragment(mp4track.duration, mp4track.startPts, mp4track.startPts)
+                muxer.onNewFragment(mp4track.duration, mp4track.startPts, mp4track.startDts)
             }
         }
     }
@@ -291,9 +290,6 @@ func (muxer *Movmuxer) writeMoov(w io.Writer) (err error) {
     moovsize := len(mvhd) + len(mvex)
     traks := make([][]byte, len(muxer.tracks))
     for i := uint32(1); i < muxer.nextTrackId; i++ {
-        if len(muxer.tracks[i].samplelist) == 0 && !muxer.tracks[i].lastSample.hasVcl {
-            continue
-        }
         traks[i-1] = makeTrak(muxer.tracks[i], muxer.movFlag)
         moovsize += len(traks[i-1])
     }
