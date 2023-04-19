@@ -3,7 +3,6 @@ package flv
 import (
     "encoding/binary"
     "errors"
-    "fmt"
 
     "github.com/yapingcat/gomedia/go-codec"
 )
@@ -128,7 +127,6 @@ func (demuxer *HevcTagDemuxer) Decode(data []byte) error {
     data = data[5:]
     if vtag.AVCPacketType == AVC_SEQUENCE_HEADER {
         hvcc := codec.NewHEVCRecordConfiguration()
-        fmt.Printf("sequence %d\n", len(data))
         hvcc.Decode(data)
         demuxer.SpsPpsVps = hvcc.ToNalus()
     } else {
