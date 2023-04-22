@@ -180,7 +180,10 @@ func (muxer *Movmuxer) Write(track uint32, data []byte, pts uint64, dts uint64) 
     isKeyFrag := muxer.movFlag.has(MP4_FLAG_KEYFRAME)
     if isKeyFrag {
         if mp4track.lastSample.isKey && mp4track.duration > 0 {
-            muxer.flushFragment()
+            err = muxer.flushFragment()
+            if err != nil {
+                return err
+            }
             if muxer.onNewFragment != nil {
                 muxer.onNewFragment(mp4track.duration, mp4track.startPts, mp4track.startDts)
             }
@@ -201,7 +204,10 @@ func (muxer *Movmuxer) WriteTrailer() (err error) {
     switch {
     case muxer.movFlag.isDash():
     case muxer.movFlag.isFragment():
-        muxer.flushFragment()
+        err = muxer.flushFragment()
+        if err != nil {
+            return err
+        }
         for _, track := range muxer.tracks {
             if isAudio(track.cid) {
                 continue
