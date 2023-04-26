@@ -9,23 +9,25 @@ func makeStblBox(track *mp4track) []byte {
     var stcobox []byte
     var stssbox []byte
     stsdbox = makeStsd(track, getHandlerType(track.cid))
-    if track.stbltable.stts != nil {
-        sttsbox = makeStts(track.stbltable.stts)
-    }
-    if track.stbltable.ctts != nil {
-        cttsbox = makeCtts(track.stbltable.ctts)
-    }
-    if track.stbltable.stsc != nil {
-        stscbox = makeStsc(track.stbltable.stsc)
-    }
-    if track.stbltable.stsz != nil {
-        stszbox = makeStsz(track.stbltable.stsz)
-    }
-    if track.stbltable.stco != nil {
-        stcobox = makeStco(track.stbltable.stco)
-    }
-    if track.cid == MP4_CODEC_H264 || track.cid == MP4_CODEC_H265 {
-        stssbox = makeStss(track)
+    if track.stbltable != nil {
+        if track.stbltable.stts != nil {
+            sttsbox = makeStts(track.stbltable.stts)
+        }
+        if track.stbltable.ctts != nil {
+            cttsbox = makeCtts(track.stbltable.ctts)
+        }
+        if track.stbltable.stsc != nil {
+            stscbox = makeStsc(track.stbltable.stsc)
+        }
+        if track.stbltable.stsz != nil {
+            stszbox = makeStsz(track.stbltable.stsz)
+        }
+        if track.stbltable.stco != nil {
+            stcobox = makeStco(track.stbltable.stco)
+        }
+        if track.cid == MP4_CODEC_H264 || track.cid == MP4_CODEC_H265 {
+            stssbox = makeStss(track)
+        }
     }
 
     stbl := BasicBox{Type: [4]byte{'s', 't', 'b', 'l'}}

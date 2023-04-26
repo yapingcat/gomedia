@@ -323,6 +323,10 @@ func (demuxer *MovDemuxer) GetSyncTable(trackId uint32) ([]SyncSample, error) {
         return nil, errors.New("not found track")
     }
 
+    if track.stbltable == nil || track.stbltable.stss == nil {
+        return nil, errors.New("not found stss box")
+    }
+
     syncTable := make([]SyncSample, len(track.stbltable.stss.sampleNumber))
 
     for i := 0; i < len(syncTable); i++ {

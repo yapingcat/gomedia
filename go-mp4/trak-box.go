@@ -6,8 +6,10 @@ func makeTrak(track *mp4track, movflag MP4_FLAG) []byte {
     if movflag.isDash() || movflag.isFragment() {
         track.makeEmptyStblTable()
     } else {
-        track.makeStblTable()
-        edts = makeEdtsBox(track)
+        if len(track.samplelist) > 0 {
+            track.makeStblTable()
+            edts = makeEdtsBox(track)
+        }
     }
 
     tkhd := makeTkhdBox(track)
