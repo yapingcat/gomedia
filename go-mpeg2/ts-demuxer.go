@@ -149,14 +149,17 @@ func (demuxer *TSDemuxer) Input(r io.Reader) error {
 }
 
 func (demuxer *TSDemuxer) probe(r io.Reader) ([]byte, error) {
-    buf := make([]byte, 2*TS_PAKCET_SIZE)
-    if n, err := io.ReadFull(r, buf); err != nil {
-        if n >= TS_PAKCET_SIZE {
-            return buf[:TS_PAKCET_SIZE], err
-        }
+    buf := make([]byte, TS_PAKCET_SIZE, 2*TS_PAKCET_SIZE)
+    if _, err := io.ReadFull(r, buf); err != nil {
         return nil, err
     }
-
+    if buf[0] == 0x47 {
+        return buf, nil
+    }
+    buf = buf[:2*TS_PAKCET_SIZE]
+    if _, err := io.ReadFull(r, buf[TS_PAKCET_SIZE:]); err != nil {
+        return nil, err
+    }
 LOOP:
     i := 0
     for ; i < TS_PAKCET_SIZE; i++ {

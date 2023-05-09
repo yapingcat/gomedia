@@ -579,7 +579,7 @@ func GetH265SPSId(sps []byte) uint64 {
     return rawsps.Sps_seq_parameter_set_id
 }
 
-func GetH65PPSIdWithStartCode(pps []byte) uint64 {
+func GetH265PPSIdWithStartCode(pps []byte) uint64 {
     start, sc := FindStartCode(pps, 0)
     return GetH265SPSId(pps[start+int(sc):])
 }
