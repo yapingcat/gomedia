@@ -78,14 +78,11 @@ func (demuxer *TSDemuxer) Input(r io.Reader) error {
             if pkg.Payload_unit_start_indicator == 1 {
                 bs.SkipBits(8)
             }
-            pat := NewPat()
-            if err := pat.Decode(bs); err != nil {
+            pkg.Payload, err = ReadSection(TS_TID_PAS, bs)
+            if err != nil {
                 return err
             }
-            pkg.Payload = pat
-            if pat.Table_id != uint8(TS_TID_PAS) {
-                return errors.New("pat table id is wrong")
-            }
+            pat := pkg.Payload.(*Pat)
             for _, pmt := range pat.Pmts {
                 if pmt.Program_number != 0x0000 {
                     if _, found := demuxer.programs[pmt.PID]; !found {
@@ -93,17 +90,19 @@ func (demuxer *TSDemuxer) Input(r io.Reader) error {
                     }
                 }
             }
+        } else if pkg.PID == TS_PID_Nil {
+            continue
         } else {
             for p, s := range demuxer.programs {
                 if p == pkg.PID { // pmt table
                     if pkg.Payload_unit_start_indicator == 1 {
                         bs.SkipBits(8) //pointer filed
                     }
-                    pmt := NewPmt()
-                    if err := pmt.Decode(bs); err != nil {
+                    pkg.Payload, err = ReadSection(TS_TID_PMS, bs)
+                    if err != nil {
                         return err
                     }
-                    pkg.Payload = pmt
+                    pmt := pkg.Payload.(*Pmt)
                     s.pn = pmt.Program_number
                     for _, ps := range pmt.Streams {
                         if _, found := s.streams[ps.Elementary_PID]; !found {

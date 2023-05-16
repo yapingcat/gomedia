@@ -17,7 +17,7 @@ const (
     TS_PID_CAT
     TS_PID_TSDT
     TS_PID_IPMP
-    TS_PID_Nil = 0x1FFFF
+    TS_PID_Nil = 0x1FFF
 )
 
 //Table id
@@ -116,6 +116,9 @@ func (pkg *TSPacket) DecodeHeader(bs *codec.BitStream) error {
     pkg.Transport_scrambling_control = bs.Uint8(2)
     pkg.Adaptation_field_control = bs.Uint8(2)
     pkg.Continuity_counter = bs.Uint8(4)
+    if pkg.PID == TS_PID_Nil {
+        return nil
+    }
     if pkg.Adaptation_field_control == 0x02 || pkg.Adaptation_field_control == 0x03 {
         if pkg.Field == nil {
             pkg.Field = new(Adaptation_field)
@@ -379,6 +382,38 @@ type PmtPair struct {
     PID            uint16
 }
 
+func ReadSection(sectionType PAT_TID, bs *codec.BitStream) (interface{}, error) {
+    //  VLC libdvbpsi.c dvbpsi_packet_push
+    //  /* A TS packet may contain any number of sections, only the first
+    //   * new one is flagged by the pointer_field. If the next payload
+    //   * byte isn't 0xff then a new section starts. */
+    //   if (p_new_pos == NULL && i_available && *p_payload_pos != 0xff)
+    //       p_new_pos = p_payload_pos;
+    for bs.NextBits(8) == 0xff {
+        bs.SkipBits(8)
+        if bs.RemainBytes() <= 0 {
+            return nil, errors.New("illegal section")
+        }
+        continue
+    }
+
+    switch sectionType {
+    case TS_TID_PAS:
+        pat := NewPat()
+        if err := pat.Decode(bs); err != nil {
+            return nil, err
+        }
+        return pat, nil
+    case TS_TID_PMS:
+        pmt := NewPmt()
+        if err := pmt.Decode(bs); err != nil {
+            return nil, err
+        }
+        return pmt, nil
+    }
+    return nil, nil
+}
+
 type Pat struct {
     Table_id                 uint8  //8  uimsbf
     Section_syntax_indicator uint8  //1  bslbf
@@ -451,7 +486,6 @@ func (pat *Pat) Encode(bsw *codec.BitStreamWriter) {
 
 func (pat *Pat) Decode(bs *codec.BitStream) error {
     pat.Table_id = bs.Uint8(8)
-
     if pat.Table_id != uint8(TS_TID_PAS) {
         return errors.New("table id is Not TS_TID_PAS")
     }
