@@ -146,5 +146,8 @@ func decodeESDescriptor(esd []byte, track *mp4track) (vosData []byte) {
 	if track.cid == MP4_CODEC_AAC && len(vosData) == 0 {
 		panic("no vosdata")
 	}
+	if track.cid == MP4_CODEC_AAC {
+		track.extra = new(aacExtraData)
+	}
 	return
 }

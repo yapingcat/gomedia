@@ -7,6 +7,16 @@ type sttsEntry struct {
     sampleDelta uint32
 }
 
+type subSampleEntry struct{
+	bytesOfClearData     uint16
+	bytesOfProtectedData uint32
+}
+
+type sencEntry struct{
+	iv         []byte
+	subSamples []subSampleEntry
+}
+
 type movstts struct {
     entryCount uint32
     entrys     []sttsEntry
@@ -69,6 +79,10 @@ type movelst struct {
 
 type movtrun struct {
     entrys []trunEntry
+}
+
+type movsenc struct{
+	entrys []sencEntry
 }
 
 type movstbl struct {

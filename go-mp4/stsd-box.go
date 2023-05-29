@@ -378,6 +378,9 @@ func decodeAvccBox(demuxer *MovDemuxer, size uint32) (err error) {
         return
     }
     track := demuxer.tracks[len(demuxer.tracks)-1]
+	if track.extra == nil {
+		track.extra = new(h264ExtraData)
+	}
     track.extra.load(buf)
     return
 }
@@ -420,7 +423,9 @@ func decodeEsdsBox(demuxer *MovDemuxer, size uint32) (err error) {
     }
     track := demuxer.tracks[len(demuxer.tracks)-1]
     vosdata := decodeESDescriptor(buf, track)
-    track.extra.load(vosdata)
+	if track.extra != nil {
+		track.extra.load(vosdata)
+	}
     return nil
 }
 
