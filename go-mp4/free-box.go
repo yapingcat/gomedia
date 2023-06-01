@@ -36,8 +36,9 @@ func (free *FreeBox) Encode() (int, []byte) {
     return int(free.Box.Size), buf
 }
 
-func decodeFreeBox(demuxer *MovDemuxer) (err error) {
+func decodeFreeBox(demuxer *MovDemuxer, size uint32) (err error) {
     var free FreeBox
+	free.Box.Size = uint64(size)
     _, err = free.Decode(demuxer.reader)
     return
 }

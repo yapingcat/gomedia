@@ -85,7 +85,7 @@ func (tkhd *TrackHeaderBox) Decode(r io.Reader) (offset int, err error) {
     if tkhd.Box.Version == 1 {
         tkhd.Creation_time = binary.BigEndian.Uint64(buf[n:])
         n += 8
-        tkhd.Creation_time = binary.BigEndian.Uint64(buf[n:])
+        tkhd.Modification_time = binary.BigEndian.Uint64(buf[n:])
         n += 8
         tkhd.Track_ID = binary.BigEndian.Uint32(buf[n:])
         n += 8
@@ -94,7 +94,7 @@ func (tkhd *TrackHeaderBox) Decode(r io.Reader) (offset int, err error) {
     } else {
         tkhd.Creation_time = uint64(binary.BigEndian.Uint32(buf[n:]))
         n += 4
-        tkhd.Creation_time = uint64(binary.BigEndian.Uint32(buf[n:]))
+        tkhd.Modification_time = uint64(binary.BigEndian.Uint32(buf[n:]))
         n += 4
         tkhd.Track_ID = binary.BigEndian.Uint32(buf[n:])
         n += 8

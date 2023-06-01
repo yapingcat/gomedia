@@ -23,6 +23,17 @@ type SyncSample struct {
     Offset uint32
 }
 
+type SubSample struct{
+	IV       [16]byte
+	Patterns []SubSamplePattern
+	Number   uint32
+}
+
+type SubSamplePattern struct{
+	BytesClear     uint16
+	BytesProtected uint32
+}
+
 type TrackInfo struct {
     Duration     uint32
     TrackId      int
@@ -60,6 +71,8 @@ type MovDemuxer struct {
     currentTrack *mp4track
     moofOffset   int64
     dataOffset   uint32
+
+	OnRawSample func(cid MP4_CODEC_TYPE, sample []byte, subSample *SubSample) error
 }
 
 // how to demux mp4 file
@@ -91,7 +104,7 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
         case mov_tag([4]byte{'f', 't', 'y', 'p'}):
             err = decodeFtypBox(demuxer, uint32(basebox.Size))
         case mov_tag([4]byte{'f', 'r', 'e', 'e'}):
-            err = decodeFreeBox(demuxer)
+            err = decodeFreeBox(demuxer, uint32(basebox.Size))
         case mov_tag([4]byte{'m', 'd', 'a', 't'}):
             var currentOffset int64
             if currentOffset, err = demuxer.reader.Seek(0, io.SeekCurrent); err != nil {
@@ -152,6 +165,14 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
             err = decodeCo64Box(demuxer)
         case mov_tag([4]byte{'s', 't', 's', 's'}):
             err = decodeStssBox(demuxer)
+		case mov_tag([4]byte{'e', 'n', 'c', 'v'}):
+			err = decodeVisualSampleEntry(demuxer)
+		case mov_tag([4]byte{'s', 'i', 'n', 'f'}):
+		case mov_tag([4]byte{'f', 'r', 'm', 'a'}):
+			err = decodeFrmaBox(demuxer, uint32(basebox.Size))
+		case mov_tag([4]byte{'s', 'c', 'h', 'i'}):
+		case mov_tag([4]byte{'t', 'e', 'n', 'c'}):
+			err = decodeTencBox(demuxer, uint32(basebox.Size))
         case mov_tag([4]byte{'a', 'v', 'c', '1'}):
             demuxer.tracks[len(demuxer.tracks)-1].cid = MP4_CODEC_H264
             demuxer.tracks[len(demuxer.tracks)-1].extra = new(h264ExtraData)
@@ -160,6 +181,8 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
             demuxer.tracks[len(demuxer.tracks)-1].cid = MP4_CODEC_H265
             demuxer.tracks[len(demuxer.tracks)-1].extra = newh265ExtraData()
             err = decodeVisualSampleEntry(demuxer)
+		case mov_tag([4]byte{'e', 'n', 'c', 'a'}):
+			err = decodeAudioSampleEntry(demuxer)
         case mov_tag([4]byte{'m', 'p', '4', 'a'}):
             demuxer.tracks[len(demuxer.tracks)-1].cid = MP4_CODEC_AAC
             demuxer.tracks[len(demuxer.tracks)-1].extra = new(aacExtraData)
@@ -196,6 +219,8 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
             err = decodeTfdtBox(demuxer, uint32(basebox.Size))
         case mov_tag([4]byte{'t', 'r', 'u', 'n'}):
             err = decodeTrunBox(demuxer, uint32(basebox.Size))
+		case mov_tag([4]byte{'s', 'e', 'n', 'c'}):
+			err = decodeSencBox(demuxer, uint32(basebox.Size))
         case mov_tag([4]byte{'w', 'a', 'v', 'e'}):
             err = decodeWaveBox(demuxer)
         default:
@@ -241,7 +266,10 @@ func (demuxer *MovDemuxer) ReadPacket() (*AVPacket, error) {
     for {
         maxdts := int64(-1)
         minTsSample := sampleEntry{dts: uint64(maxdts)}
-        var whichTrack *mp4track = nil
+        var (
+			subSample *SubSample = nil
+        	whichTrack *mp4track = nil
+        )
         whichTracki := 0
         for i, track := range demuxer.tracks {
             idx := demuxer.readSampleIdx[i]
@@ -261,6 +289,18 @@ func (demuxer *MovDemuxer) ReadPacket() (*AVPacket, error) {
                     whichTracki = i
                 }
             }
+			if int(idx) < len(track.subSamples) {
+				subSample = new(SubSample)
+				subSample.Number = idx
+				copy(subSample.IV[:], track.subSamples[idx].iv)
+				if len(track.subSamples[idx].subSamples) > 0 {
+					subSample.Patterns = make([]SubSamplePattern, len(track.subSamples[idx].subSamples))
+					for ei, e := range track.subSamples[idx].subSamples {
+						subSample.Patterns[ei].BytesClear = e.bytesOfClearData
+						subSample.Patterns[ei].BytesProtected = e.bytesOfProtectedData
+					}
+				}
+			}
         }
 
         if minTsSample.dts == uint64(maxdts) {
@@ -280,6 +320,12 @@ func (demuxer *MovDemuxer) ReadPacket() (*AVPacket, error) {
             Pts:     minTsSample.pts * 1000 / uint64(whichTrack.timescale),
             Dts:     minTsSample.dts * 1000 / uint64(whichTrack.timescale),
         }
+		if demuxer.OnRawSample != nil {
+			err := demuxer.OnRawSample(whichTrack.cid, sample, subSample)
+			if err != nil {
+				return nil, err
+			}
+		}
         if whichTrack.cid == MP4_CODEC_H264 {
             extra, ok := whichTrack.extra.(*h264ExtraData)
             if !ok {
