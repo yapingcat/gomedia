@@ -237,6 +237,10 @@ func (unpacker *H264UnPacker) UnPack(pkt []byte) error {
     if err := pkg.Decode(pkt); err != nil {
         return err
     }
+    
+    if len(pkg.Payload) == 0 {
+        return nil
+    }
 
     if unpacker.onRtp != nil {
         unpacker.onRtp(pkg)
