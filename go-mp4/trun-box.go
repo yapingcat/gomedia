@@ -172,7 +172,7 @@ func decodeTrunBox(demuxer *MovDemuxer, size uint32) (err error) {
     dataOffset := trun.Dataoffset
     nextDts := demuxer.currentTrack.startDts
     delta := 0
-    cts := 0
+    var cts int64 = 0
     for _, entry := range trun.EntryList.entrys {
         sample := sampleEntry{}
         sample.offset = uint64(dataOffset) + demuxer.currentTrack.baseDataOffset
@@ -190,11 +190,8 @@ func decodeTrunBox(demuxer *MovDemuxer, size uint32) (err error) {
         } else {
             delta = int(entry.sampleDuration)
         }
-
-        if entry.sampleCompositionTimeOffset != 0 {
-            cts = int(entry.sampleCompositionTimeOffset)
-        }
-        sample.pts = sample.dts + uint64(cts)
+        cts = int64(entry.sampleCompositionTimeOffset)
+        sample.pts = uint64(int64(sample.dts) + cts)
         nextDts += uint64(delta)
         demuxer.currentTrack.samplelist = append(demuxer.currentTrack.samplelist, sample)
     }
