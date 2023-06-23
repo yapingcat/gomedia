@@ -311,37 +311,38 @@ func CreateH264AVCCExtradata(spss [][]byte, ppss [][]byte) ([]byte, error) {
     }
 
     extradata := make([]byte, 6, 256)
+	spssCopy, ppssCopy := make([][]byte, len(spss)), make([][]byte, len(ppss))
     for i, sps := range spss {
         start, sc := FindStartCode(sps, 0)
-        spss[i] = sps[start+int(sc):]
+        spssCopy[i] = sps[start+int(sc):]
     }
 
     for i, pps := range ppss {
         start, sc := FindStartCode(pps, 0)
-        ppss[i] = pps[start+int(sc):]
+        ppssCopy[i] = pps[start+int(sc):]
     }
 
     extradata[0] = 0x01
-    extradata[1] = spss[0][1]
-    extradata[2] = spss[0][2]
-    extradata[3] = spss[0][3]
+    extradata[1] = spssCopy[0][1]
+    extradata[2] = spssCopy[0][2]
+    extradata[3] = spssCopy[0][3]
     extradata[4] = 0xFF
-    extradata[5] = 0xE0 | uint8(len(spss))
-    for _, sps := range spss {
+    extradata[5] = 0xE0 | uint8(len(spssCopy))
+    for _, sps := range spssCopy {
         spssize := make([]byte, 2)
         binary.BigEndian.PutUint16(spssize, uint16(len(sps)))
         extradata = append(extradata, spssize...)
         extradata = append(extradata, sps...)
     }
-    extradata = append(extradata, uint8(len(ppss)))
-    for _, pps := range ppss {
+    extradata = append(extradata, uint8(len(ppssCopy)))
+    for _, pps := range ppssCopy {
         ppssize := make([]byte, 2)
         binary.BigEndian.PutUint16(ppssize, uint16(len(pps)))
         extradata = append(extradata, ppssize...)
         extradata = append(extradata, pps...)
     }
     var h264sps SPS
-    h264sps.Decode(NewBitStream(spss[0][1:]))
+    h264sps.Decode(NewBitStream(spssCopy[0][1:]))
     if h264sps.Profile_idc == 100 ||
         h264sps.Profile_idc == 110 ||
         h264sps.Profile_idc == 122 ||
