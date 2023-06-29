@@ -151,7 +151,7 @@ func IsH265VCLNaluType(nal_type H265_NAL_TYPE) bool {
 func IsH265IDRFrame(h265 []byte) bool {
     ret := false
     onnalu := func(nalu []byte) bool {
-        nal_type := H264NaluTypeWithoutStartCode(nalu)
+        nal_type := H265NaluTypeWithoutStartCode(nalu)
         if nal_type <= 9 && nal_type >= 0 {
             return false
         } else if nal_type >= 16 && nal_type <= 21 {
