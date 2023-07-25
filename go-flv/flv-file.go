@@ -73,6 +73,7 @@ type FlvReader struct {
     audioDemuxer AudioTagDemuxer
     flvTag       FlvTag
     OnFrame      func(cid codec.CodecID, frame []byte, pts uint32, dts uint32)
+    OnScript     func(data []byte)
 }
 
 func CreateFlvReader() *FlvReader {
@@ -169,6 +170,9 @@ func (f *FlvReader) Input(data []byte) (err error) {
         case FLV_PARSER_SCRIPT_TAG:
             if f.flvTag.DataSize > uint32(len(buf)) {
                 goto end
+            }
+            if f.OnScript != nil {
+                f.OnScript(buf[:f.flvTag.DataSize])
             }
             buf = buf[f.flvTag.DataSize:]
             f.state = FLV_PARSER_TAG_SIZE
