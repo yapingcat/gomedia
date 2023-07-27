@@ -27,7 +27,7 @@ func FindStartCode(nalu []byte, offset int) (int, START_CODE_TYPE) {
 }
 
 func FindSyncword(aac []byte, offset int) int {
-    for i := offset; i < len(aac); i++ {
+    for i := offset; i < len(aac) - 1; i++ {
         if aac[i] == 0xFF && aac[i+1]&0xF0 == 0xF0 {
             return i
         }
