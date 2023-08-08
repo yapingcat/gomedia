@@ -109,6 +109,14 @@ func WithEnablePublish() func(*RtmpClient) {
     }
 }
 
+func WithAudioMuxer(muxer flv.AVTagMuxer) func(*RtmpClient) {
+    return func(rc *RtmpClient) {
+        if rc != nil {
+            rc.audioMuxer = muxer
+        }
+    }
+}
+
 func (cli *RtmpClient) SetOutput(output OutputCB) {
     cli.output = output
     cli.hs.output = output

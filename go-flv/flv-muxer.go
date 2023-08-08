@@ -14,10 +14,6 @@ func WriteAudioTag(data []byte, cid FLV_SOUND_FORMAT, sampleRate int, channelCou
         atag.SoundRate = uint8(FLV_SAMPLE_44000)
         atag.SoundSize = 1
         atag.SoundType = 1
-    } else if cid == FLV_G711A || cid == FLV_G711U {
-        atag.SoundRate = uint8(FLV_SAMPLE_5500)
-        atag.SoundSize = 1
-        atag.SoundType = 0
     } else {
         switch sampleRate {
         case 5500:
@@ -234,28 +230,38 @@ func (muxer *AACMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
 }
 
 type G711AMuxer struct {
+    channelCount int
+    sampleRate   int
 }
 
-func NewG711AMuxer() *G711AMuxer {
-    return &G711AMuxer{}
+func NewG711AMuxer(channelCount int, sampleRate int) *G711AMuxer {
+    return &G711AMuxer{
+        channelCount: channelCount,
+        sampleRate:   sampleRate,
+    }
 }
 
 func (muxer *G711AMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
     tags := make([][]byte, 1)
-    tags[0] = WriteAudioTag(frames, FLV_G711A, 0, 0, true)
+    tags[0] = WriteAudioTag(frames, FLV_G711A, muxer.sampleRate, muxer.channelCount, true)
     return tags
 }
 
 type G711UMuxer struct {
+    channelCount int
+    sampleRate   int
 }
 
-func NewG711UMuxer() *G711UMuxer {
-    return &G711UMuxer{}
+func NewG711UMuxer(channelCount int, sampleRate int) *G711UMuxer {
+    return &G711UMuxer{
+        channelCount: channelCount,
+        sampleRate:   sampleRate,
+    }
 }
 
 func (muxer *G711UMuxer) Write(frames []byte, pts uint32, dts uint32) [][]byte {
     tags := make([][]byte, 1)
-    tags[0] = WriteAudioTag(frames, FLV_G711U, 0, 0, true)
+    tags[0] = WriteAudioTag(frames, FLV_G711U, muxer.sampleRate, muxer.channelCount, true)
     return tags
 }
 
@@ -274,9 +280,9 @@ func CreateAudioMuxer(cid FLV_SOUND_FORMAT) AVTagMuxer {
     if cid == FLV_AAC {
         return &AACMuxer{updateSequence: true}
     } else if cid == FLV_G711A {
-        return new(G711AMuxer)
+        return NewG711AMuxer(1, 5500)
     } else if cid == FLV_G711U {
-        return new(G711UMuxer)
+        return NewG711UMuxer(1, 5500)
     } else if cid == FLV_MP3 {
         return new(Mp3Muxer)
     } else {
