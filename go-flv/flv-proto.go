@@ -52,6 +52,30 @@ const (
     FLV_AAC   FLV_SOUND_FORMAT = 10
 )
 
+// enhanced-rtmp Table 4
+const (
+    PacketTypeSequenceStart        = 0
+    PacketTypeCodedFrames          = 1
+    PacketTypeSequenceEnd          = 2
+    PacketTypeCodedFramesX         = 3
+    PacketTypeMetadata             = 4
+    PacketTypeMPEG2TSSequenceStart = 5
+)
+
+func GetFLVVideoCodecId(data []byte) (cid FLV_VIDEO_CODEC_ID) {
+    isExHeader := data[0] & 0x80
+    if isExHeader != 0 {
+        // TODO av1和VP9
+        if data[1] == 'h' && data[2] == 'v' && data[3] == 'c' && data[4] == '1' {
+            // hevc
+            cid = FLV_HEVC
+        }
+    } else {
+        cid = FLV_VIDEO_CODEC_ID(data[0] & 0x0F)
+    }
+    return cid
+}
+
 func (format FLV_SOUND_FORMAT) ToMpegCodecId() codec.CodecID {
     switch {
     case format == FLV_G711A:
