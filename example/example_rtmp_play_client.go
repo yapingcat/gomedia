@@ -1,14 +1,14 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"net"
-	"net/url"
-	"os"
+    "flag"
+    "fmt"
+    "net"
+    "net/url"
+    "os"
 
-	"github.com/yapingcat/gomedia/go-codec"
-	"github.com/yapingcat/gomedia/go-rtmp"
+    "github.com/yapingcat/gomedia/go-codec"
+    "github.com/yapingcat/gomedia/go-rtmp"
 )
 
 var rtmpUrl = flag.String("url", "rtmp://127.0.0.1/live/test", "play rtmp url")
@@ -50,7 +50,7 @@ func main() {
 
     client := rtmp.NewRtmpClient(rtmp.WithChunkSize(6000), rtmp.WithComplexHandshake())
     client.OnFrame(func(cid codec.CodecID, pts, dts uint32, frame []byte) {
-        if cid == codec.CODECID_VIDEO_H264 {
+        if cid == codec.CODECID_VIDEO_H264 || cid == codec.CODECID_VIDEO_H265 {
             videoFd.Write(frame)
         } else if cid == codec.CODECID_AUDIO_AAC {
             audioFd.Write(frame)

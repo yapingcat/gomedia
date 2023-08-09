@@ -265,10 +265,9 @@ func (sess *MediaSession) sendToClient() {
             sess.mtx.Unlock()
             for _, frame := range frames {
                 if firstVideo { //wait for I frame
-                    if frame.cid == codec.CODECID_VIDEO_H264 {
-                        if !codec.IsH264IDRFrame(frame.frame) {
-                            continue
-                        }
+                    if frame.cid == codec.CODECID_VIDEO_H264 && codec.IsH264IDRFrame(frame.frame) {
+                        firstVideo = false
+                    } else if frame.cid == codec.CODECID_VIDEO_H265 && codec.IsH265IDRFrame(frame.frame) {
                         firstVideo = false
                     } else {
                         continue

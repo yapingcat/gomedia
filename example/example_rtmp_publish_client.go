@@ -1,27 +1,31 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"net"
-	"net/url"
-	"os"
-	"time"
+    "flag"
+    "fmt"
+    "net"
+    "net/url"
+    "os"
+    "time"
 
-	"github.com/yapingcat/gomedia/go-codec"
-	"github.com/yapingcat/gomedia/go-flv"
-	"github.com/yapingcat/gomedia/go-rtmp"
+    "github.com/yapingcat/gomedia/go-codec"
+    "github.com/yapingcat/gomedia/go-flv"
+    "github.com/yapingcat/gomedia/go-rtmp"
 )
 
 var rtmpUrl = flag.String("url", "rtmp://127.0.0.1/live/test", "publish rtmp url")
 var flvFile = flag.String("flv", "test.flv", "push flv file to server")
 
 func publish(fileName string, cli *rtmp.RtmpClient) {
+    fmt.Println(fileName)
     f := flv.CreateFlvReader()
     f.OnFrame = func(cid codec.CodecID, frame []byte, pts, dts uint32) {
         if cid == codec.CODECID_VIDEO_H264 {
             cli.WriteVideo(cid, frame, pts, dts)
-            time.Sleep(time.Millisecond * 33)
+            time.Sleep(time.Millisecond * 20)
+        } else if cid == codec.CODECID_VIDEO_H265 {
+            cli.WriteVideo(cid, frame, pts, dts)
+            time.Sleep(time.Millisecond * 20)
         } else if cid == codec.CODECID_AUDIO_AAC {
             cli.WriteAudio(cid, frame, pts, dts)
         }
