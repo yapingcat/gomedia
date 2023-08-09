@@ -108,11 +108,28 @@ func (vtag VideoTag) Encode() (tag []byte) {
 
 // 外部已经确保len(data) >= 5
 func (vtag *VideoTag) Decode(data []byte) {
-    vtag.FrameType = data[0] >> 4
-    vtag.CodecId = data[0] & 0x0F
-    if vtag.CodecId == uint8(FLV_AVC) || vtag.CodecId == uint8(FLV_HEVC) {
-        vtag.AVCPacketType = data[1]
-        vtag.CompositionTime = int32(GetUint24(data[2:]))
+    isExHeader := data[0] & 0x80
+    if isExHeader != 0 {
+        // enhanced flv
+        vtag.FrameType = (data[0] >> 4) & 0x07
+        vtag.AVCPacketType = data[0] & 0x0F
+
+        // TODO av1和VP9
+        if data[1] == 'h' && data[2] == 'v' && data[3] == 'c' && data[4] == '1' {
+            // hevc
+            vtag.CodecId = uint8(FLV_HEVC)
+
+            if vtag.AVCPacketType == PacketTypeCodedFrames {
+                vtag.CompositionTime = int32(GetUint24(data[5:]))
+            }
+        }
+    } else {
+        vtag.FrameType = data[0] >> 4
+        vtag.CodecId = data[0] & 0x0F
+        if vtag.CodecId == uint8(FLV_AVC) || vtag.CodecId == uint8(FLV_HEVC) {
+            vtag.AVCPacketType = data[1]
+            vtag.CompositionTime = int32(GetUint24(data[2:]))
+        }
     }
 }
 

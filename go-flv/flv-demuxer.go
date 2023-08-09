@@ -123,46 +123,72 @@ func (demuxer *HevcTagDemuxer) Decode(data []byte) error {
     }
 
     vtag := VideoTag{}
-    vtag.Decode(data[0:5])
-    data = data[5:]
-    if vtag.AVCPacketType == AVC_SEQUENCE_HEADER {
-        hvcc := codec.NewHEVCRecordConfiguration()
-        hvcc.Decode(data)
-        demuxer.SpsPpsVps = hvcc.ToNalus()
-    } else {
-        var hassps bool
-        var haspps bool
-        var hasvps bool
-        var idr bool
-        tmpdata := data
-        for len(tmpdata) > 0 {
-            naluSize := binary.BigEndian.Uint32(tmpdata)
-            codec.CovertAVCCToAnnexB(tmpdata)
-            naluType := codec.H265NaluType(tmpdata)
-            if naluType >= 16 && naluType <= 21 {
-                idr = true
-            } else if naluType == codec.H265_NAL_SPS {
-                hassps = true
-            } else if naluType == codec.H265_NAL_PPS {
-                haspps = true
-            } else if naluType == codec.H265_NAL_VPS {
-                hasvps = true
-            }
-            tmpdata = tmpdata[4+naluSize:]
-        }
 
-        if idr && (!hassps || !haspps || !hasvps) {
-            var nalus []byte = make([]byte, 0, 2048)
-            nalus = append(demuxer.SpsPpsVps, data...)
-            if demuxer.onframe != nil {
-                demuxer.onframe(codec.CODECID_VIDEO_H265, nalus, int(vtag.CompositionTime))
-            }
+    isExHeader := data[0] & 0x80
+    if isExHeader != 0 {
+        // enhanced flv
+        vtag.Decode(data[0:8])
+        if vtag.AVCPacketType == PacketTypeSequenceStart {
+            data = data[5:]
+            hvcc := codec.NewHEVCRecordConfiguration()
+            hvcc.Decode(data)
+            demuxer.SpsPpsVps = hvcc.ToNalus()
+        } else if vtag.AVCPacketType == PacketTypeCodedFrames {
+            data = data[8:]
+            demuxer.decodeNalus(data, vtag.CompositionTime)
+        } else if vtag.AVCPacketType == PacketTypeCodedFramesX {
+            data = data[5:]
+            demuxer.decodeNalus(data, vtag.CompositionTime)
+        }
+    } else {
+        vtag.Decode(data[0:5])
+        data = data[5:]
+        if vtag.AVCPacketType == AVC_SEQUENCE_HEADER {
+            hvcc := codec.NewHEVCRecordConfiguration()
+            hvcc.Decode(data)
+            demuxer.SpsPpsVps = hvcc.ToNalus()
         } else {
-            if demuxer.onframe != nil {
-                demuxer.onframe(codec.CODECID_VIDEO_H265, data, int(vtag.CompositionTime))
-            }
+            demuxer.decodeNalus(data, vtag.CompositionTime)
         }
     }
+
+    return nil
+}
+
+func (demuxer *HevcTagDemuxer) decodeNalus(data []byte, CompositionTime int32) error {
+    var hassps bool
+    var haspps bool
+    var hasvps bool
+    var idr bool
+    tmpdata := data
+    for len(tmpdata) > 0 {
+        naluSize := binary.BigEndian.Uint32(tmpdata)
+        codec.CovertAVCCToAnnexB(tmpdata)
+        naluType := codec.H265NaluType(tmpdata)
+        if naluType >= 16 && naluType <= 21 {
+            idr = true
+        } else if naluType == codec.H265_NAL_SPS {
+            hassps = true
+        } else if naluType == codec.H265_NAL_PPS {
+            haspps = true
+        } else if naluType == codec.H265_NAL_VPS {
+            hasvps = true
+        }
+        tmpdata = tmpdata[4+naluSize:]
+    }
+
+    if idr && (!hassps || !haspps || !hasvps) {
+        var nalus []byte = make([]byte, 0, 2048)
+        nalus = append(demuxer.SpsPpsVps, data...)
+        if demuxer.onframe != nil {
+            demuxer.onframe(codec.CODECID_VIDEO_H265, nalus, int(CompositionTime))
+        }
+    } else {
+        if demuxer.onframe != nil {
+            demuxer.onframe(codec.CODECID_VIDEO_H265, data, int(CompositionTime))
+        }
+    }
+
     return nil
 }
 

@@ -1,12 +1,12 @@
 package rtmp
 
 import (
-	"encoding/binary"
-	"errors"
-	"strings"
+    "encoding/binary"
+    "errors"
+    "strings"
 
-	"github.com/yapingcat/gomedia/go-codec"
-	"github.com/yapingcat/gomedia/go-flv"
+    "github.com/yapingcat/gomedia/go-codec"
+    "github.com/yapingcat/gomedia/go-flv"
 )
 
 type RtmpConnectCmd int
@@ -325,7 +325,7 @@ func (cli *RtmpClient) handleCommandRes(data []byte) error {
 
 func (cli *RtmpClient) handleVideoMessage(msg *rtmpMessage) error {
     if cli.videoDemuxer == nil {
-        cli.videoDemuxer = flv.CreateFlvVideoTagHandle(flv.FLV_VIDEO_CODEC_ID(msg.msg[0] & 0x0F))
+        cli.videoDemuxer = flv.CreateFlvVideoTagHandle(flv.GetFLVVideoCodecId(msg.msg))
         cli.videoDemuxer.OnFrame(func(codecid codec.CodecID, frame []byte, cts int) {
             dts := cli.timestamp
             pts := dts + uint32(cts)
