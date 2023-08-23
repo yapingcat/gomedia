@@ -57,6 +57,9 @@ func (box *BasicBox) Decode(r io.Reader) (int, error) {
     copy(box.Type[:], buf[4:8])
     nn := 8
     if boxsize == 1 {
+        if n, err := io.ReadFull(r, buf[8:]); err != nil {
+            return n, err
+        }
         box.Size = binary.BigEndian.Uint64(buf[nn:])
         nn += 8
     } else {
