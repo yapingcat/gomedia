@@ -54,6 +54,9 @@ func (muxer *PSMuxer) Write(sid uint8, frame []byte, pts uint64, dts uint64) err
     if stream == nil {
         return errNotFound
     }
+    if len(frame) <= 0 {
+        return nil
+    }
     var withaud bool = false
     var idr_flag bool = false
     var first bool = true
@@ -103,10 +106,6 @@ func (muxer *PSMuxer) Write(sid uint8, frame []byte, pts uint64, dts uint64) err
         muxer.psm.Encode(bsw)
         muxer.firstframe = false
     }
-    if muxer.OnPacket != nil {
-        muxer.OnPacket(bsw.Bits())
-    }
-    bsw.Reset()
     pespkg := NewPesPacket()
     for len(frame) > 0 {
         peshdrlen := 13
