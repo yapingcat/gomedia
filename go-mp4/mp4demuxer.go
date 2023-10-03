@@ -24,6 +24,7 @@ type SyncSample struct {
 }
 
 type SubSample struct{
+	DefaultKID [16]byte
 	IV       [16]byte
 	Patterns []SubSamplePattern
 	Number   uint32
@@ -293,6 +294,7 @@ func (demuxer *MovDemuxer) ReadPacket() (*AVPacket, error) {
 				subSample = new(SubSample)
 				subSample.Number = idx
 				copy(subSample.IV[:], track.subSamples[idx].iv)
+				copy(subSample.DefaultKID[:], track.defaultKID[:])
 				if len(track.subSamples[idx].subSamples) > 0 {
 					subSample.Patterns = make([]SubSamplePattern, len(track.subSamples[idx].subSamples))
 					for ei, e := range track.subSamples[idx].subSamples {
