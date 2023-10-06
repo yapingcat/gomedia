@@ -65,6 +65,6 @@ func decodeSencBox(demuxer *MovDemuxer, size uint32) (err error) {
 	if _, err = senc.Decode(demuxer.reader, size, perSampleIVSize); err != nil {
 		return err
 	}
-	demuxer.currentTrack.subSamples = senc.EntryList.entrys
+	demuxer.currentTrack.subSamples = append(demuxer.currentTrack.subSamples, senc.EntryList.entrys...)
 	return
 }
