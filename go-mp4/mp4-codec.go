@@ -15,6 +15,7 @@ const (
     MP4_CODEC_G711U
     MP4_CODEC_MP2
     MP4_CODEC_MP3
+    MP4_CODEC_OPUS
 )
 
 func isVideo(cid MP4_CODEC_TYPE) bool {
@@ -23,7 +24,7 @@ func isVideo(cid MP4_CODEC_TYPE) bool {
 
 func isAudio(cid MP4_CODEC_TYPE) bool {
     return cid == MP4_CODEC_AAC || cid == MP4_CODEC_G711A || cid == MP4_CODEC_G711U ||
-        cid == MP4_CODEC_MP2 || cid == MP4_CODEC_MP3
+        cid == MP4_CODEC_MP2 || cid == MP4_CODEC_MP3 || cid == MP4_CODEC_OPUS
 }
 
 func getCodecNameWithCodecId(cid MP4_CODEC_TYPE) [4]byte {
@@ -38,6 +39,8 @@ func getCodecNameWithCodecId(cid MP4_CODEC_TYPE) [4]byte {
         return [4]byte{'a', 'l', 'a', 'w'}
     case MP4_CODEC_G711U:
         return [4]byte{'u', 'l', 'a', 'w'}
+    case MP4_CODEC_OPUS:
+        return [4]byte{'o', 'p', 'u', 's'}
     default:
         panic("unsupport codec id")
     }

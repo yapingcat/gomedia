@@ -282,6 +282,8 @@ func (track *mp4track) writeSample(sample []byte, pts, dts uint64) (err error) {
         err = track.writeG711(sample, pts, dts)
     case MP4_CODEC_MP2, MP4_CODEC_MP3:
         err = track.writeMP3(sample, pts, dts)
+    case MP4_CODEC_OPUS:
+        err = track.writeOPUS(sample, pts, dts)
     }
     return err
 }
@@ -509,6 +511,33 @@ func (track *mp4track) writeMP3(mp3 []byte, pts, dts uint64) (err error) {
         }
     }
     return track.writeG711(mp3, pts, dts)
+}
+
+func (track *mp4track) writeOPUS(opus []byte, pts, dts uint64) (err error) {
+    var currentOffset int64
+    if currentOffset, err = track.writer.Seek(0, io.SeekCurrent); err != nil {
+        return
+    }
+    entry := sampleEntry{
+        pts:                    pts,
+        dts:                    dts,
+        size:                   0,
+        SampleDescriptionIndex: 1,
+        offset:                 uint64(currentOffset),
+    }
+    opusPacket := codec.DecodeOpusPacket(opus)
+    n := 0
+    n, err = track.writer.Write(opus)
+    entry.size = uint64(n)
+    track.sampleRate = 48000 // TODO: fixed?
+    if opusPacket.Stereo != 0 {
+        track.chanelCount = 1
+    } else {
+        track.chanelCount = 2
+    }
+    track.sampleBits = 16 // TODO: fixed?
+    track.addSampleEntry(entry)
+    return
 }
 
 func (track *mp4track) flush() (err error) {

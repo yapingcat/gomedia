@@ -74,6 +74,7 @@ go get github.com/yapingcat/gomedia
     - G711A
     - G711U
     - MP3
+    - OPUS
 
 
 ## fmp4
