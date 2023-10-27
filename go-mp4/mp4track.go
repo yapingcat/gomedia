@@ -514,30 +514,18 @@ func (track *mp4track) writeMP3(mp3 []byte, pts, dts uint64) (err error) {
 }
 
 func (track *mp4track) writeOPUS(opus []byte, pts, dts uint64) (err error) {
-    var currentOffset int64
-    if currentOffset, err = track.writer.Seek(0, io.SeekCurrent); err != nil {
-        return
+    if track.sampleRate == 0 {
+        opusPacket := codec.DecodeOpusPacket(opus)
+	track.sampleRate = 48000 // TODO: fixed?
+    	if opusPacket.Stereo != 0 {
+		track.chanelCount = 1
+    	} else {
+		track.chanelCount = 2
+    	}
+    	track.sampleBits = 16 // TODO: fixed
     }
-    entry := sampleEntry{
-        pts:                    pts,
-        dts:                    dts,
-        size:                   0,
-        SampleDescriptionIndex: 1,
-        offset:                 uint64(currentOffset),
-    }
-    opusPacket := codec.DecodeOpusPacket(opus)
-    n := 0
-    n, err = track.writer.Write(opus)
-    entry.size = uint64(n)
-    track.sampleRate = 48000 // TODO: fixed?
-    if opusPacket.Stereo != 0 {
-        track.chanelCount = 1
-    } else {
-        track.chanelCount = 2
-    }
-    track.sampleBits = 16 // TODO: fixed?
-    track.addSampleEntry(entry)
-    return
+    
+    return track.writeG711(opus, pts, dts)
 }
 
 func (track *mp4track) flush() (err error) {
