@@ -169,7 +169,7 @@ func makeTkhdBox(track *mp4track) []byte {
     // Track_in_movie: Indicates that the track is used in the presentation. Flag value is 0x000002.
     // Track_in_preview: Indicates that the track is used when previewing the presentation. Flag value is 0x000004.
     tkhd.Box.Flags[2] = 0x03 //Track_enabled | Track_in_movie
-    if track.cid == MP4_CODEC_AAC || track.cid == MP4_CODEC_G711A || track.cid == MP4_CODEC_G711U {
+    if track.cid == MP4_CODEC_AAC || track.cid == MP4_CODEC_G711A || track.cid == MP4_CODEC_G711U || track.cid == MP4_CODEC_OPUS {
         tkhd.Volume = 0x0100
     } else {
         tkhd.Width = track.width << 16

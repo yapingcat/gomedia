@@ -319,6 +319,7 @@ type OpusContext struct {
     StereoStreamCount int
     OutputGain        uint16
     MapType           uint8
+    Channel           []byte
     ChannelMaps       []ChannelMap
 }
 
@@ -374,6 +375,10 @@ func (ctx *OpusContext) ParseExtranData(extraData []byte) error {
         }
     } else {
         return errors.New("unsupport map type 255")
+    }
+    if len(channel) > 0 {
+        ctx.Channel = make([]byte, len(channel))
+        copy(ctx.Channel, channel)
     }
 
     for i := 0; i < ctx.ChannelCount; i++ {

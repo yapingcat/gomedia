@@ -330,6 +330,8 @@ func makeStsd(track *mp4track, handler_type HandlerType) []byte {
         avbox = makeHvcCBox(extraData)
     } else if track.cid == MP4_CODEC_AAC || track.cid == MP4_CODEC_MP2 || track.cid == MP4_CODEC_MP3 {
         avbox = makeEsdsBox(track.trackId, track.cid, extraData)
+    } else if track.cid == MP4_CODEC_OPUS {
+        avbox = makeOpusSpecificBox(extraData)
     }
 
     var se []byte
@@ -378,9 +380,9 @@ func decodeAvccBox(demuxer *MovDemuxer, size uint32) (err error) {
         return
     }
     track := demuxer.tracks[len(demuxer.tracks)-1]
-	if track.extra == nil {
-		track.extra = new(h264ExtraData)
-	}
+    if track.extra == nil {
+        track.extra = new(h264ExtraData)
+    }
     track.extra.load(buf)
     return
 }
@@ -423,9 +425,9 @@ func decodeEsdsBox(demuxer *MovDemuxer, size uint32) (err error) {
     }
     track := demuxer.tracks[len(demuxer.tracks)-1]
     vosdata := decodeESDescriptor(buf, track)
-	if track.extra != nil {
-		track.extra.load(vosdata)
-	}
+    if track.extra != nil {
+        track.extra.load(vosdata)
+    }
     return nil
 }
 
