@@ -194,6 +194,8 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
         case mov_tag([4]byte{'a', 'l', 'a', 'w'}):
             demuxer.tracks[len(demuxer.tracks)-1].cid = MP4_CODEC_G711A
             err = decodeAudioSampleEntry(demuxer)
+        case mov_tag([4]byte{'o', 'p', 'u', 's'}):
+            demuxer.tracks[len(demuxer.tracks)-1].cid = MP4_CODEC_OPUS
         case mov_tag([4]byte{'a', 'v', 'c', 'C'}):
             err = decodeAvccBox(demuxer, uint32(basebox.Size))
         case mov_tag([4]byte{'h', 'v', 'c', 'C'}):
