@@ -126,6 +126,9 @@ type mp4track struct {
 	//for subsample
 	defaultIsProtected     uint8
 	defaultPerSampleIVSize uint8
+	defaultCryptByteBlock  uint8
+	defaultSkipByteBlock   uint8
+	defaultConstantIV      []byte
 	defaultKID             [16]byte
 	subSamples             []sencEntry
 }
