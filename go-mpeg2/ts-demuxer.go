@@ -322,6 +322,9 @@ func (demuxer *TSDemuxer) splitH264Frame(stream *tsstream) bool {
     if frameBeg == 0 {
         return needUpdate
     }
+	if frameBeg == -1 {
+		frameBeg = 0
+	}
     copy(stream.pkg.payload, data[frameBeg:datalen])
     stream.pkg.payload = stream.pkg.payload[0 : datalen-frameBeg]
     return needUpdate
