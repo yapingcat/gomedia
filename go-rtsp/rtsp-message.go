@@ -182,7 +182,7 @@ func (req *RtspRequest) parse(data string) (int, error) {
     req.parseFirstLine(strs[0])
     for i := 1; i < len(strs); i++ {
         kv := strings.SplitN(strs[i], ":", 2)
-        k := strings.TrimSpace(kv[0])
+        k := strings.Title(strings.TrimSpace(kv[0]))
         v := strings.TrimSpace(kv[1])
         req.Fileds[k] = v
     }
@@ -343,7 +343,7 @@ func (res *RtspResponse) parse(data string) (int, error) {
 
     for i := 1; i < len(strs); i++ {
         kv := strings.SplitN(strs[i], ":", 2)
-        k := strings.TrimSpace(kv[0])
+        k := strings.Title(strings.TrimSpace(kv[0]))
         v := strings.TrimSpace(kv[1])
         res.Fileds[k] = v
     }
