@@ -28,6 +28,8 @@ type SubSample struct{
 	IV       [16]byte
 	Patterns []SubSamplePattern
 	Number   uint32
+	DefaultCryptByteBlock uint8
+	DefaultSkipByteBlock uint8
 }
 
 type SubSamplePattern struct{
@@ -43,6 +45,7 @@ type TrackInfo struct {
     Width        uint32
     SampleRate   uint32
     SampleSize   uint16
+	SampleCount  uint32
     ChannelCount uint8
     Timescale    uint32
     StartDts     uint64
@@ -246,6 +249,7 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
         info.Duration = track.duration
         info.ChannelCount = track.chanelCount
         info.SampleRate = track.sampleRate
+		info.SampleCount = uint32(len(track.samplelist))
         info.SampleSize = uint16(track.sampleBits)
         info.TrackId = int(track.trackId)
         info.Width = track.width
@@ -295,8 +299,14 @@ func (demuxer *MovDemuxer) ReadPacket() (*AVPacket, error) {
 			if int(idx) < len(track.subSamples) {
 				subSample = new(SubSample)
 				subSample.Number = idx
-				copy(subSample.IV[:], track.subSamples[idx].iv)
+				if len(track.subSamples[idx].iv) > 0 {
+					copy(subSample.IV[:], track.subSamples[idx].iv)
+				} else {
+					copy(subSample.IV[:], track.defaultConstantIV)
+				}
 				copy(subSample.DefaultKID[:], track.defaultKID[:])
+				subSample.DefaultCryptByteBlock = track.defaultCryptByteBlock
+				subSample.DefaultSkipByteBlock = track.defaultSkipByteBlock
 				if len(track.subSamples[idx].subSamples) > 0 {
 					subSample.Patterns = make([]SubSamplePattern, len(track.subSamples[idx].subSamples))
 					for ei, e := range track.subSamples[idx].subSamples {

@@ -269,8 +269,11 @@ func (demuxer *TSDemuxer) splitH264Frame(stream *tsstream) bool {
     newAcessUnit := false
     needUpdate := false
     frameBeg := start
+    if frameBeg < 0 {
+        frameBeg = 0
+    }
     for start < datalen {
-        if len(data)-start <= int(sct)+1 {
+        if start < 0 || len(data)-start <= int(sct)+1 {
             break
         }
 
