@@ -27,7 +27,7 @@ func FindStartCode(nalu []byte, offset int) (int, START_CODE_TYPE) {
 }
 
 func FindSyncword(aac []byte, offset int) int {
-    for i := offset; i < len(aac) - 1; i++ {
+    for i := offset; i < len(aac)-1; i++ {
         if aac[i] == 0xFF && aac[i+1]&0xF0 == 0xF0 {
             return i
         }
@@ -58,12 +58,12 @@ func SplitFrameWithStartCode(frames []byte, onFrame func(nalu []byte) bool) {
     for beg >= 0 {
         end, sc2 := FindStartCode(frames, beg+int(sc))
         if end == -1 {
-            if onFrame != nil {
+            if onFrame != nil && (beg+int(sc)) < len(frames) {
                 onFrame(frames[beg:])
             }
             break
         }
-        if onFrame != nil && onFrame(frames[beg:end]) == false {
+        if onFrame != nil && (beg+int(sc)) < end && onFrame(frames[beg:end]) == false {
             break
         }
         beg = end
