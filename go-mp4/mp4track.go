@@ -527,7 +527,7 @@ func (track *mp4track) writeOPUS(opus []byte, pts, dts uint64) (err error) {
     	}
     	track.sampleBits = 16 // TODO: fixed
     }
-    
+
     return track.writeG711(opus, pts, dts)
 }
 
