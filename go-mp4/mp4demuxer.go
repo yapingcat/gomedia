@@ -30,6 +30,7 @@ type SubSample struct{
 	Number   uint32
 	DefaultCryptByteBlock uint8
 	DefaultSkipByteBlock uint8
+	PsshBoxes []PsshBox
 }
 
 type SubSamplePattern struct{
@@ -73,6 +74,7 @@ type MovDemuxer struct {
     //for demux fmp4
     isFragement  bool
     currentTrack *mp4track
+    pssh         []PsshBox
     moofOffset   int64
     dataOffset   uint32
 
@@ -132,6 +134,8 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
             _, err = demuxer.reader.Seek(currentOffset, io.SeekStart)
         case mov_tag([4]byte{'m', 'v', 'h', 'd'}):
             err = decodeMvhd(demuxer)
+        case mov_tag([4]byte{'p', 's', 's', 'h'}):
+            err = decodePsshBox(demuxer, uint32(basebox.Size))
         case mov_tag([4]byte{'t', 'r', 'a', 'k'}):
             track := &mp4track{}
             demuxer.tracks = append(demuxer.tracks, track)
@@ -305,6 +309,7 @@ func (demuxer *MovDemuxer) ReadPacket() (*AVPacket, error) {
 					copy(subSample.IV[:], track.defaultConstantIV)
 				}
 				copy(subSample.DefaultKID[:], track.defaultKID[:])
+				subSample.PsshBoxes = append(subSample.PsshBoxes, demuxer.pssh...)
 				subSample.DefaultCryptByteBlock = track.defaultCryptByteBlock
 				subSample.DefaultSkipByteBlock = track.defaultSkipByteBlock
 				if len(track.subSamples[idx].subSamples) > 0 {
