@@ -72,12 +72,14 @@ func getOffset(data []byte, schema int) uint32 {
         offset += uint32(data[HANDSHAKE_SCHEMA0_OFFSET-HANDSHAKE_OFFSET_SIZE+1])
         offset += uint32(data[HANDSHAKE_SCHEMA0_OFFSET-HANDSHAKE_OFFSET_SIZE+2])
         offset += uint32(data[HANDSHAKE_SCHEMA0_OFFSET-HANDSHAKE_OFFSET_SIZE+3])
+        offset = offset % (HANDSHAKE_SCHEMA_SIZE - HANDSHAKE_OFFSET_SIZE - HANDSHAKE_DIGEST_SIZE)
         offset = HANDSHAKE_SCHEMA0_OFFSET + offset
     } else {
         offset = uint32(data[HANDSHAKE_FIX_SIZE])
         offset += uint32(data[HANDSHAKE_FIX_SIZE+1])
         offset += uint32(data[HANDSHAKE_FIX_SIZE+2])
         offset += uint32(data[HANDSHAKE_FIX_SIZE+3])
+        offset = offset % (HANDSHAKE_SCHEMA_SIZE - HANDSHAKE_OFFSET_SIZE - HANDSHAKE_DIGEST_SIZE)
         offset = HANDSHAKE_FIX_SIZE + HANDSHAKE_OFFSET_SIZE + offset
     }
     return offset
