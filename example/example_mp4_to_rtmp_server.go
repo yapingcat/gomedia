@@ -52,7 +52,7 @@ func main() {
 		mp4Path = "your_mp4_dir" //like ./mp4/
 		rtmpUrl = "rtmpUrl"      //like rtmp://127.0.0.1:1935/live/test110
 	)
-	c, err := net.Dial("tcp4", "127.0.0.1:1935")
+	c, err := net.Dial("tcp4", "${rtmp_host}:${rtmp_port}") // like 127.0.0.1:1935
 	if err != nil {
 		fmt.Println(err)
 	}
