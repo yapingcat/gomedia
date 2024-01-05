@@ -49,8 +49,8 @@ var audio_ts_adjust *TimestampAdjust = newTimestampAdjust()
 // Will push the last file under mp4sPath to the specified rtmp server
 func main() {
 	var (
-		mp4Path = "D:\\soundImage\\bin\\tmp\\initVideo\\video\\"
-		rtmpUrl = "rtmp://127.0.0.1:1935/live/test110"
+		mp4Path = "your_mp4_dir" //like ./mp4/
+		rtmpUrl = "rtmpUrl"      //like rtmp://127.0.0.1:1935/live/test110
 	)
 	c, err := net.Dial("tcp4", "127.0.0.1:1935")
 	if err != nil {
