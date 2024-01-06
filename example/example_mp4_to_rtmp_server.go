@@ -133,12 +133,10 @@ func PushRtmp(fileName string, cli *rtmp.RtmpClient) {
 			cli.WriteVideo(codec.CODECID_VIDEO_H264, pkg.Data, uint32(pts), uint32(dts))
 		} else if pkg.Cid == mp4.MP4_CODEC_AAC {
 			pts := audio_ts_adjust.adjust(int64(pkg.Pts))
-			dts := video_dts_adjust.adjust(int64(pkg.Dts))
-			cli.WriteAudio(codec.CODECID_AUDIO_AAC, pkg.Data, uint32(pts), uint32(dts))
+			cli.WriteAudio(codec.CODECID_AUDIO_AAC, pkg.Data, uint32(pts), uint32(pts))
 		} else if pkg.Cid == mp4.MP4_CODEC_MP3 {
 			pts := audio_ts_adjust.adjust(int64(pkg.Pts))
-			dts := video_dts_adjust.adjust(int64(pkg.Dts))
-			cli.WriteAudio(codec.CODECID_AUDIO_MP3, pkg.Data, uint32(pts), uint32(dts))
+			cli.WriteAudio(codec.CODECID_AUDIO_MP3, pkg.Data, uint32(pts), uint32(pts))
 		}
 
 	}
