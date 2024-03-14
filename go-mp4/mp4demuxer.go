@@ -24,12 +24,12 @@ type SyncSample struct {
 }
 
 type SubSample struct{
-	DefaultKID [16]byte
+	KID      [16]byte
 	IV       [16]byte
 	Patterns []SubSamplePattern
 	Number   uint32
-	DefaultCryptByteBlock uint8
-	DefaultSkipByteBlock uint8
+	CryptByteBlock uint8
+	SkipByteBlock uint8
 	PsshBoxes []PsshBox
 }
 
@@ -231,6 +231,10 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
             err = decodeTrunBox(demuxer, uint32(basebox.Size))
 		case mov_tag([4]byte{'s', 'e', 'n', 'c'}):
 			err = decodeSencBox(demuxer, uint32(basebox.Size))
+		case mov_tag([4]byte{'u', 'u', 'i', 'd'}):
+			_, err = demuxer.reader.Seek(int64(basebox.Size)-BasicBoxLen-16, io.SeekCurrent)
+		case mov_tag([4]byte{'s', 'g', 'p', 'd'}):
+			err = decodeSgpdBox(demuxer, uint32(basebox.Size))
         case mov_tag([4]byte{'w', 'a', 'v', 'e'}):
             err = decodeWaveBox(demuxer)
         default:
@@ -308,10 +312,16 @@ func (demuxer *MovDemuxer) ReadPacket() (*AVPacket, error) {
 				} else {
 					copy(subSample.IV[:], track.defaultConstantIV)
 				}
-				copy(subSample.DefaultKID[:], track.defaultKID[:])
+				if track.lastSeig != nil {
+					copy(subSample.KID[:], track.lastSeig.KID[:])
+					subSample.CryptByteBlock = track.lastSeig.CryptByteBlock
+					subSample.SkipByteBlock = track.lastSeig.SkipByteBlock
+				} else {
+					copy(subSample.KID[:], track.defaultKID[:])
+					subSample.CryptByteBlock = track.defaultCryptByteBlock
+					subSample.SkipByteBlock = track.defaultSkipByteBlock
+				}
 				subSample.PsshBoxes = append(subSample.PsshBoxes, demuxer.pssh...)
-				subSample.DefaultCryptByteBlock = track.defaultCryptByteBlock
-				subSample.DefaultSkipByteBlock = track.defaultSkipByteBlock
 				if len(track.subSamples[idx].subSamples) > 0 {
 					subSample.Patterns = make([]SubSamplePattern, len(track.subSamples[idx].subSamples))
 					for ei, e := range track.subSamples[idx].subSamples {

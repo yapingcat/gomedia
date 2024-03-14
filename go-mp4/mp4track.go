@@ -130,6 +130,7 @@ type mp4track struct {
 	defaultSkipByteBlock   uint8
 	defaultConstantIV      []byte
 	defaultKID             [16]byte
+	lastSeig               *SeigSampleGroupEntry
 	subSamples             []sencEntry
 }
 
