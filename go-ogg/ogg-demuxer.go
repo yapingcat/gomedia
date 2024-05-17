@@ -157,16 +157,18 @@ func (demuxer *Demuxer) Input(buf []byte) (err error) {
             } else if stream.lost == 0 && page.isContinuePacket {
                 appendLen := 0
                 for ; idx < int(page.segmentsCount); idx++ {
-                    appendLen += int(page.seqmentTable[idx])
-                    if page.seqmentTable[idx] < 255 {
-                        stream.cache = append(stream.cache, tmp[:appendLen]...)
-                        if demuxer.OnPacket != nil {
-                            demuxer.OnPacket(stream.streamId, stream.currentPage.granulePos, stream.cache, 0)
-                        }
-                        page.packets = append(page.packets, stream.cache)
-                        stream.cache = stream.cache[:0]
-                        tmp = tmp[appendLen:]
-                    }
+	    		//fix out of bound of tmp
+			curSegLen := int(page.seqmentTable[idx])
+			appendLen += curSegLen
+			if page.seqmentTable[idx] < 255 {
+				stream.cache = append(stream.cache, tmp[:curSegLen]...)
+				if demuxer.OnPacket != nil {
+					demuxer.OnPacket(stream.streamId, stream.currentPage.granulePos, stream.cache, 0)
+				}
+				page.packets = append(page.packets, stream.cache)
+				stream.cache = stream.cache[:0]
+				tmp = tmp[curSegLen:]
+			}
                 }
             }
 
