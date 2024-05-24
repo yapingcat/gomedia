@@ -231,6 +231,10 @@ func (demuxer *MovDemuxer) ReadHead() ([]TrackInfo, error) {
             err = decodeTrunBox(demuxer, uint32(basebox.Size))
 		case mov_tag([4]byte{'s', 'e', 'n', 'c'}):
 			err = decodeSencBox(demuxer, uint32(basebox.Size))
+		case mov_tag([4]byte{'s', 'a', 'i', 'z'}):
+		 	err = decodeSaizBox(demuxer, uint32(basebox.Size))
+		case mov_tag([4]byte{'s', 'a', 'i', 'o'}):
+			err = decodeSaioBox(demuxer, uint32(basebox.Size))
 		case mov_tag([4]byte{'u', 'u', 'i', 'd'}):
 			_, err = demuxer.reader.Seek(int64(basebox.Size)-BasicBoxLen-16, io.SeekCurrent)
 		case mov_tag([4]byte{'s', 'g', 'p', 'd'}):
