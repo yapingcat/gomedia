@@ -131,6 +131,7 @@ type mp4track struct {
 	defaultConstantIV      []byte
 	defaultKID             [16]byte
 	lastSeig               *SeigSampleGroupEntry
+	lastSaiz 			   *SaizBox
 	subSamples             []sencEntry
 }
 
