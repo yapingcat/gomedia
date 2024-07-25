@@ -246,7 +246,8 @@ func GetPPSId(pps []byte) uint64 {
 // int Height = ((2 - frame_mbs_only_flag)* (pic_height_in_map_units_minus1 +1) * 16) - (frame_crop_bottom_offset* 2) - (frame_crop_top_offset* 2);
 func GetH264Resolution(sps []byte) (width uint32, height uint32) {
 	start, sc := FindStartCode(sps, 0)
-	bs := NewBitStream(sps[start+int(sc)+1:])
+	sodb := CovertRbspToSodb(sps[start+int(sc)+1:])
+	bs := NewBitStream(sodb)
 	var s SPS
 	s.Decode(bs)
 
@@ -353,7 +354,8 @@ func CreateH264AVCCExtradata(spss [][]byte, ppss [][]byte) ([]byte, error) {
 		extradata = append(extradata, pps...)
 	}
 	var h264sps SPS
-	h264sps.Decode(NewBitStream(spss[0][1:]))
+	sodb := CovertRbspToSodb(spss[0][1:])
+	h264sps.Decode(NewBitStream(sodb))
 	if h264sps.Profile_idc == 100 ||
 		h264sps.Profile_idc == 110 ||
 		h264sps.Profile_idc == 122 ||
