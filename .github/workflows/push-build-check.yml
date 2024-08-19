@@ -1,0 +1,28 @@
+# This is a basic workflow to help you get started with Actions
+
+name: push-build-check
+
+# Controls when the workflow will run
+on: push
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build-linux:
+    # The type of runner that the job will run on
+    runs-on: linux-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+      - name: Setup Go environment
+        uses: actions/setup-go@v3.2.1
+        with:
+          # The Go version to download (if necessary) and use. Supports semver spec and ranges.
+          go-version: 1.18 # optional
+      - name: build
+        run: |
+          set -x
+          set -e
+          go mod tidy
+          ls *.go | while read go_name; do bin_name="${go_name%.go}" ; go build $go_name ; ls $bin_name; done
