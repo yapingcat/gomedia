@@ -59,3 +59,10 @@ jobs:
           go build -o ..\bin\example_rtsp_push_client_rtp_over_rtsp.exe example_rtsp_push_client_rtp_over_rtsp.go
           go build -o ..\bin\example_rtsp_server.exe example_rtsp_server.go
           dir ..\bin\
+          
+          Invoke-WebRequest -URI 'https://github.com/orestonce/gomedia/releases/download/example/input.zip' -OutFile 'simple.7z'
+          7z x simple.7z
+          mkdir output && cd output
+          ..\example_convert_ts_to_mp4.exe ..\input\simple-ts.ts
+          
+          dir .
