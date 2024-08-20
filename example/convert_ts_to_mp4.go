@@ -82,4 +82,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Println("done: ", tsFileName, "->", mp4FileName)
 }
