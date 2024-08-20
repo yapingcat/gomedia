@@ -19,8 +19,7 @@ func main() {
 	mp4FilePath := os.Args[1]
 	newTime, err := strconv.Atoi(os.Args[2])
 	if err != nil {
-		fmt.Println(err)
-		return
+		panic(err)
 	}
 
 	timeBuf := make([]byte, 4)
@@ -28,8 +27,7 @@ func main() {
 
 	mp4Fd, err := os.OpenFile(mp4FilePath, os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
-		fmt.Println(err)
-		return
+		panic(err)
 	}
 	defer mp4Fd.Close()
 
@@ -117,6 +115,8 @@ Loop:
 			_, err = mp4Fd.Seek(int64(basebox.Size)-mp4.BasicBoxLen, io.SeekCurrent)
 		}
 	}
-	fmt.Println(err)
+	if err != io.EOF {
+		panic(err)
+	}
 	return
 }

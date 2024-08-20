@@ -28,7 +28,7 @@ jobs:
           go build -o ..\bin\example_convert_flv_to_fmp4.exe example_convert_flv_to_fmp4.go
           go build -o ..\bin\example_convert_flv_to_hls_fmp4.exe example_convert_flv_to_hls_fmp4.go
           go build -o ..\bin\example_convert_mp4_to_flv.exe example_convert_mp4_to_flv.go
-          go build -o ..\bin\example_convert_ts_to_mp4.exe example_convert_ts_to_mp4.go
+          go build -o ..\bin\convert_ts_to_mp4.exe convert_ts_to_mp4.go
           go build -o ..\bin\example_covert_flv_to_mp4.exe example_covert_flv_to_mp4.go
           go build -o ..\bin\example_demux_flv.exe example_demux_flv.go
           go build -o ..\bin\example_demux_fmp4.exe example_demux_fmp4.go
@@ -58,11 +58,16 @@ jobs:
           go build -o ..\bin\example_rtsp_play_server.exe example_rtsp_play_server.go
           go build -o ..\bin\example_rtsp_push_client_rtp_over_rtsp.exe example_rtsp_push_client_rtp_over_rtsp.go
           go build -o ..\bin\example_rtsp_server.exe example_rtsp_server.go
-          cd ..\bin\
-          
+          dir ..\bin\
+
+      - name: download test input file
+        run: |
           Invoke-WebRequest -URI 'https://github.com/orestonce/gomedia/releases/download/example/input.zip' -OutFile 'simple.7z'
           7z x simple.7z
-          mkdir output && cd output
-          ..\example_convert_ts_to_mp4.exe ..\input\simple-ts.ts
+          mkdir output
           
-          dir .
+      - name: test convert_ts_to_mp4
+        run: |
+          .\bin\convert_ts_to_mp4.exe .\input\issue-30.ts .\output\issue-30.mp4
+          .\bin\convert_ts_to_mp4.exe .\input\simple-ts.ts .\output\simple-ts.mp4
+          dir output
