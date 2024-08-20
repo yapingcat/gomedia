@@ -62,8 +62,8 @@ jobs:
 
       - name: download test input file
         run: |
-          Invoke-WebRequest -URI 'https://github.com/orestonce/gomedia/releases/download/example/input.zip' -OutFile 'simple.7z'
-          7z x simple.7z
+          Invoke-WebRequest -URI 'https://github.com/orestonce/gomedia/releases/download/example/input.7z' -OutFile 'input.7z'
+          7z x input.7z
           mkdir output
           
       - name: test convert_ts_to_mp4
