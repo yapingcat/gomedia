@@ -25,7 +25,8 @@ jobs:
           go mod tidy
           cd example
           Get-ChildItem *.go | foreach {
-            go build -o ..\bin\$($_.Name).exe $($_.Name) 
+            $exeName = ($_.Name -replace '\.go$').exe
+            go build -o ..\bin\$exeName $($_.Name) 
           }
           dir ..\bin\
 
