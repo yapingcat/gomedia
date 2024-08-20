@@ -24,40 +24,9 @@ jobs:
         run: |
           go mod tidy
           cd example
-          go build -o ..\bin\edit_mp4_time.exe edit_mp4_time.go
-          go build -o ..\bin\example_convert_flv_to_fmp4.exe example_convert_flv_to_fmp4.go
-          go build -o ..\bin\example_convert_flv_to_hls_fmp4.exe example_convert_flv_to_hls_fmp4.go
-          go build -o ..\bin\example_convert_mp4_to_flv.exe example_convert_mp4_to_flv.go
-          go build -o ..\bin\convert_ts_to_mp4.exe convert_ts_to_mp4.go
-          go build -o ..\bin\example_covert_flv_to_mp4.exe example_covert_flv_to_mp4.go
-          go build -o ..\bin\example_demux_flv.exe example_demux_flv.go
-          go build -o ..\bin\example_demux_fmp4.exe example_demux_fmp4.go
-          go build -o ..\bin\example_demux_mp4.exe example_demux_mp4.go
-          go build -o ..\bin\example_demux_mp4_memeory_io.exe example_demux_mp4_memeory_io.go
-          go build -o ..\bin\example_demux_ps.exe example_demux_ps.go
-          go build -o ..\bin\example_demux_ts.exe example_demux_ts.go
-          go build -o ..\bin\example_demux_ts_over_rtp.exe example_demux_ts_over_rtp.go
-          go build -o ..\bin\example_hls_fmp4_h265.exe example_hls_fmp4_h265.go
-          go build -o ..\bin\example_http_flv_client.exe example_http_flv_client.go
-          go build -o ..\bin\example_http_flv_server.exe example_http_flv_server.go
-          go build -o ..\bin\example_mp4_to_rtmp_server.exe example_mp4_to_rtmp_server.go
-          go build -o ..\bin\example_mux_flv.exe example_mux_flv.go
-          go build -o ..\bin\example_mux_mp4_memory_io.exe example_mux_mp4_memory_io.go
-          go build -o ..\bin\example_mux_ps.exe example_mux_ps.go
-          go build -o ..\bin\example_mux_ps_h264.exe example_mux_ps_h264.go
-          go build -o ..\bin\example_mux_ts_aac.exe example_mux_ts_aac.go
-          go build -o ..\bin\example_mux_ts.exe example_mux_ts.go
-          go build -o ..\bin\example_mux_ts_mp3.exe example_mux_ts_mp3.go
-          go build -o ..\bin\example_play_mp4_with_hls.exe example_play_mp4_with_hls.go
-          go build -o ..\bin\example_read_mp3.exe example_read_mp3.go
-          go build -o ..\bin\example_rtmp_play_client.exe example_rtmp_play_client.go
-          go build -o ..\bin\example_rtmp_publish_client.exe example_rtmp_publish_client.go
-          go build -o ..\bin\example_rtmp_server.exe example_rtmp_server.go
-          go build -o ..\bin\example_rtsp_client_rtp_over_udp.exe example_rtsp_client_rtp_over_udp.go
-          go build -o ..\bin\example_rtsp_play_client_rtp_over_rtsp.exe example_rtsp_play_client_rtp_over_rtsp.go
-          go build -o ..\bin\example_rtsp_play_server.exe example_rtsp_play_server.go
-          go build -o ..\bin\example_rtsp_push_client_rtp_over_rtsp.exe example_rtsp_push_client_rtp_over_rtsp.go
-          go build -o ..\bin\example_rtsp_server.exe example_rtsp_server.go
+          Get-ChildItem *.go | foreach {
+            go build -o ..\bin\$($_.Name).exe $($_.Name) 
+          }
           dir ..\bin\
 
       - name: download test input file
