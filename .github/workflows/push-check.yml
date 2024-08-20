@@ -68,6 +68,7 @@ jobs:
           
       - name: test convert_ts_to_mp4
         run: |
+          Set-PSDebug -Trace 1
           .\bin\convert_ts_to_mp4.exe .\input\issue-30.ts .\output\issue-30.mp4
           .\bin\convert_ts_to_mp4.exe .\input\simple-ts.ts .\output\simple-ts.mp4
           dir output
