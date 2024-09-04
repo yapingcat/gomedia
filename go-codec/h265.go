@@ -96,9 +96,11 @@ func (vps *VPS) Decode(nalu []byte) {
     }
     vps.Vps_max_layer_id = bs.Uint8(6)
     vps.Vps_num_layer_sets_minus1 = bs.ReadUE()
-    vps.Layer_id_included_flag = make([][]uint8, vps.Vps_num_layer_sets_minus1)
+    //  0 <=  Vps_num_layer_sets_minus1  <= 1023
+    //  0 <=  Vps_max_layer_id <= 63
+    vps.Layer_id_included_flag = make([][]uint8, vps.Vps_num_layer_sets_minus1 + 1)
     for i := 1; i <= int(vps.Vps_num_layer_sets_minus1); i++ {
-        vps.Layer_id_included_flag[i] = make([]uint8, vps.Vps_max_layer_id)
+        vps.Layer_id_included_flag[i] = make([]uint8, vps.Vps_max_layer_id + 1)
         for j := 0; j <= int(vps.Vps_max_layer_id); j++ {
             vps.Layer_id_included_flag[i][j] = bs.Uint8(1)
         }
