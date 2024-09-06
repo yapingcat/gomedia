@@ -338,8 +338,11 @@ func (demuxer *TSDemuxer) splitH265Frame(stream *tsstream) bool {
     newAcessUnit := false
     needUpdate := false
     frameBeg := start
+    if frameBeg < 0 {
+        frameBeg = 0
+    }
     for start < datalen {
-        if len(data)-start <= int(sct)+2 {
+        if start < 0 || len(data)-start <= int(sct)+2 {
             break
         }
         naluType := codec.H265NaluTypeWithoutStartCode(data[start+int(sct):])
