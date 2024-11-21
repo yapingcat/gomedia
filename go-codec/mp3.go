@@ -269,7 +269,7 @@ func DecodeMp3Head(data []byte) (*MP3FrameHead, error) {
 }
 
 func (mp3 *MP3FrameHead) GetChannelCount() int {
-    if mp3.Mode == 0x11 {
+    if mp3.Mode == 0b11 {
         return 1
     } else {
         return 2
