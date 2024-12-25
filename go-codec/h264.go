@@ -93,14 +93,14 @@ func (sps *SPS) Decode(bs *BitStream) {
 		sps.Profile_idc == 134 || sps.Profile_idc == 135 {
 		sps.Chroma_format_idc = bs.ReadUE()
 		if sps.Chroma_format_idc == 3 {
-			sps.Separate_colour_plane_flag = bs.Uint8(1) //separate_colour_plane_flag
+			sps.Separate_colour_plane_flag = bs.Uint8(1) // separate_colour_plane_flag
 		}
-		sps.Bit_depth_luma_minus8 = bs.ReadUE()   //bit_depth_luma_minus8
-		sps.Bit_depth_chroma_minus8 = bs.ReadUE() //bit_depth_chroma_minus8
-		bs.SkipBits(1)                            //qpprime_y_zero_transform_bypass_flag
+		sps.Bit_depth_luma_minus8 = bs.ReadUE()   // bit_depth_luma_minus8
+		sps.Bit_depth_chroma_minus8 = bs.ReadUE() // bit_depth_chroma_minus8
+		bs.SkipBits(1)                            // qpprime_y_zero_transform_bypass_flag
 		seq_scaling_matrix_present_flag := bs.GetBit()
 		if seq_scaling_matrix_present_flag == 1 {
-			//seq_scaling_list_present_flag[i]
+			// seq_scaling_list_present_flag[i]
 			if sps.Chroma_format_idc == 3 {
 				bs.SkipBits(12)
 			} else {
@@ -117,6 +117,7 @@ func (sps *SPS) Decode(bs *BitStream) {
 		sps.Offset_for_non_ref_pic = bs.ReadSE()         // offset_for_non_ref_pic
 		sps.Offset_for_top_to_bottom_field = bs.ReadSE() // offset_for_top_to_bottom_field
 		num_ref_frames_in_pic_order_cnt_cycle := bs.ReadUE()
+		sps.Offset_for_ref_frame = make([]int64, num_ref_frames_in_pic_order_cnt_cycle)
 		for i := 0; i < int(num_ref_frames_in_pic_order_cnt_cycle); i++ {
 			sps.Offset_for_ref_frame[i] = bs.ReadSE() // offset_for_ref_frame
 		}
@@ -132,10 +133,10 @@ func (sps *SPS) Decode(bs *BitStream) {
 	sps.Direct_8x8_inference_flag = bs.GetBit()
 	sps.Frame_cropping_flag = bs.GetBit()
 	if sps.Frame_cropping_flag == 1 {
-		sps.Frame_crop_left_offset = bs.ReadUE()   //frame_crop_left_offset
-		sps.Frame_crop_right_offset = bs.ReadUE()  //frame_crop_right_offset
-		sps.Frame_crop_top_offset = bs.ReadUE()    //frame_crop_top_offset
-		sps.Frame_crop_bottom_offset = bs.ReadUE() //frame_crop_bottom_offset
+		sps.Frame_crop_left_offset = bs.ReadUE()   // frame_crop_left_offset
+		sps.Frame_crop_right_offset = bs.ReadUE()  // frame_crop_right_offset
+		sps.Frame_crop_top_offset = bs.ReadUE()    // frame_crop_top_offset
+		sps.Frame_crop_bottom_offset = bs.ReadUE() // frame_crop_bottom_offset
 	}
 	sps.Vui_parameters_present_flag = bs.GetBit()
 
@@ -541,10 +542,11 @@ func (h264Vui *H264VuiParameters) Decode(bs *BitStream) {
 		h264Vui.LowDelayHrdFlag = bs.Uint8(1)
 	}
 
+	h264Vui.PicStructPresentFlag = bs.GetBit()
+	h264Vui.BitstreamRestrictionFlag = bs.GetBit()
+
 	/*
 		TODO - These fields were causing problems because we'd run out of bits when parsing. Maybe they're optional in certain versions/levels/configurations?
-			h264Vui.PicStructPresentFlag = bs.GetBit()
-			h264Vui.BitstreamRestrictionFlag = bs.GetBit()
 
 			if h264Vui.BitstreamRestrictionFlag == 1 {
 				h264Vui.MotionVectorsOverPicBoundaries = bs.GetBit()
