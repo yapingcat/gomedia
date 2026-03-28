@@ -320,6 +320,7 @@ func (track *mp4track) writeH264(h264 []byte, pts, dts uint64) (err error) {
                     track.height = height
                 }
             }
+            return true // param sets stored in avcC only, not in sample data
         case codec.H264_NAL_PPS:
             ppsid := codec.GetPPSIdWithStartCode(nalu)
             for _, pps := range h264extra.ppss {
@@ -330,6 +331,7 @@ func (track *mp4track) writeH264(h264 []byte, pts, dts uint64) (err error) {
             tmp := make([]byte, len(nalu))
             copy(tmp, nalu)
             h264extra.ppss = append(h264extra.ppss, tmp)
+            return true // param sets stored in avcC only, not in sample data
         }
         //aud/sps/pps/sei 为帧间隔
         //通过first_slice_in_mb来判断，改nalu是否为一帧的开头
@@ -389,10 +391,13 @@ func (track *mp4track) writeH265(h265 []byte, pts, dts uint64) (err error) {
                     track.height = height
                 }
             }
+            return true // param sets stored in hvcC only, not in sample data
         case codec.H265_NAL_PPS:
             h265extra.hvccExtra.UpdatePPS(nalu)
+            return true
         case codec.H265_NAL_VPS:
             h265extra.hvccExtra.UpdateVPS(nalu)
+            return true
         }
 
         if track.lastSample.hasVcl && isH265NewAccessUnit(nalu) {

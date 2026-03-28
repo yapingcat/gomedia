@@ -48,11 +48,11 @@ type TrackHeaderBox struct {
 }
 
 func NewTrackHeaderBox() *TrackHeaderBox {
-    _, offset := time.Now().Zone()
+    sec := time.Now().Unix()
     return &TrackHeaderBox{
         Box:               NewFullBox([4]byte{'t', 'k', 'h', 'd'}, 0),
-        Creation_time:     uint64(time.Now().Unix() + int64(offset) + 0x7C25B080),
-        Modification_time: uint64(time.Now().Unix() + int64(offset) + 0x7C25B080),
+        Creation_time:     uint64(sec + 0x7C25B080),
+        Modification_time: uint64(sec + 0x7C25B080),
         Layer:             0,
         Alternate_group:   0,
         Matrix:            [9]uint32{0x00010000, 0, 0, 0, 0x00010000, 0, 0, 0, 0x40000000},
