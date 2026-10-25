@@ -34,11 +34,17 @@ func (s *SaioBox) Decode(r io.Reader, size uint32) error {
 	n += 4
 	if s.Box.Version == 0 {
 		for i := uint32(0); i < entryCount; i++ {
+			if n+4 > len(buf) {
+				return errors.New("saio box is too short")
+			}
 			s.Offset = append(s.Offset, int64(binary.BigEndian.Uint32(buf[n:])))
 			n += 4
 		}
 	} else {
 		for i := uint32(0); i < entryCount; i++ {
+			if n+8 > len(buf) {
+				return errors.New("saio box is too short")
+			}
 			s.Offset = append(s.Offset, int64(binary.BigEndian.Uint64(buf[n:])))
 			n += 8
 		}

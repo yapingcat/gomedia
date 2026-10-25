@@ -1,6 +1,7 @@
 package mp4
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 )
 
@@ -28,6 +29,9 @@ func (senc *SencBox) Decode(r io.Reader, size uint32, perSampleIVSize uint8) (of
         return 0, err
     }
 	n := 0
+	if n+4 > len(buf) {
+		return 0, errors.New("senc box is too short")
+	}
 	senc.SampleCount = binary.BigEndian.Uint32(buf[n:])
 	n += 4
 	sencFlags := uint32(senc.Box.Flags[0])<<16 | uint32(senc.Box.Flags[1])<<8 | uint32(senc.Box.Flags[2])
@@ -36,6 +40,9 @@ func (senc *SencBox) Decode(r io.Reader, size uint32, perSampleIVSize uint8) (of
 	senc.EntryList = new(movsenc)
 	senc.EntryList.entrys = make([]sencEntry, senc.SampleCount)
 	for i := 0; i < int(senc.SampleCount); i++ {
+		if n+int(senc.PerSampleIVSize) > len(buf) {
+			return 0, errors.New("senc box is too short")
+		}
 		senc.EntryList.entrys[i].iv = buf[n:n+int(senc.PerSampleIVSize)]
 		n += int(senc.PerSampleIVSize)
 
@@ -43,11 +50,17 @@ func (senc *SencBox) Decode(r io.Reader, size uint32, perSampleIVSize uint8) (of
         	continue
 		}
 
+		if n+2 > len(buf) {
+			return 0, errors.New("senc box is too short")
+		}
 		subsampleCount := binary.BigEndian.Uint16(buf[n:])
 		n += 2
 
 		senc.EntryList.entrys[i].subSamples = make([]subSampleEntry, subsampleCount)
 		for j := uint16(0); j < subsampleCount; j++ {
+			if n+6 > len(buf) {
+				return 0, errors.New("senc box is too short")
+			}
 			senc.EntryList.entrys[i].subSamples[j].bytesOfClearData = binary.BigEndian.Uint16(buf[n:])
 			n += 2
 			senc.EntryList.entrys[i].subSamples[j].bytesOfProtectedData = binary.BigEndian.Uint32(buf[n:])

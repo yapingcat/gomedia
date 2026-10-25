@@ -84,17 +84,26 @@ func (trun *TrackRunBox) Decode(r io.Reader, size uint32, dataOffset uint32) (of
         return 0, err
     }
     n := 0
+    if n+4 > len(buf) {
+        return 0, errors.New("trun box is too short")
+    }
     trun.SampleCount = binary.BigEndian.Uint32(buf[n:])
     n += 4
     trunFlags := uint32(trun.Box.Flags[0])<<16 | uint32(trun.Box.Flags[1])<<8 | uint32(trun.Box.Flags[2])
 
     if trunFlags&uint32(TR_FLAG_DATA_OFFSET) > 0 {
+        if n+4 > len(buf) {
+            return 0, errors.New("trun box is too short")
+        }
         trun.Dataoffset = int32(binary.BigEndian.Uint32(buf[n:]))
         n += 4
     } else {
         trun.Dataoffset = int32(dataOffset)
     }
     if trunFlags&uint32(TR_FLAG_DATA_FIRST_SAMPLE_FLAGS) > 0 {
+        if n+4 > len(buf) {
+            return 0, errors.New("trun box is too short")
+        }
         trun.FirstSampleFlags = binary.BigEndian.Uint32(buf[n:])
         n += 4
     }
@@ -102,18 +111,30 @@ func (trun *TrackRunBox) Decode(r io.Reader, size uint32, dataOffset uint32) (of
     trun.EntryList.entrys = make([]trunEntry, trun.SampleCount)
     for i := 0; i < int(trun.SampleCount); i++ {
         if trunFlags&uint32(TR_FLAG_DATA_SAMPLE_DURATION) > 0 {
+            if n+4 > len(buf) {
+                return 0, errors.New("trun box is too short")
+            }
             trun.EntryList.entrys[i].sampleDuration = binary.BigEndian.Uint32(buf[n:])
             n += 4
         }
         if trunFlags&uint32(TR_FLAG_DATA_SAMPLE_SIZE) > 0 {
+            if n+4 > len(buf) {
+                return 0, errors.New("trun box is too short")
+            }
             trun.EntryList.entrys[i].sampleSize = binary.BigEndian.Uint32(buf[n:])
             n += 4
         }
         if trunFlags&uint32(TR_FLAG_DATA_SAMPLE_FLAGS) > 0 {
+            if n+4 > len(buf) {
+                return 0, errors.New("trun box is too short")
+            }
             trun.EntryList.entrys[i].sampleFlags = binary.BigEndian.Uint32(buf[n:])
             n += 4
         }
         if trunFlags&uint32(TR_FLAG_DATA_SAMPLE_COMPOSITION_TIME) > 0 {
+            if n+4 > len(buf) {
+                return 0, errors.New("trun box is too short")
+            }
             trun.EntryList.entrys[i].sampleCompositionTimeOffset = binary.BigEndian.Uint32(buf[n:])
             n += 4
         }

@@ -83,7 +83,8 @@ func (psdemuxer *PSDemuxer) Input(data []byte) error {
             }
         case 0x000001BB: //system header
             if psdemuxer.pkg.Header == nil {
-                panic("psdemuxer.pkg.Header must not be nil")
+                ret = errParser
+                break
             }
             if psdemuxer.pkg.System == nil {
                 psdemuxer.pkg.System = new(System_header)

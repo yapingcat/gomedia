@@ -152,6 +152,10 @@ func (unpacker *H265UnPacker) UnPack(pkt []byte) error {
         return err
     }
 
+    if len(pkg.Payload) == 0 {
+        return nil
+    }
+
     if unpacker.onRtp != nil {
         unpacker.onRtp(pkg)
     }
